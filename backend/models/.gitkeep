@@ -1,0 +1,5 @@
+# Placeholder pentru modelele ML
+# Aici vor fi salvate:
+# - mobilenet_timisoara.pth (PyTorch)
+# - mobilenet_timisoara.tflite (TensorFlow Lite)
+# - class_labels.json

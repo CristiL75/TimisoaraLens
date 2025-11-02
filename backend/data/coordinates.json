@@ -1,0 +1,112 @@
+[
+  {
+    "id": 1,
+    "name": "Catedrala Mitropolitană",
+    "name_en": "Metropolitan Cathedral",
+    "latitude": 45.7489,
+    "longitude": 21.2267,
+    "category": "religious",
+    "radius_meters": 50,
+    "description": "Catedrala Mitropolitană Ortodoxă din Timișoara este cel mai înalt lăcaș de cult din România și simbolul orașului.",
+    "year_built": 1946,
+    "architect": "Ioan Trajanescu",
+    "style": "Neo-moldovenesc",
+    "image_filename": "catedrala_metropolitana.jpg",
+    "audio_guide": null,
+    "opening_hours": "08:00-20:00",
+    "entrance_fee": "gratuit",
+    "trivia": [
+      "Este înaltă de 90.5 metri",
+      "Are 11 turnuri",
+      "Construcția a durat 70 de ani"
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Piața Unirii",
+    "name_en": "Union Square",
+    "latitude": 45.7575,
+    "longitude": 21.2300,
+    "category": "square",
+    "radius_meters": 100,
+    "description": "Inima istorică a Timișoarei, înconjurată de clădiri baroce colorate și sediul primăriei.",
+    "year_built": 1754,
+    "architect": null,
+    "style": "Baroc",
+    "image_filename": "piata_unirii.jpg",
+    "audio_guide": null,
+    "opening_hours": "24/7",
+    "entrance_fee": "gratuit",
+    "trivia": [
+      "Cea mai mare piață barocă din România",
+      "Prima piață cu iluminat stradal cu gaz din Europa (1857)",
+      "Centrul Revoluției din 1989"
+    ]
+  },
+  {
+    "id": 3,
+    "name": "Bastionul Theresia",
+    "name_en": "Theresia Bastion",
+    "latitude": 45.7503,
+    "longitude": 21.2211,
+    "category": "monument",
+    "radius_meters": 40,
+    "description": "Fortificație austriacă din secolul al XVIII-lea, parte a sistemului defensiv al cetății Timișoara.",
+    "year_built": 1732,
+    "architect": null,
+    "style": "Arhitectură militară",
+    "image_filename": "bastionul_theresia.jpg",
+    "audio_guide": null,
+    "opening_hours": "10:00-18:00",
+    "entrance_fee": "10 RON",
+    "trivia": [
+      "Una dintre ultimele fortificații vauban păstrate",
+      "Numită după împărăteasa Maria Theresia",
+      "Adăpostește Muzeul de Istorie"
+    ]
+  },
+  {
+    "id": 4,
+    "name": "Opera Națională Română",
+    "name_en": "Romanian National Opera",
+    "latitude": 45.7566,
+    "longitude": 21.2277,
+    "category": "cultural",
+    "radius_meters": 60,
+    "description": "Clădire magnifică în stil neoromantic, sediul Operei și Baletului Național din Timișoara.",
+    "year_built": 1875,
+    "architect": "Fellner & Helmer",
+    "style": "Neoromantic",
+    "image_filename": "opera_nationala.jpg",
+    "audio_guide": null,
+    "opening_hours": "Program spectacole",
+    "entrance_fee": "variabil",
+    "trivia": [
+      "Arhitecții au construit peste 40 de teatre în Europa",
+      "A fost renovată complet în 2006",
+      "Acustică excepțională"
+    ]
+  },
+  {
+    "id": 5,
+    "name": "Castelul Huniade",
+    "name_en": "Huniade Castle",
+    "latitude": 45.7524,
+    "longitude": 21.2220,
+    "category": "monument",
+    "radius_meters": 50,
+    "description": "Cea mai veche clădire laică din Timișoara, construită în stil renascentist.",
+    "year_built": 1443,
+    "architect": null,
+    "style": "Renascentist",
+    "image_filename": "castelul_huniade.jpg",
+    "audio_guide": null,
+    "opening_hours": "10:00-18:00",
+    "entrance_fee": "15 RON",
+    "trivia": [
+      "Construit de Ioan de Hunedoara",
+      "Găzduiește Muzeul Banatului",
+      "Are o curte interioară gotică"
+    ]
+  }
+]

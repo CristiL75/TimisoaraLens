@@ -1,0 +1,33 @@
+{
+  "metadata_version": "1.0",
+  "city": "Timișoara",
+  "country": "România",
+  "last_updated": "2025-11-01",
+  "total_locations": 5,
+  "categories": {
+    "religious": {
+      "count": 1,
+      "description": "Lăcașuri de cult și edificii religioase"
+    },
+    "square": {
+      "count": 1,
+      "description": "Piețe publice și spații urbane istorice"
+    },
+    "monument": {
+      "count": 2,
+      "description": "Monumente istorice și fortificații"
+    },
+    "cultural": {
+      "count": 1,
+      "description": "Instituții culturale: muzee, teatre, opere"
+    }
+  },
+  "data_sources": [
+    "Primăria Municipiului Timișoara",
+    "Muzeul Banatului",
+    "Wikipedia",
+    "Ghiduri turistice locale"
+  ],
+  "coordinates_system": "WGS84",
+  "radius_explanation": "Raza în metri în care GPS-ul detectează prezența la obiectiv"
+}
