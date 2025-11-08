@@ -1,7 +1,7 @@
 /**
  * Map Screen - Display map with user location and landmarks
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -43,8 +43,19 @@ export default function MapScreen({ navigation }) {
       // Load cafes from backend
       const response = await fetch('http://192.168.100.45:8000/api/gps/cafes');
       const data = await response.json();
-      setCafes(data.cafes || []);
-      console.log(`✅ Loaded ${data.cafes?.length || 0} cafes`);
+      
+      // Filter and limit to top 30 cafes only
+      const validCafes = (data.cafes || [])
+        .filter(cafe => 
+          cafe.latitude && 
+          cafe.longitude && 
+          cafe.name && 
+          cafe.name.toLowerCase() !== 'unknown'
+        )
+        .slice(0, 30); // Show only 30 cafes max
+      
+      setCafes(validCafes);
+      console.log(`✅ Loaded ${validCafes.length} cafes`);
     } catch (error) {
       console.error('Error loading cafes:', error);
     }
@@ -194,7 +205,7 @@ export default function MapScreen({ navigation }) {
         style={styles.map}
         provider={PROVIDER_GOOGLE}
         initialRegion={location || TIMISOARA_CENTER}
-        showsUserLocation={false} // Always use custom draggable marker
+        showsUserLocation={false}
         showsMyLocationButton={false}
         showsCompass={true}
         showsScale={true}
@@ -224,36 +235,30 @@ export default function MapScreen({ navigation }) {
           </Marker>
         )}
 
-        {/* Cafe Markers */}
-        {cafes
-          .filter(cafe => 
-            cafe.latitude && 
-            cafe.longitude && 
-            cafe.name && 
-            cafe.name.toLowerCase() !== 'unknown'
-          )
-          .map((cafe, index) => (
-            <Marker
-              key={`cafe-${index}`}
-              coordinate={{
-                latitude: cafe.latitude,
-                longitude: cafe.longitude,
-              }}
-              title={cafe.name}
-              description={cafe.address?.street || ''}
-            >
-              <View style={styles.cafeMarker}>
-                <View style={styles.cafePin}>
-                  <Text style={styles.cafeIcon}>☕</Text>
-                </View>
-                <View style={styles.cafeLabel}>
-                  <Text style={styles.cafeName} numberOfLines={1}>
-                    {cafe.name}
-                  </Text>
-                </View>
+        {/* Cafe Markers - Limited to 30 */}
+        {cafes.map((cafe, index) => (
+          <Marker
+            key={`cafe-${cafe.id || index}`}
+            coordinate={{
+              latitude: cafe.latitude,
+              longitude: cafe.longitude,
+            }}
+            title={cafe.name}
+            description={cafe.address?.street || ''}
+            tracksViewChanges={false}
+          >
+            <View style={styles.cafeMarker}>
+              <View style={styles.cafePin}>
+                <Text style={styles.cafeIcon}>☕</Text>
               </View>
-            </Marker>
-          ))}
+              <View style={styles.cafeLabel}>
+                <Text style={styles.cafeName} numberOfLines={1}>
+                  {cafe.name}
+                </Text>
+              </View>
+            </View>
+          </Marker>
+        ))}
       </MapView>
 
       {errorMsg && (
