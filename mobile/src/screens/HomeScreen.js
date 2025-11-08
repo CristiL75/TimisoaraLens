@@ -10,9 +10,10 @@ import {
   Paragraph,
   Appbar,
 } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 
-export default function HomeScreen() {
+export default function HomeScreen({ navigation }) {
   const { user, logout } = useAuth();
 
   return (
@@ -25,33 +26,38 @@ export default function HomeScreen() {
       <ScrollView style={styles.content}>
         <Card style={styles.card}>
           <Card.Content>
-            <Title>👋 Bine ai venit, {user?.username}!</Title>
+            <View style={styles.titleContainer}>
+              <MaterialCommunityIcons name="hand-wave" size={28} color="#6200ee" />
+              <Title style={styles.titleText}>Bine ai venit, {user?.username}!</Title>
+            </View>
             <Paragraph>
-              Ești autentificat cu succes în CityLens Timișoara
+              Explorează Timișoara cu CityLens
             </Paragraph>
           </Card.Content>
         </Card>
 
+        {/* Map Button */}
         <Card style={styles.card}>
           <Card.Content>
-            <Title>📱 Status Aplicație</Title>
-            <Paragraph>✅ Backend: Conectat</Paragraph>
-            <Paragraph>✅ Autentificare: Activă</Paragraph>
-            <Paragraph>📍 GPS Module: În dezvoltare</Paragraph>
-            <Paragraph>🤖 AI/RAG: În dezvoltare</Paragraph>
-          </Card.Content>
-        </Card>
-
-        <Card style={styles.card}>
-          <Card.Content>
-            <Title>🎯 Următorii Pași</Title>
-            <Paragraph>
-              • Adaugă modul GPS pentru detectare locații{'\n'}
-              • Implementează RAG cu ChromaDB{'\n'}
-              • Creează generator quiz cu AI{'\n'}
-              • Adaugă hărți offline Mapbox
+            <View style={styles.titleContainer}>
+              <MaterialCommunityIcons name="map-search" size={28} color="#2196F3" />
+              <Title style={styles.titleText}>Explorează Timișoara</Title>
+            </View>
+            <Paragraph style={styles.cardDescription}>
+              Vezi harta interactivă cu obiectivele turistice din Timișoara.
+              Locația ta va fi afișată automat pe hartă.
             </Paragraph>
           </Card.Content>
+          <Card.Actions>
+            <Button
+              mode="contained"
+              icon="map-marker"
+              onPress={() => navigation.navigate('Map')}
+              style={styles.mapButton}
+            >
+              Deschide Harta
+            </Button>
+          </Card.Actions>
         </Card>
 
         <Button
@@ -79,6 +85,21 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: 15,
     elevation: 2,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  titleText: {
+    marginLeft: 8,
+    marginBottom: 0,
+  },
+  cardDescription: {
+    marginBottom: 10,
+  },
+  mapButton: {
+    marginLeft: 'auto',
   },
   logoutButton: {
     marginTop: 10,

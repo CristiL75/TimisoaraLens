@@ -1,12 +1,15 @@
 """
 Authentication API endpoints
-Register, Login, User management
+Register, Login, User management, Google OAuth
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, validator
 from typing import Optional
 from datetime import datetime
+from google.oauth2 import id_token
+from google.auth.transport import requests
+import os
 
 from database_mongo import (
     get_users_collection,
@@ -239,3 +242,270 @@ async def get_users_count():
     users_collection = get_users_collection()
     count = await users_collection.count_documents({})
     return {"total_users": count}
+
+# Google OAuth Models
+class GoogleSignIn(BaseModel):
+    """Google Sign-In token model"""
+    token: str  # Google ID token from client
+
+class GoogleAuthCode(BaseModel):
+    """Google Authorization Code model"""
+    code: str  # Authorization code from Google
+    redirect_uri: str  # Same redirect URI used in the request
+
+@router.post("/google/exchange", response_model=Token)
+async def google_exchange_code(auth_data: GoogleAuthCode):
+    """
+    Exchange Google authorization code for tokens
+    Professional OAuth 2.0 Authorization Code Flow
+    """
+    import httpx
+    
+    try:
+        # Get Google credentials from environment
+        GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+        GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+        
+        if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Google OAuth not configured on server"
+            )
+        
+        # Exchange authorization code for tokens
+        token_url = "https://oauth2.googleapis.com/token"
+        token_data = {
+            "code": auth_data.code,
+            "client_id": GOOGLE_CLIENT_ID,
+            "client_secret": GOOGLE_CLIENT_SECRET,
+            "redirect_uri": auth_data.redirect_uri,
+            "grant_type": "authorization_code"
+        }
+        
+        async with httpx.AsyncClient() as client:
+            token_response = await client.post(token_url, data=token_data)
+            
+            if token_response.status_code != 200:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Failed to exchange code: {token_response.text}"
+                )
+            
+            tokens = token_response.json()
+            id_token_str = tokens.get("id_token")
+            
+            if not id_token_str:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="No ID token received from Google"
+                )
+        
+        # Verify and decode the ID token
+        idinfo = id_token.verify_oauth2_token(
+            id_token_str, 
+            requests.Request(), 
+            GOOGLE_CLIENT_ID
+        )
+        
+        # Extract user info from Google token
+        google_user_id = idinfo['sub']
+        email = idinfo.get('email')
+        full_name = idinfo.get('name')
+        picture = idinfo.get('picture')
+        
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email not provided by Google"
+            )
+        
+        users_collection = get_users_collection()
+        
+        # Check if user exists by email
+        existing_user = await users_collection.find_one({"email": email})
+        
+        if existing_user:
+            # User exists - update last login
+            await users_collection.update_one(
+                {"_id": existing_user["_id"]},
+                {"$set": {"last_login": datetime.utcnow()}}
+            )
+            
+            # Create JWT token
+            access_token = create_access_token(
+                data={"sub": existing_user["username"], "email": email}
+            )
+            
+            return Token(access_token=access_token, token_type="bearer")
+        
+        else:
+            # New user - create account
+            # Generate username from email
+            username = email.split('@')[0]
+            
+            # Check if username exists, append number if needed
+            username_exists = await users_collection.find_one({"username": username})
+            if username_exists:
+                counter = 1
+                while await users_collection.find_one({"username": f"{username}{counter}"}):
+                    counter += 1
+                username = f"{username}{counter}"
+            
+            # Create new user document
+            user_doc = {
+                "email": email,
+                "username": username,
+                "hashed_password": "",  # No password for Google users
+                "full_name": full_name,
+                "is_active": True,
+                "is_admin": False,
+                "created_at": datetime.utcnow(),
+                "last_login": datetime.utcnow(),
+                "google_id": google_user_id,
+                "picture": picture,
+                "auth_provider": "google"
+            }
+            
+            # Insert into MongoDB
+            result = await users_collection.insert_one(user_doc)
+            
+            # Create JWT token
+            access_token = create_access_token(
+                data={"sub": username, "email": email}
+            )
+            
+            return Token(access_token=access_token, token_type="bearer")
+    
+    except ValueError as e:
+        # Invalid token
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid Google token: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Google authentication failed: {str(e)}"
+        )
+
+@router.get("/google/callback")
+async def google_callback(code: str = None, error: str = None):
+    """
+    Google OAuth callback endpoint
+    This receives the authorization code from Google and redirects back to the app
+    """
+    from fastapi.responses import RedirectResponse
+    
+    if error:
+        # Redirect to app with error
+        return RedirectResponse(url=f"timisoaralens://auth?error={error}")
+    
+    if code:
+        # Redirect to app with authorization code
+        return RedirectResponse(url=f"timisoaralens://auth?code={code}")
+    
+    return {"error": "No code provided"}
+
+@router.post("/google", response_model=Token)
+async def google_sign_in(google_data: GoogleSignIn):
+    """
+    Google Sign-In authentication
+    Validates Google ID token and creates/logs in user
+    """
+    try:
+        # Get Google Client ID from environment
+        GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+        
+        if not GOOGLE_CLIENT_ID:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Google OAuth not configured on server"
+            )
+        
+        # Verify Google token
+        idinfo = id_token.verify_oauth2_token(
+            google_data.token, 
+            requests.Request(), 
+            GOOGLE_CLIENT_ID
+        )
+        
+        # Extract user info from Google token
+        google_user_id = idinfo['sub']
+        email = idinfo.get('email')
+        full_name = idinfo.get('name')
+        picture = idinfo.get('picture')
+        
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email not provided by Google"
+            )
+        
+        users_collection = get_users_collection()
+        
+        # Check if user exists by email
+        existing_user = await users_collection.find_one({"email": email})
+        
+        if existing_user:
+            # User exists - update last login
+            await users_collection.update_one(
+                {"_id": existing_user["_id"]},
+                {"$set": {"last_login": datetime.utcnow()}}
+            )
+            
+            # Create JWT token
+            access_token = create_access_token(
+                data={"sub": existing_user["username"], "email": email}
+            )
+            
+            return Token(access_token=access_token, token_type="bearer")
+        
+        else:
+            # New user - create account
+            # Generate username from email
+            username = email.split('@')[0]
+            
+            # Check if username exists, append number if needed
+            username_exists = await users_collection.find_one({"username": username})
+            if username_exists:
+                counter = 1
+                while await users_collection.find_one({"username": f"{username}{counter}"}):
+                    counter += 1
+                username = f"{username}{counter}"
+            
+            # Create new user document
+            user_doc = {
+                "email": email,
+                "username": username,
+                "hashed_password": "",  # No password for Google users
+                "full_name": full_name,
+                "is_active": True,
+                "is_admin": False,
+                "created_at": datetime.utcnow(),
+                "last_login": datetime.utcnow(),
+                "google_id": google_user_id,
+                "picture": picture,
+                "auth_provider": "google"
+            }
+            
+            # Insert into MongoDB
+            result = await users_collection.insert_one(user_doc)
+            
+            # Create JWT token
+            access_token = create_access_token(
+                data={"sub": username, "email": email}
+            )
+            
+            return Token(access_token=access_token, token_type="bearer")
+    
+    except ValueError as e:
+        # Invalid token
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Google token"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Google authentication failed: {str(e)}"
+        )

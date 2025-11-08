@@ -1,0 +1,1935 @@
+[
+  {
+    "id": "osm_node_1239892209",
+    "name": "Barista",
+    "latitude": 45.7491878,
+    "longitude": 21.2399927,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1239892209
+  },
+  {
+    "id": "osm_node_1246736743",
+    "name": "Beunch Cafe",
+    "latitude": 45.7574521,
+    "longitude": 21.2287482,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Fr 08:00-24:00, Sa 09:00-24:00, Su 10:00-24:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1246736743
+  },
+  {
+    "id": "osm_node_2218074107",
+    "name": "Unknown",
+    "latitude": 45.7456949,
+    "longitude": 21.2377766,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2218074107
+  },
+  {
+    "id": "osm_node_3723161655",
+    "name": "Coffeerize Botanic",
+    "latitude": 45.7584237,
+    "longitude": 21.2262401,
+    "amenity": "cafe",
+    "cuisine": "breakfast",
+    "address": {
+      "street": "Strada Mărășești",
+      "housenumber": "14",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Fr 08:00-20:00; Sa, Su 09:00-20:00",
+    "outdoor_seating": "yes",
+    "wifi": "wlan",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 3723161655
+  },
+  {
+    "id": "osm_node_3780602957",
+    "name": "COPA Caffe",
+    "latitude": 45.746717,
+    "longitude": 21.2159749,
+    "amenity": "cafe",
+    "address": {
+      "street": "Piața Alexandru Mocioni",
+      "housenumber": "8",
+      "postcode": "300173",
+      "city": "Timișoara"
+    },
+    "contact": {
+      "website": "https://www.facebook.com/CopaCaffe"
+    },
+    "opening_hours": "Mo-Sa 08:00-23:00; Su 10:00-23:00",
+    "wifi": "wlan",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 3780602957
+  },
+  {
+    "id": "osm_node_4338345478",
+    "name": "Starbucks",
+    "latitude": 45.7241333,
+    "longitude": 21.2002311,
+    "amenity": "cafe",
+    "cuisine": "coffee_shop",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4338345478
+  },
+  {
+    "id": "osm_node_4426821463",
+    "name": "Musetti",
+    "latitude": 45.7566075,
+    "longitude": 21.2289196,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4426821463
+  },
+  {
+    "id": "osm_node_4496768109",
+    "name": "Massimo",
+    "latitude": 45.75229,
+    "longitude": 21.224633,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Su 10:00-23:00",
+    "outdoor_seating": "yes",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4496768109
+  },
+  {
+    "id": "osm_node_4496784193",
+    "name": "Cafă To Go",
+    "latitude": 45.7565124,
+    "longitude": 21.2223641,
+    "amenity": "cafe",
+    "cuisine": "sandwich",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4496784193
+  },
+  {
+    "id": "osm_node_4545338361",
+    "name": "Tucano Coffee Mexico",
+    "latitude": 45.7567044,
+    "longitude": 21.2271802,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Fr 08:00-22:00; Sa,Su 10:00-22:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4545338361
+  },
+  {
+    "id": "osm_node_4551274481",
+    "name": "BiblioTech Cafe",
+    "latitude": 45.7472858,
+    "longitude": 21.2288779,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4551274481
+  },
+  {
+    "id": "osm_node_4562132003",
+    "name": "Starbucks",
+    "latitude": 45.7541707,
+    "longitude": 21.225467,
+    "amenity": "cafe",
+    "cuisine": "coffee_shop",
+    "address": {
+      "street": "Strada Mărășești",
+      "housenumber": "1-3",
+      "postcode": "300086",
+      "city": "Timișoara"
+    },
+    "contact": {
+      "website": "https://www.starbucks.co.uk/store-locator/49063-266764/timisoara-piata-victoriei"
+    },
+    "opening_hours": "Mo-Su 07:30-22:30",
+    "wheelchair": "yes",
+    "wifi": "yes",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4562132003
+  },
+  {
+    "id": "osm_node_4637341969",
+    "name": "Unknown",
+    "latitude": 45.7568858,
+    "longitude": 21.2383892,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4637341969
+  },
+  {
+    "id": "osm_node_4953009586",
+    "name": "Opera",
+    "latitude": 45.7520162,
+    "longitude": 21.2244805,
+    "amenity": "cafe",
+    "cuisine": "coffee_shop",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "wheelchair": "limited",
+    "outdoor_seating": "yes",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4953009586
+  },
+  {
+    "id": "osm_node_4953009618",
+    "name": "Garage Cafe",
+    "latitude": 45.757358,
+    "longitude": 21.2301961,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-We 07:30-20:00, Tu-Fr 07:30-24:00, Sa 09:00-24:00, Su 09:00-20:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4953009618
+  },
+  {
+    "id": "osm_node_5057750527",
+    "name": "Naru",
+    "latitude": 45.7589933,
+    "longitude": 21.2297598,
+    "amenity": "cafe",
+    "address": {
+      "street": "Strada Matei Corvin",
+      "housenumber": "3",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5057750527
+  },
+  {
+    "id": "osm_node_5073223163",
+    "name": "La Pisici",
+    "latitude": 45.7463643,
+    "longitude": 21.2366522,
+    "amenity": "cafe",
+    "address": {
+      "street": "Strada Mihail Jora",
+      "housenumber": "3",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5073223163
+  },
+  {
+    "id": "osm_node_5078811035",
+    "name": "Mokum",
+    "latitude": 45.7567194,
+    "longitude": 21.2295918,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Fr 08:00-17:00; Sa 10:00-17:00; Su 10:00-16:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5078811035
+  },
+  {
+    "id": "osm_node_5140855131",
+    "name": "Toffee Cafe",
+    "latitude": 45.754386,
+    "longitude": 21.246011,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5140855131
+  },
+  {
+    "id": "osm_node_5184053741",
+    "name": "Kafka",
+    "latitude": 45.7488803,
+    "longitude": 21.2173675,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {
+      "website": "https://www.facebook.com/kafkatimisoara/"
+    },
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5184053741
+  },
+  {
+    "id": "osm_node_5184053746",
+    "name": "Carol Cafe",
+    "latitude": 45.7456254,
+    "longitude": 21.2138217,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Th 07:00-24:00, Fr,Sa 08:00-04:00, Su 09:00-22:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5184053746
+  },
+  {
+    "id": "osm_node_5184093588",
+    "name": "Segafredo",
+    "latitude": 45.7668751,
+    "longitude": 21.2280534,
+    "amenity": "cafe",
+    "cuisine": "coffee_shop",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Su 10:00-22:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5184093588
+  },
+  {
+    "id": "osm_node_5208258348",
+    "name": "Ovride Specialty Coffee",
+    "latitude": 45.7543429,
+    "longitude": 21.2275761,
+    "amenity": "cafe",
+    "address": {
+      "street": "Strada Lucian Blaga",
+      "housenumber": "6",
+      "postcode": "300002",
+      "city": "Timișoara"
+    },
+    "contact": {
+      "website": "https://ovride.coffee/"
+    },
+    "opening_hours": "Tu-Fr 07:00-19:00; Sa 08:00-17:00; Su 10:00-17:00",
+    "wifi": "wlan",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5208258348
+  },
+  {
+    "id": "osm_node_5224522178",
+    "name": "Baroque",
+    "latitude": 45.7575322,
+    "longitude": 21.2299825,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Fr 08:00-24:00, Sa 09:00-24:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5224522178
+  },
+  {
+    "id": "osm_node_5224522180",
+    "name": "Barrio",
+    "latitude": 45.7584163,
+    "longitude": 21.2298444,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5224522180
+  },
+  {
+    "id": "osm_node_5224522181",
+    "name": "square",
+    "latitude": 45.7584508,
+    "longitude": 21.2291614,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5224522181
+  },
+  {
+    "id": "osm_node_5224522182",
+    "name": "Emotion",
+    "latitude": 45.7584461,
+    "longitude": 21.2292575,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Su-Th 09:00-24:00, Sa 09:00-02:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5224522182
+  },
+  {
+    "id": "osm_node_5224522184",
+    "name": "Alice Kyteler",
+    "latitude": 45.7584357,
+    "longitude": 21.229487,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5224522184
+  },
+  {
+    "id": "osm_node_5308322703",
+    "name": "Moara cu cafea",
+    "latitude": 45.7370893,
+    "longitude": 21.2490317,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5308322703
+  },
+  {
+    "id": "osm_node_5365499437",
+    "name": "Chez Moi",
+    "latitude": 45.7562199,
+    "longitude": 21.2374772,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5365499437
+  },
+  {
+    "id": "osm_node_5423008397",
+    "name": "LEX Coffee",
+    "latitude": 45.7571441,
+    "longitude": 21.2305437,
+    "amenity": "cafe",
+    "cuisine": "coffee_shop",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5423008397
+  },
+  {
+    "id": "osm_node_5465066137",
+    "name": "Coffee Hub",
+    "latitude": 45.7458523,
+    "longitude": 21.2335652,
+    "amenity": "cafe",
+    "address": {
+      "street": "Strada Ion Vidu",
+      "housenumber": "8",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5465066137
+  },
+  {
+    "id": "osm_node_5577990543",
+    "name": "Symphony",
+    "latitude": 45.7541725,
+    "longitude": 21.2257142,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Su 09:00-24:00",
+    "wheelchair": "limited",
+    "outdoor_seating": "yes",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5577990543
+  },
+  {
+    "id": "osm_node_5598421904",
+    "name": "Take Five",
+    "latitude": 45.7542246,
+    "longitude": 21.2277766,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Fr 07:00-17:00; Sa,Su 07:00-15:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5598421904
+  },
+  {
+    "id": "osm_node_5711891677",
+    "name": "Stația de cafea",
+    "latitude": 45.755773,
+    "longitude": 21.2351257,
+    "amenity": "cafe",
+    "cuisine": "coffee_shop",
+    "address": {
+      "street": "Bulevardul Revoluției din 1989",
+      "housenumber": "13",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5711891677
+  },
+  {
+    "id": "osm_node_5914085307",
+    "name": "Cooperativa Frufru",
+    "latitude": 45.7571642,
+    "longitude": 21.2213451,
+    "amenity": "cafe",
+    "address": {
+      "street": "Strada Coriolan Brediceanu",
+      "housenumber": "10",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5914085307
+  },
+  {
+    "id": "osm_node_6033849635",
+    "name": "Sophie's corner",
+    "latitude": 45.7593996,
+    "longitude": 21.2209311,
+    "amenity": "cafe",
+    "cuisine": "coffee_shop",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Fr 09:00-17:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6033849635
+  },
+  {
+    "id": "osm_node_6052384590",
+    "name": "18CTEA",
+    "latitude": 45.7659479,
+    "longitude": 21.2265296,
+    "amenity": "cafe",
+    "cuisine": "bubble_tea",
+    "address": {
+      "street": "Strada Aristide Demetriade",
+      "housenumber": "1",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Su 10:00-22:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6052384590
+  },
+  {
+    "id": "osm_node_6132400391",
+    "name": "Unknown",
+    "latitude": 45.7793003,
+    "longitude": 21.2197029,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6132400391
+  },
+  {
+    "id": "osm_node_6137565984",
+    "name": "yOyO Cafe",
+    "latitude": 45.7619644,
+    "longitude": 21.2445559,
+    "amenity": "cafe",
+    "address": {
+      "street": "Bulevardul Take Ionescu",
+      "housenumber": "71",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6137565984
+  },
+  {
+    "id": "osm_node_6267814429",
+    "name": "Cream Coffee",
+    "latitude": 45.766487,
+    "longitude": 21.2258506,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6267814429
+  },
+  {
+    "id": "osm_node_6354062440",
+    "name": "Ted's Coffee Co.",
+    "latitude": 45.7569679,
+    "longitude": 21.2213226,
+    "amenity": "cafe",
+    "address": {
+      "street": "Strada Coriolan Brediceanu",
+      "housenumber": "10",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6354062440
+  },
+  {
+    "id": "osm_node_6434141049",
+    "name": "VIM",
+    "latitude": 45.7477776,
+    "longitude": 21.2197188,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Fr 10:00-16:00; Sa 11:00-15:00",
+    "outdoor_seating": "no",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6434141049
+  },
+  {
+    "id": "osm_node_6478071809",
+    "name": "Ginkgo Cafe",
+    "latitude": 45.7661574,
+    "longitude": 21.2278079,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Su 10:00-22:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6478071809
+  },
+  {
+    "id": "osm_node_6561427631",
+    "name": "Manufaktura",
+    "latitude": 45.7651282,
+    "longitude": 21.2279091,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Su 08:00-22:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6561427631
+  },
+  {
+    "id": "osm_node_6584692941",
+    "name": "Versus",
+    "latitude": 45.7496602,
+    "longitude": 21.2409154,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "10:00-24:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6584692941
+  },
+  {
+    "id": "osm_node_6596575924",
+    "name": "Jess",
+    "latitude": 45.7720285,
+    "longitude": 21.2173476,
+    "amenity": "cafe",
+    "address": {
+      "street": "Calea Torontalului",
+      "housenumber": "50",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6596575924
+  },
+  {
+    "id": "osm_node_6616758850",
+    "name": "Brasserie",
+    "latitude": 45.7912553,
+    "longitude": 21.2393277,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6616758850
+  },
+  {
+    "id": "osm_node_6616842758",
+    "name": "kune",
+    "latitude": 45.7575723,
+    "longitude": 21.2267673,
+    "amenity": "cafe",
+    "cuisine": "coffee_shop",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Fr 07:00-18:00; Sa,Su 08:00-18:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6616842758
+  },
+  {
+    "id": "osm_node_6643491449",
+    "name": "Toffee",
+    "latitude": 45.7569583,
+    "longitude": 21.2299202,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6643491449
+  },
+  {
+    "id": "osm_node_6649816427",
+    "name": "Narativ Specialty Coffee",
+    "latitude": 45.7495421,
+    "longitude": 21.214526,
+    "amenity": "cafe",
+    "address": {
+      "street": "Splaiul Nicolae Titulescu",
+      "housenumber": "7",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6649816427
+  },
+  {
+    "id": "osm_node_6658781439",
+    "name": "Ted's Coffee Co.",
+    "latitude": 45.7652986,
+    "longitude": 21.2274273,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Fr 08:00-22:00; Sa,Su 10:00-22:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6658781439
+  },
+  {
+    "id": "osm_node_6702869781",
+    "name": "Tucano Coffee Venezuela",
+    "latitude": 45.7657514,
+    "longitude": 21.2291673,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Fr 08:00-22:00; Sa,Su 09:00-22:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6702869781
+  },
+  {
+    "id": "osm_node_6779143382",
+    "name": "Starbucks",
+    "latitude": 45.7662548,
+    "longitude": 21.2262839,
+    "amenity": "cafe",
+    "cuisine": "coffee_shop",
+    "address": {
+      "street": "Piața Consiliul Europei",
+      "housenumber": "2",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Su 08:00-22:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6779143382
+  },
+  {
+    "id": "osm_node_6832617655",
+    "name": "Street Coffee Roasters",
+    "latitude": 45.7545009,
+    "longitude": 21.2266455,
+    "amenity": "cafe",
+    "address": {
+      "street": "Strada Alba Iulia",
+      "housenumber": "5",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Fr 08:00-19:00; Sa,Su 10:00-19:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6832617655
+  },
+  {
+    "id": "osm_node_6877959487",
+    "name": "Sabio Anticafe",
+    "latitude": 45.7561648,
+    "longitude": 21.23304,
+    "amenity": "cafe",
+    "address": {
+      "street": "Strada Hector",
+      "housenumber": "2",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6877959487
+  },
+  {
+    "id": "osm_node_6927149033",
+    "name": "Ayahuasca",
+    "latitude": 45.7578552,
+    "longitude": 21.2254639,
+    "amenity": "cafe",
+    "cuisine": "coffee_shop",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Tu-Th 16:00-24:00, Fr,Sa 16:00-02:00, Su 16:00-24:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6927149033
+  },
+  {
+    "id": "osm_node_7023545525",
+    "name": "Guau",
+    "latitude": 45.7238971,
+    "longitude": 21.1994229,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7023545525
+  },
+  {
+    "id": "osm_node_7023549410",
+    "name": "Bună Ziua",
+    "latitude": 45.7257539,
+    "longitude": 21.1990448,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7023549410
+  },
+  {
+    "id": "osm_node_7046803586",
+    "name": "Molecular Cafe",
+    "latitude": 45.7608723,
+    "longitude": 21.2402657,
+    "amenity": "cafe",
+    "address": {
+      "street": "Bulevardul Take Ionescu",
+      "housenumber": "51",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7046803586
+  },
+  {
+    "id": "osm_node_7057841210",
+    "name": "Escape",
+    "latitude": 45.7473656,
+    "longitude": 21.2316837,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7057841210
+  },
+  {
+    "id": "osm_node_7090633985",
+    "name": "Ferrari Caffe",
+    "latitude": 45.7503503,
+    "longitude": 21.2388102,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7090633985
+  },
+  {
+    "id": "osm_node_7090633987",
+    "name": "Caffe Tabaco",
+    "latitude": 45.7510188,
+    "longitude": 21.2412183,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7090633987
+  },
+  {
+    "id": "osm_node_7090633988",
+    "name": "Dali",
+    "latitude": 45.7512843,
+    "longitude": 21.2421365,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7090633988
+  },
+  {
+    "id": "osm_node_7230749183",
+    "name": "Guau",
+    "latitude": 45.7332536,
+    "longitude": 21.2613531,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7230749183
+  },
+  {
+    "id": "osm_node_7235013996",
+    "name": "Il Baretto",
+    "latitude": 45.7416473,
+    "longitude": 21.2115917,
+    "amenity": "cafe",
+    "cuisine": "italian",
+    "address": {
+      "street": "Bulevardul 16 Decembrie 1989",
+      "housenumber": "46",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7235013996
+  },
+  {
+    "id": "osm_node_7680507608",
+    "name": "Ambasada",
+    "latitude": 45.7613539,
+    "longitude": 21.2514799,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7680507608
+  },
+  {
+    "id": "osm_node_7691649938",
+    "name": "Aroma",
+    "latitude": 45.7493637,
+    "longitude": 21.2141275,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7691649938
+  },
+  {
+    "id": "osm_node_7741340148",
+    "name": "Brewno",
+    "latitude": 45.7577365,
+    "longitude": 21.2263077,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Fr 07:30-18:00; Sa,Su 09:00-18:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7741340148
+  },
+  {
+    "id": "osm_node_7904654282",
+    "name": "Caffé del Doge",
+    "latitude": 45.7675488,
+    "longitude": 21.2306159,
+    "amenity": "cafe",
+    "cuisine": "coffee_shop",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7904654282
+  },
+  {
+    "id": "osm_node_7965900886",
+    "name": "Tucano Coffee Thailand",
+    "latitude": 45.7488215,
+    "longitude": 21.2393533,
+    "amenity": "cafe",
+    "cuisine": "coffee_shop",
+    "address": {
+      "street": "Aleea Studenților",
+      "housenumber": "2",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Fr 08:00-22:00; Sa,Su 10:00-22:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7965900886
+  },
+  {
+    "id": "osm_node_8693247521",
+    "name": "5 to go",
+    "latitude": 45.7546654,
+    "longitude": 21.2265628,
+    "amenity": "cafe",
+    "cuisine": "coffee_shop",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 8693247521
+  },
+  {
+    "id": "osm_node_8811036611",
+    "name": "AMPM",
+    "latitude": 45.7573672,
+    "longitude": 21.2500534,
+    "amenity": "cafe",
+    "address": {
+      "street": "Piața Traian",
+      "housenumber": "6",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 8811036611
+  },
+  {
+    "id": "osm_node_8932951196",
+    "name": "Stația de cafea",
+    "latitude": 45.7747911,
+    "longitude": 21.2133161,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 8932951196
+  },
+  {
+    "id": "osm_node_9360554526",
+    "name": "Tucano Coffee Honduras",
+    "latitude": 45.7245976,
+    "longitude": 21.1989656,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9360554526
+  },
+  {
+    "id": "osm_node_9391562486",
+    "name": "Coffee System To Go",
+    "latitude": 45.7569726,
+    "longitude": 21.2224068,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9391562486
+  },
+  {
+    "id": "osm_node_9532242394",
+    "name": "5 to go",
+    "latitude": 45.757328,
+    "longitude": 21.228143,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Th 07:00-19:00; Sa,Su 10:00-19:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9532242394
+  },
+  {
+    "id": "osm_node_9795096674",
+    "name": "Común Cafe",
+    "latitude": 45.7482349,
+    "longitude": 21.2179235,
+    "amenity": "cafe",
+    "address": {
+      "street": "Bulevardul 16 Decembrie 1989",
+      "housenumber": "10",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9795096674
+  },
+  {
+    "id": "osm_node_9795096675",
+    "name": "Origins Coffee Shop",
+    "latitude": 45.757208,
+    "longitude": 21.2279403,
+    "amenity": "cafe",
+    "address": {
+      "street": "Strada Vasile Alecsandri",
+      "housenumber": "9",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-We 08:00-17:00; Fr-Su 09:30-18:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9795096675
+  },
+  {
+    "id": "osm_node_9859717234",
+    "name": "acas",
+    "latitude": 45.7397038,
+    "longitude": 21.2203316,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9859717234
+  },
+  {
+    "id": "osm_node_9936737587",
+    "name": "Idle",
+    "latitude": 45.7082231,
+    "longitude": 21.2336732,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9936737587
+  },
+  {
+    "id": "osm_node_10081483307",
+    "name": "Senses",
+    "latitude": 45.7587848,
+    "longitude": 21.2301423,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Fr 08:00-17:00; Sa 09:00-19:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 10081483307
+  },
+  {
+    "id": "osm_node_10097607115",
+    "name": "Guau!",
+    "latitude": 45.7784992,
+    "longitude": 21.2423511,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 10097607115
+  },
+  {
+    "id": "osm_node_10130156053",
+    "name": "Captain Bean",
+    "latitude": 45.7560846,
+    "longitude": 21.2292589,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 10130156053
+  },
+  {
+    "id": "osm_node_10134964710",
+    "name": "Meso",
+    "latitude": 45.7401009,
+    "longitude": 21.2589768,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 10134964710
+  },
+  {
+    "id": "osm_node_10214498246",
+    "name": "Narativ Specialty Coffee",
+    "latitude": 45.7538052,
+    "longitude": 21.2242125,
+    "amenity": "cafe",
+    "cuisine": "coffee_shop",
+    "address": {
+      "street": "Bulevardul Regele Mihai I",
+      "housenumber": "6",
+      "city": "Timișoara"
+    },
+    "contact": {
+      "website": "http://www.narativcoffe.ro",
+      "instagram": "narativcoffre.ro"
+    },
+    "opening_hours": "Mo-Fr 08:00-17:00; Sa-Su 09:00-17:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 10214498246
+  },
+  {
+    "id": "osm_node_10615396714",
+    "name": "Două Boabe",
+    "latitude": 45.7447596,
+    "longitude": 21.2372314,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 10615396714
+  },
+  {
+    "id": "osm_node_10682564651",
+    "name": "5 to go",
+    "latitude": 45.7576758,
+    "longitude": 21.248658,
+    "amenity": "cafe",
+    "cuisine": "coffee_shop",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 10682564651
+  },
+  {
+    "id": "osm_node_10751040629",
+    "name": "Street Coffee Roasters",
+    "latitude": 45.7555975,
+    "longitude": 21.2306488,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 10751040629
+  },
+  {
+    "id": "osm_node_10799419161",
+    "name": "Mitzu",
+    "latitude": 45.760387,
+    "longitude": 21.2428128,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 10799419161
+  },
+  {
+    "id": "osm_node_10799522474",
+    "name": "Común Cafe",
+    "latitude": 45.7531574,
+    "longitude": 21.215098,
+    "amenity": "cafe",
+    "address": {
+      "street": "Calea Circumvalațiunii",
+      "housenumber": "1",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 10799522474
+  },
+  {
+    "id": "osm_node_11209647637",
+    "name": "Ted's Coffee Co.",
+    "latitude": 45.7542615,
+    "longitude": 21.2265007,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Fr 07:30-21:00; Sa,Su 09:00-21:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 11209647637
+  },
+  {
+    "id": "osm_node_11209660424",
+    "name": "Street Coffee Roasters",
+    "latitude": 45.7596198,
+    "longitude": 21.2440919,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 11209660424
+  },
+  {
+    "id": "osm_node_11235694790",
+    "name": "IKEA Café",
+    "latitude": 45.7926901,
+    "longitude": 21.2124666,
+    "amenity": "cafe",
+    "cuisine": "coffee_shop",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 11235694790
+  },
+  {
+    "id": "osm_node_11294936465",
+    "name": "Mosaic Coffee Shop",
+    "latitude": 45.7556446,
+    "longitude": 21.2399471,
+    "amenity": "cafe",
+    "address": {
+      "street": "Bulevardul Revoluției din 1989",
+      "housenumber": "26",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 11294936465
+  },
+  {
+    "id": "osm_node_11365822239",
+    "name": "Guau",
+    "latitude": 45.7211912,
+    "longitude": 21.2996821,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 11365822239
+  },
+  {
+    "id": "osm_node_11563551591",
+    "name": "Ted's Coffee Co.",
+    "latitude": 45.7557709,
+    "longitude": 21.2348745,
+    "amenity": "cafe",
+    "address": {
+      "street": "Bulevardul Revoluției din 1989",
+      "housenumber": "13",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 11563551591
+  },
+  {
+    "id": "osm_node_11832326740",
+    "name": "Haiku",
+    "latitude": 45.7451848,
+    "longitude": 21.2265503,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 11832326740
+  },
+  {
+    "id": "osm_node_12007442569",
+    "name": "AIM Coffee",
+    "latitude": 45.7397205,
+    "longitude": 21.2574358,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12007442569
+  },
+  {
+    "id": "osm_node_12007832794",
+    "name": "Unknown",
+    "latitude": 45.7611723,
+    "longitude": 21.2490875,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12007832794
+  },
+  {
+    "id": "osm_node_12211250700",
+    "name": "Brick by Brick",
+    "latitude": 45.7557376,
+    "longitude": 21.2291218,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Th 07:30-17:00; Fr 07:30-23:00; Sa 09:00-23:00; Su 09:00-17:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12211250700
+  },
+  {
+    "id": "osm_node_12212641563",
+    "name": "Nori Specialty Cafe",
+    "latitude": 45.7423238,
+    "longitude": 21.2281206,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12212641563
+  },
+  {
+    "id": "osm_node_12294905510",
+    "name": "Awa Caffe",
+    "latitude": 45.7316413,
+    "longitude": 21.2354689,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12294905510
+  },
+  {
+    "id": "osm_node_12368140786",
+    "name": "Amicii",
+    "latitude": 45.7824817,
+    "longitude": 21.2400568,
+    "amenity": "cafe",
+    "cuisine": "coffee_shop;dessert",
+    "address": {
+      "street": "Strada Constructorilor",
+      "housenumber": "16",
+      "city": "Timișoara"
+    },
+    "contact": {
+      "instagram": "https://www.instagram.com/amicii.timisoara"
+    },
+    "opening_hours": "Mo-Su 07:00-17:00; Tu off",
+    "outdoor_seating": "yes",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12368140786
+  },
+  {
+    "id": "osm_node_12821159530",
+    "name": "OKFEA",
+    "latitude": 45.7577259,
+    "longitude": 21.2264531,
+    "amenity": "cafe",
+    "cuisine": "coffee_shop",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Fr 07:30-18:00; Sa,Su 10:00-18:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12821159530
+  },
+  {
+    "id": "osm_node_13155057983",
+    "name": "Frenzy Specialty Coffee",
+    "latitude": 45.7511903,
+    "longitude": 21.2255604,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Fr 07:30-19:00; Sa,Su 09:00-19:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 13155057983
+  },
+  {
+    "id": "osm_node_13155082300",
+    "name": "#altfel",
+    "latitude": 45.7521618,
+    "longitude": 21.2253835,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 13155082300
+  },
+  {
+    "id": "osm_node_13240678894",
+    "name": "Rem's Coffee",
+    "latitude": 45.753805,
+    "longitude": 21.227535,
+    "amenity": "cafe",
+    "cuisine": "coffee_shop",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Su 07:00-22:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 13240678894
+  },
+  {
+    "id": "osm_node_13277392741",
+    "name": "Street Coffee Roasters",
+    "latitude": 45.7603713,
+    "longitude": 21.2429049,
+    "amenity": "cafe",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 13277392741
+  },
+  {
+    "id": "osm_node_5477459321",
+    "name": "Unknown",
+    "latitude": 45.7466823,
+    "longitude": 21.223951,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5477459321
+  },
+  {
+    "id": "osm_node_5477459322",
+    "name": "Unknown",
+    "latitude": 45.7466856,
+    "longitude": 21.2240109,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5477459322
+  },
+  {
+    "id": "osm_node_5477459323",
+    "name": "Unknown",
+    "latitude": 45.746704,
+    "longitude": 21.2240088,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5477459323
+  },
+  {
+    "id": "osm_node_5477459324",
+    "name": "Unknown",
+    "latitude": 45.7467107,
+    "longitude": 21.2241271,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5477459324
+  },
+  {
+    "id": "osm_node_5477459325",
+    "name": "Unknown",
+    "latitude": 45.7466959,
+    "longitude": 21.2241288,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5477459325
+  },
+  {
+    "id": "osm_node_5477459326",
+    "name": "Unknown",
+    "latitude": 45.7466984,
+    "longitude": 21.2241717,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5477459326
+  },
+  {
+    "id": "osm_node_8699493987",
+    "name": "Unknown",
+    "latitude": 45.7467462,
+    "longitude": 21.2241661,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 8699493987
+  },
+  {
+    "id": "osm_node_8699493988",
+    "name": "Unknown",
+    "latitude": 45.7467337,
+    "longitude": 21.223945,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 8699493988
+  },
+  {
+    "id": "osm_node_5740561902",
+    "name": "Unknown",
+    "latitude": 45.7630173,
+    "longitude": 21.2178131,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5740561902
+  },
+  {
+    "id": "osm_node_5740561903",
+    "name": "Unknown",
+    "latitude": 45.7631766,
+    "longitude": 21.2175897,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5740561903
+  },
+  {
+    "id": "osm_node_5740561904",
+    "name": "Unknown",
+    "latitude": 45.7632356,
+    "longitude": 21.2176762,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5740561904
+  },
+  {
+    "id": "osm_node_5740561905",
+    "name": "Unknown",
+    "latitude": 45.7630763,
+    "longitude": 21.2178996,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5740561905
+  },
+  {
+    "id": "osm_node_7026040189",
+    "name": "Unknown",
+    "latitude": 45.7357315,
+    "longitude": 21.2381938,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7026040189
+  },
+  {
+    "id": "osm_node_7026040190",
+    "name": "Unknown",
+    "latitude": 45.7356093,
+    "longitude": 21.2381824,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7026040190
+  },
+  {
+    "id": "osm_node_7026040191",
+    "name": "Unknown",
+    "latitude": 45.735603,
+    "longitude": 21.2383203,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7026040191
+  },
+  {
+    "id": "osm_node_7026040192",
+    "name": "Unknown",
+    "latitude": 45.7356403,
+    "longitude": 21.2383238,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7026040192
+  },
+  {
+    "id": "osm_node_7026040193",
+    "name": "Unknown",
+    "latitude": 45.7356388,
+    "longitude": 21.2383581,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7026040193
+  },
+  {
+    "id": "osm_node_7026040194",
+    "name": "Unknown",
+    "latitude": 45.7356842,
+    "longitude": 21.2383624,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7026040194
+  },
+  {
+    "id": "osm_node_7026040195",
+    "name": "Unknown",
+    "latitude": 45.7356859,
+    "longitude": 21.2383262,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7026040195
+  },
+  {
+    "id": "osm_node_7026040196",
+    "name": "Unknown",
+    "latitude": 45.7357253,
+    "longitude": 21.2383299,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7026040196
+  }
+]

@@ -58,6 +58,18 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
   };
 
+  const googleSignIn = async (idToken) => {
+    const result = await authAPI.googleSignIn(idToken);
+    if (result.success) {
+      const userResult = await authAPI.getCurrentUser();
+      if (userResult.success) {
+        setUser(userResult.data);
+        setIsAuthenticated(true);
+      }
+    }
+    return result;
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -67,6 +79,8 @@ export const AuthProvider = ({ children }) => {
         login,
         register,
         logout,
+        googleSignIn,
+        checkAuth,
       }}
     >
       {children}

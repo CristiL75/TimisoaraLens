@@ -1,0 +1,2034 @@
+[
+  {
+    "id": "osm_node_1639214968",
+    "name": "Teatrul Maghiar de Stat Csiky Gergely",
+    "latitude": 45.7544194,
+    "longitude": 21.2264002,
+    "amenity": "theatre",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1639214968
+  },
+  {
+    "id": "osm_node_1639214975",
+    "name": "Teatrul German de Stat",
+    "latitude": 45.754378,
+    "longitude": 21.2263816,
+    "amenity": "theatre",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1639214975
+  },
+  {
+    "id": "osm_node_4287908220",
+    "name": "Opera Română Timișoara",
+    "latitude": 45.7541,
+    "longitude": 21.225943,
+    "amenity": "theatre",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "wheelchair": "no",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4287908220
+  },
+  {
+    "id": "osm_node_4338345491",
+    "name": "Cinema City",
+    "latitude": 45.7236357,
+    "longitude": 21.1999544,
+    "amenity": "cinema",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4338345491
+  },
+  {
+    "id": "osm_node_4338345497",
+    "name": "Cinema City",
+    "latitude": 45.7664615,
+    "longitude": 21.2272139,
+    "amenity": "cinema",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Su 10:00-22:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4338345497
+  },
+  {
+    "id": "osm_node_5184053745",
+    "name": "Teatrul Merlin",
+    "latitude": 45.7458014,
+    "longitude": 21.2143715,
+    "amenity": "theatre",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {
+      "website": "https://www.teatrul-merlin.ro/"
+    },
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5184053745
+  },
+  {
+    "id": "osm_node_5224538285",
+    "name": "Cinema Timiș",
+    "latitude": 45.7513277,
+    "longitude": 21.2251706,
+    "amenity": "cinema",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5224538285
+  },
+  {
+    "id": "osm_node_6959480014",
+    "name": "Basca",
+    "latitude": 45.7572526,
+    "longitude": 21.2507489,
+    "amenity": "arts_centre",
+    "address": {
+      "street": "Strada Ion Mihalache",
+      "housenumber": "2",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6959480014
+  },
+  {
+    "id": "osm_node_11195739084",
+    "name": "Cinema Victoria",
+    "latitude": 45.7413111,
+    "longitude": 21.2245278,
+    "amenity": "cinema",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 11195739084
+  },
+  {
+    "id": "osm_node_11393662665",
+    "name": "Cinema Timiș",
+    "latitude": 45.7515198,
+    "longitude": 21.2255149,
+    "amenity": "cinema",
+    "address": {
+      "housenumber": "7",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 11393662665
+  },
+  {
+    "id": "osm_node_5198481361",
+    "name": "Unknown",
+    "latitude": 45.7021612,
+    "longitude": 21.2123847,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5198481361
+  },
+  {
+    "id": "osm_node_5198481362",
+    "name": "Unknown",
+    "latitude": 45.702149,
+    "longitude": 21.2127998,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5198481362
+  },
+  {
+    "id": "osm_node_5198481363",
+    "name": "Unknown",
+    "latitude": 45.7022889,
+    "longitude": 21.2128083,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5198481363
+  },
+  {
+    "id": "osm_node_5198481364",
+    "name": "Unknown",
+    "latitude": 45.7022918,
+    "longitude": 21.2127082,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5198481364
+  },
+  {
+    "id": "osm_node_5198481365",
+    "name": "Unknown",
+    "latitude": 45.7022506,
+    "longitude": 21.2127057,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5198481365
+  },
+  {
+    "id": "osm_node_5198481366",
+    "name": "Unknown",
+    "latitude": 45.7022523,
+    "longitude": 21.2126477,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5198481366
+  },
+  {
+    "id": "osm_node_5198481367",
+    "name": "Unknown",
+    "latitude": 45.702264,
+    "longitude": 21.2126484,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5198481367
+  },
+  {
+    "id": "osm_node_5198481368",
+    "name": "Unknown",
+    "latitude": 45.7022782,
+    "longitude": 21.2126319,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5198481368
+  },
+  {
+    "id": "osm_node_5198481369",
+    "name": "Unknown",
+    "latitude": 45.7022798,
+    "longitude": 21.2125819,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5198481369
+  },
+  {
+    "id": "osm_node_5198481370",
+    "name": "Unknown",
+    "latitude": 45.7022671,
+    "longitude": 21.212557,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5198481370
+  },
+  {
+    "id": "osm_node_5198481371",
+    "name": "Unknown",
+    "latitude": 45.7022553,
+    "longitude": 21.2125562,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5198481371
+  },
+  {
+    "id": "osm_node_5198481372",
+    "name": "Unknown",
+    "latitude": 45.7022568,
+    "longitude": 21.2125052,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5198481372
+  },
+  {
+    "id": "osm_node_5198481373",
+    "name": "Unknown",
+    "latitude": 45.7022973,
+    "longitude": 21.2125076,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5198481373
+  },
+  {
+    "id": "osm_node_5198481374",
+    "name": "Unknown",
+    "latitude": 45.7023007,
+    "longitude": 21.2123931,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5198481374
+  },
+  {
+    "id": "osm_node_5184053735",
+    "name": "Unknown",
+    "latitude": 45.7488565,
+    "longitude": 21.2177561,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5184053735
+  },
+  {
+    "id": "osm_node_5184053736",
+    "name": "Unknown",
+    "latitude": 45.7490039,
+    "longitude": 21.2179801,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5184053736
+  },
+  {
+    "id": "osm_node_5184053737",
+    "name": "Unknown",
+    "latitude": 45.7489594,
+    "longitude": 21.2180402,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5184053737
+  },
+  {
+    "id": "osm_node_5184053738",
+    "name": "Unknown",
+    "latitude": 45.7488948,
+    "longitude": 21.2179421,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5184053738
+  },
+  {
+    "id": "osm_node_5184053739",
+    "name": "Unknown",
+    "latitude": 45.7488077,
+    "longitude": 21.2180599,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5184053739
+  },
+  {
+    "id": "osm_node_5184053740",
+    "name": "Unknown",
+    "latitude": 45.7487248,
+    "longitude": 21.2179339,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5184053740
+  },
+  {
+    "id": "osm_node_5364405022",
+    "name": "Unknown",
+    "latitude": 45.748984,
+    "longitude": 21.2179499,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5364405022
+  },
+  {
+    "id": "osm_node_2030432303",
+    "name": "Unknown",
+    "latitude": 45.7523679,
+    "longitude": 21.2261361,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2030432303
+  },
+  {
+    "id": "osm_node_2030432305",
+    "name": "Unknown",
+    "latitude": 45.7523089,
+    "longitude": 21.2258482,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2030432305
+  },
+  {
+    "id": "osm_node_2030432313",
+    "name": "Unknown",
+    "latitude": 45.7525469,
+    "longitude": 21.2259759,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2030432313
+  },
+  {
+    "id": "osm_node_2030432314",
+    "name": "Unknown",
+    "latitude": 45.7524882,
+    "longitude": 21.2262007,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2030432314
+  },
+  {
+    "id": "osm_node_2050004321",
+    "name": "Unknown",
+    "latitude": 45.7522867,
+    "longitude": 21.2259331,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2050004321
+  },
+  {
+    "id": "osm_node_2060704807",
+    "name": "Unknown",
+    "latitude": 45.7503235,
+    "longitude": 21.226248,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704807
+  },
+  {
+    "id": "osm_node_2060704810",
+    "name": "Unknown",
+    "latitude": 45.7507489,
+    "longitude": 21.2263781,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704810
+  },
+  {
+    "id": "osm_node_2060704813",
+    "name": "Unknown",
+    "latitude": 45.750838,
+    "longitude": 21.2260835,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704813
+  },
+  {
+    "id": "osm_node_2060704817",
+    "name": "Unknown",
+    "latitude": 45.7506964,
+    "longitude": 21.2264865,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704817
+  },
+  {
+    "id": "osm_node_2060704821",
+    "name": "Unknown",
+    "latitude": 45.7507161,
+    "longitude": 21.2263682,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704821
+  },
+  {
+    "id": "osm_node_2060704824",
+    "name": "Unknown",
+    "latitude": 45.7503325,
+    "longitude": 21.2263337,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704824
+  },
+  {
+    "id": "osm_node_2060704838",
+    "name": "Unknown",
+    "latitude": 45.7506621,
+    "longitude": 21.2264759,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704838
+  },
+  {
+    "id": "osm_node_2060704839",
+    "name": "Unknown",
+    "latitude": 45.7503101,
+    "longitude": 21.2263269,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704839
+  },
+  {
+    "id": "osm_node_2060704840",
+    "name": "Unknown",
+    "latitude": 45.750765,
+    "longitude": 21.2258594,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704840
+  },
+  {
+    "id": "osm_node_2060704844",
+    "name": "Unknown",
+    "latitude": 45.7503626,
+    "longitude": 21.2263432,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704844
+  },
+  {
+    "id": "osm_node_2060704845",
+    "name": "Unknown",
+    "latitude": 45.7505578,
+    "longitude": 21.2264447,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704845
+  },
+  {
+    "id": "osm_node_2060704846",
+    "name": "Unknown",
+    "latitude": 45.7507672,
+    "longitude": 21.2260612,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704846
+  },
+  {
+    "id": "osm_node_2060704852",
+    "name": "Unknown",
+    "latitude": 45.7503537,
+    "longitude": 21.2260663,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704852
+  },
+  {
+    "id": "osm_node_2060704854",
+    "name": "Unknown",
+    "latitude": 45.7508698,
+    "longitude": 21.2258918,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704854
+  },
+  {
+    "id": "osm_node_2060704856",
+    "name": "Unknown",
+    "latitude": 45.7507779,
+    "longitude": 21.2261958,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704856
+  },
+  {
+    "id": "osm_node_2060704857",
+    "name": "Unknown",
+    "latitude": 45.7507463,
+    "longitude": 21.2261866,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704857
+  },
+  {
+    "id": "osm_node_2060704858",
+    "name": "Unknown",
+    "latitude": 45.7507328,
+    "longitude": 21.2260509,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704858
+  },
+  {
+    "id": "osm_node_2060704861",
+    "name": "Unknown",
+    "latitude": 45.7506287,
+    "longitude": 21.2260192,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704861
+  },
+  {
+    "id": "osm_node_2060704862",
+    "name": "Unknown",
+    "latitude": 45.7503457,
+    "longitude": 21.2262547,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704862
+  },
+  {
+    "id": "osm_node_2060704864",
+    "name": "Unknown",
+    "latitude": 45.7503758,
+    "longitude": 21.226073,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704864
+  },
+  {
+    "id": "osm_node_2060704865",
+    "name": "Unknown",
+    "latitude": 45.7503897,
+    "longitude": 21.2259894,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704865
+  },
+  {
+    "id": "osm_node_2060704871",
+    "name": "Unknown",
+    "latitude": 45.7507679,
+    "longitude": 21.2265088,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704871
+  },
+  {
+    "id": "osm_node_2060704876",
+    "name": "Unknown",
+    "latitude": 45.7506261,
+    "longitude": 21.2266918,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704876
+  },
+  {
+    "id": "osm_node_2060704877",
+    "name": "Unknown",
+    "latitude": 45.7507314,
+    "longitude": 21.2267237,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704877
+  },
+  {
+    "id": "osm_node_2060704884",
+    "name": "Unknown",
+    "latitude": 45.7505647,
+    "longitude": 21.2264046,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704884
+  },
+  {
+    "id": "osm_node_2060704885",
+    "name": "Unknown",
+    "latitude": 45.7506219,
+    "longitude": 21.226061,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704885
+  },
+  {
+    "id": "osm_node_2060704886",
+    "name": "Unknown",
+    "latitude": 45.7502773,
+    "longitude": 21.2265276,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704886
+  },
+  {
+    "id": "osm_node_2060704888",
+    "name": "Unknown",
+    "latitude": 45.7503289,
+    "longitude": 21.2265447,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2060704888
+  },
+  {
+    "id": "osm_node_4487420497",
+    "name": "Unknown",
+    "latitude": 45.7507474,
+    "longitude": 21.2259643,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4487420497
+  },
+  {
+    "id": "osm_node_5235732365",
+    "name": "Unknown",
+    "latitude": 45.7522502,
+    "longitude": 21.226073,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5235732365
+  },
+  {
+    "id": "osm_node_5235732366",
+    "name": "Unknown",
+    "latitude": 45.7522623,
+    "longitude": 21.2260265,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5235732366
+  },
+  {
+    "id": "osm_node_259592432",
+    "name": "Unknown",
+    "latitude": 45.7505742,
+    "longitude": 21.2327312,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 259592432
+  },
+  {
+    "id": "osm_node_259592434",
+    "name": "Unknown",
+    "latitude": 45.750538,
+    "longitude": 21.2323625,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 259592434
+  },
+  {
+    "id": "osm_node_259592437",
+    "name": "Unknown",
+    "latitude": 45.7503414,
+    "longitude": 21.2320715,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 259592437
+  },
+  {
+    "id": "osm_node_259592438",
+    "name": "Unknown",
+    "latitude": 45.7499656,
+    "longitude": 21.232502,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 259592438
+  },
+  {
+    "id": "osm_node_259592439",
+    "name": "Unknown",
+    "latitude": 45.7497795,
+    "longitude": 21.2327935,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 259592439
+  },
+  {
+    "id": "osm_node_259592440",
+    "name": "Unknown",
+    "latitude": 45.7498278,
+    "longitude": 21.2329278,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 259592440
+  },
+  {
+    "id": "osm_node_259592441",
+    "name": "Unknown",
+    "latitude": 45.7498834,
+    "longitude": 21.2329754,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 259592441
+  },
+  {
+    "id": "osm_node_259592442",
+    "name": "Unknown",
+    "latitude": 45.7499626,
+    "longitude": 21.2330013,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 259592442
+  },
+  {
+    "id": "osm_node_2797175534",
+    "name": "Unknown",
+    "latitude": 45.7498901,
+    "longitude": 21.2325475,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2797175534
+  },
+  {
+    "id": "osm_node_2797175535",
+    "name": "Unknown",
+    "latitude": 45.7498132,
+    "longitude": 21.2326109,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2797175535
+  },
+  {
+    "id": "osm_node_2797175536",
+    "name": "Unknown",
+    "latitude": 45.7501878,
+    "longitude": 21.2328288,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2797175536
+  },
+  {
+    "id": "osm_node_2797175540",
+    "name": "Unknown",
+    "latitude": 45.7500493,
+    "longitude": 21.2329456,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2797175540
+  },
+  {
+    "id": "osm_node_4388948266",
+    "name": "Unknown",
+    "latitude": 45.7500558,
+    "longitude": 21.2324527,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4388948266
+  },
+  {
+    "id": "osm_node_4388948275",
+    "name": "Unknown",
+    "latitude": 45.7501161,
+    "longitude": 21.2328967,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4388948275
+  },
+  {
+    "id": "osm_node_4388948282",
+    "name": "Unknown",
+    "latitude": 45.7501802,
+    "longitude": 21.2322867,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4388948282
+  },
+  {
+    "id": "osm_node_4388951501",
+    "name": "Unknown",
+    "latitude": 45.7503588,
+    "longitude": 21.2327856,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4388951501
+  },
+  {
+    "id": "osm_node_4389102987",
+    "name": "Unknown",
+    "latitude": 45.7499507,
+    "longitude": 21.2325111,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4389102987
+  },
+  {
+    "id": "osm_node_2041139918",
+    "name": "Unknown",
+    "latitude": 45.7565694,
+    "longitude": 21.2267854,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2041139918
+  },
+  {
+    "id": "osm_node_2041139919",
+    "name": "Unknown",
+    "latitude": 45.7566119,
+    "longitude": 21.2266909,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2041139919
+  },
+  {
+    "id": "osm_node_2041139926",
+    "name": "Unknown",
+    "latitude": 45.7564858,
+    "longitude": 21.2265909,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2041139926
+  },
+  {
+    "id": "osm_node_2041139932",
+    "name": "Unknown",
+    "latitude": 45.7566291,
+    "longitude": 21.2265203,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2041139932
+  },
+  {
+    "id": "osm_node_2041139933",
+    "name": "Unknown",
+    "latitude": 45.7566025,
+    "longitude": 21.2266896,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2041139933
+  },
+  {
+    "id": "osm_node_2041139936",
+    "name": "Unknown",
+    "latitude": 45.7563322,
+    "longitude": 21.2265719,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2041139936
+  },
+  {
+    "id": "osm_node_2041139944",
+    "name": "Unknown",
+    "latitude": 45.7565563,
+    "longitude": 21.2269782,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2041139944
+  },
+  {
+    "id": "osm_node_2041139945",
+    "name": "Unknown",
+    "latitude": 45.756562,
+    "longitude": 21.226894,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2041139945
+  },
+  {
+    "id": "osm_node_2041139947",
+    "name": "Unknown",
+    "latitude": 45.7566251,
+    "longitude": 21.2265812,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2041139947
+  },
+  {
+    "id": "osm_node_2041139948",
+    "name": "Unknown",
+    "latitude": 45.756469,
+    "longitude": 21.2268431,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2041139948
+  },
+  {
+    "id": "osm_node_2041139951",
+    "name": "Unknown",
+    "latitude": 45.7566143,
+    "longitude": 21.2265182,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2041139951
+  },
+  {
+    "id": "osm_node_2041139961",
+    "name": "Unknown",
+    "latitude": 45.7563153,
+    "longitude": 21.226824,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2041139961
+  },
+  {
+    "id": "osm_node_2041139962",
+    "name": "Unknown",
+    "latitude": 45.7566048,
+    "longitude": 21.2267903,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2041139962
+  },
+  {
+    "id": "osm_node_2041139963",
+    "name": "Unknown",
+    "latitude": 45.7563442,
+    "longitude": 21.2263857,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2041139963
+  },
+  {
+    "id": "osm_node_2041139967",
+    "name": "Unknown",
+    "latitude": 45.7566099,
+    "longitude": 21.2265793,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2041139967
+  },
+  {
+    "id": "osm_node_2041139976",
+    "name": "Unknown",
+    "latitude": 45.7566207,
+    "longitude": 21.2264198,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2041139976
+  },
+  {
+    "id": "osm_node_2041139981",
+    "name": "Unknown",
+    "latitude": 45.7563069,
+    "longitude": 21.2269474,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2041139981
+  },
+  {
+    "id": "osm_node_2049167322",
+    "name": "Unknown",
+    "latitude": 45.7540345,
+    "longitude": 21.2260629,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2049167322
+  },
+  {
+    "id": "osm_node_2049167362",
+    "name": "Unknown",
+    "latitude": 45.7540481,
+    "longitude": 21.226211,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2049167362
+  },
+  {
+    "id": "osm_node_2049167365",
+    "name": "Unknown",
+    "latitude": 45.7541512,
+    "longitude": 21.2256716,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2049167365
+  },
+  {
+    "id": "osm_node_2049167370",
+    "name": "Unknown",
+    "latitude": 45.7540731,
+    "longitude": 21.2260787,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2049167370
+  },
+  {
+    "id": "osm_node_2049167381",
+    "name": "Unknown",
+    "latitude": 45.7540883,
+    "longitude": 21.2257821,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2049167381
+  },
+  {
+    "id": "osm_node_2049167432",
+    "name": "Unknown",
+    "latitude": 45.7541272,
+    "longitude": 21.2257982,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2049167432
+  },
+  {
+    "id": "osm_node_2049167441",
+    "name": "Unknown",
+    "latitude": 45.7547808,
+    "longitude": 21.2257491,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2049167441
+  },
+  {
+    "id": "osm_node_2049167447",
+    "name": "Unknown",
+    "latitude": 45.7546268,
+    "longitude": 21.2265651,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2049167447
+  },
+  {
+    "id": "osm_node_2049193458",
+    "name": "Unknown",
+    "latitude": 45.7546983,
+    "longitude": 21.2261862,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2049193458
+  },
+  {
+    "id": "osm_node_4235396551",
+    "name": "Unknown",
+    "latitude": 45.7539766,
+    "longitude": 21.2260075,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4235396551
+  },
+  {
+    "id": "osm_node_4235396552",
+    "name": "Unknown",
+    "latitude": 45.7540199,
+    "longitude": 21.2257819,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4235396552
+  },
+  {
+    "id": "osm_node_4235396554",
+    "name": "Unknown",
+    "latitude": 45.7540403,
+    "longitude": 21.2260326,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4235396554
+  },
+  {
+    "id": "osm_node_4235396555",
+    "name": "Unknown",
+    "latitude": 45.7540835,
+    "longitude": 21.225807,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4235396555
+  },
+  {
+    "id": "osm_node_2015837086",
+    "name": "Unknown",
+    "latitude": 45.7544096,
+    "longitude": 21.231205,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2015837086
+  },
+  {
+    "id": "osm_node_2015837103",
+    "name": "Unknown",
+    "latitude": 45.7542657,
+    "longitude": 21.2313918,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2015837103
+  },
+  {
+    "id": "osm_node_2015837106",
+    "name": "Unknown",
+    "latitude": 45.7542162,
+    "longitude": 21.2314566,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2015837106
+  },
+  {
+    "id": "osm_node_2015837145",
+    "name": "Unknown",
+    "latitude": 45.7547018,
+    "longitude": 21.2316635,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2015837145
+  },
+  {
+    "id": "osm_node_2015837148",
+    "name": "Unknown",
+    "latitude": 45.7545585,
+    "longitude": 21.2318512,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2015837148
+  },
+  {
+    "id": "osm_node_2015837151",
+    "name": "Unknown",
+    "latitude": 45.7544566,
+    "longitude": 21.2311435,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2015837151
+  },
+  {
+    "id": "osm_node_2015837180",
+    "name": "Unknown",
+    "latitude": 45.754171,
+    "longitude": 21.2313857,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2015837180
+  },
+  {
+    "id": "osm_node_2015837192",
+    "name": "Unknown",
+    "latitude": 45.7544109,
+    "longitude": 21.2310717,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2015837192
+  },
+  {
+    "id": "osm_node_2057895806",
+    "name": "Unknown",
+    "latitude": 45.7531482,
+    "longitude": 21.2358762,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895806
+  },
+  {
+    "id": "osm_node_2057895810",
+    "name": "Unknown",
+    "latitude": 45.7534312,
+    "longitude": 21.2358874,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895810
+  },
+  {
+    "id": "osm_node_2057895822",
+    "name": "Unknown",
+    "latitude": 45.7534366,
+    "longitude": 21.2359301,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895822
+  },
+  {
+    "id": "osm_node_2057895824",
+    "name": "Unknown",
+    "latitude": 45.753395,
+    "longitude": 21.2358439,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895824
+  },
+  {
+    "id": "osm_node_2057895832",
+    "name": "Unknown",
+    "latitude": 45.7534038,
+    "longitude": 21.2359976,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895832
+  },
+  {
+    "id": "osm_node_2057895834",
+    "name": "Unknown",
+    "latitude": 45.7534125,
+    "longitude": 21.2358558,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895834
+  },
+  {
+    "id": "osm_node_2057895836",
+    "name": "Unknown",
+    "latitude": 45.7534205,
+    "longitude": 21.2359809,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895836
+  },
+  {
+    "id": "osm_node_2057895841",
+    "name": "Unknown",
+    "latitude": 45.7533685,
+    "longitude": 21.2360058,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895841
+  },
+  {
+    "id": "osm_node_2057895847",
+    "name": "Unknown",
+    "latitude": 45.7532244,
+    "longitude": 21.2357221,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895847
+  },
+  {
+    "id": "osm_node_2057895862",
+    "name": "Unknown",
+    "latitude": 45.7532768,
+    "longitude": 21.2361912,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895862
+  },
+  {
+    "id": "osm_node_2057895879",
+    "name": "Unknown",
+    "latitude": 45.7531749,
+    "longitude": 21.2360867,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895879
+  },
+  {
+    "id": "osm_node_2057895890",
+    "name": "Unknown",
+    "latitude": 45.7534266,
+    "longitude": 21.2358766,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895890
+  },
+  {
+    "id": "osm_node_2057895894",
+    "name": "Unknown",
+    "latitude": 45.7534268,
+    "longitude": 21.2359699,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895894
+  },
+  {
+    "id": "osm_node_2057895898",
+    "name": "Unknown",
+    "latitude": 45.7533568,
+    "longitude": 21.2358468,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895898
+  },
+  {
+    "id": "osm_node_2057895900",
+    "name": "Unknown",
+    "latitude": 45.7534204,
+    "longitude": 21.2358654,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895900
+  },
+  {
+    "id": "osm_node_2057895921",
+    "name": "Unknown",
+    "latitude": 45.7534322,
+    "longitude": 21.2359557,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895921
+  },
+  {
+    "id": "osm_node_2057895932",
+    "name": "Unknown",
+    "latitude": 45.7533806,
+    "longitude": 21.236006,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895932
+  },
+  {
+    "id": "osm_node_2057895934",
+    "name": "Unknown",
+    "latitude": 45.753235,
+    "longitude": 21.2359655,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895934
+  },
+  {
+    "id": "osm_node_2057895949",
+    "name": "Unknown",
+    "latitude": 45.7533648,
+    "longitude": 21.2358432,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895949
+  },
+  {
+    "id": "osm_node_2057895961",
+    "name": "Unknown",
+    "latitude": 45.7533935,
+    "longitude": 21.2360033,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895961
+  },
+  {
+    "id": "osm_node_2057895986",
+    "name": "Unknown",
+    "latitude": 45.753404,
+    "longitude": 21.2358486,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895986
+  },
+  {
+    "id": "osm_node_2057895988",
+    "name": "Unknown",
+    "latitude": 45.7533504,
+    "longitude": 21.2358511,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057895988
+  },
+  {
+    "id": "osm_node_2057896005",
+    "name": "Unknown",
+    "latitude": 45.7534343,
+    "longitude": 21.2359002,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057896005
+  },
+  {
+    "id": "osm_node_2057896006",
+    "name": "Unknown",
+    "latitude": 45.7533749,
+    "longitude": 21.2358412,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057896006
+  },
+  {
+    "id": "osm_node_2057896011",
+    "name": "Unknown",
+    "latitude": 45.753435,
+    "longitude": 21.2359438,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057896011
+  },
+  {
+    "id": "osm_node_2057896015",
+    "name": "Unknown",
+    "latitude": 45.7533847,
+    "longitude": 21.2358409,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057896015
+  },
+  {
+    "id": "osm_node_2057896017",
+    "name": "Unknown",
+    "latitude": 45.7534366,
+    "longitude": 21.2359152,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057896017
+  },
+  {
+    "id": "osm_node_2057896023",
+    "name": "Unknown",
+    "latitude": 45.7534128,
+    "longitude": 21.2359904,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2057896023
+  },
+  {
+    "id": "osm_node_2276619928",
+    "name": "Unknown",
+    "latitude": 45.7532661,
+    "longitude": 21.2361803,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2276619928
+  },
+  {
+    "id": "osm_node_4948396416",
+    "name": "Unknown",
+    "latitude": 45.751041,
+    "longitude": 21.2379217,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4948396416
+  },
+  {
+    "id": "osm_node_4948396417",
+    "name": "Unknown",
+    "latitude": 45.7509752,
+    "longitude": 21.2380747,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4948396417
+  },
+  {
+    "id": "osm_node_4948396418",
+    "name": "Unknown",
+    "latitude": 45.7510686,
+    "longitude": 21.2381573,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4948396418
+  },
+  {
+    "id": "osm_node_4948396419",
+    "name": "Unknown",
+    "latitude": 45.7511345,
+    "longitude": 21.2380043,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4948396419
+  }
+]

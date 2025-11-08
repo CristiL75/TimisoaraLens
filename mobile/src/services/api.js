@@ -4,9 +4,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Backend URL - schimbă cu IP-ul tău local dacă testezi pe telefon real
-// Pentru emulator: localhost:8000
-// Pentru telefon real: 192.168.x.x:8000 (IP-ul PC-ului tău)
+// Backend URL - IP direct pentru testing local
 const API_URL = 'http://192.168.100.45:8000/api';
 
 const api = axios.create({
@@ -97,6 +95,29 @@ export const authAPI = {
    */
   logout: async () => {
     await AsyncStorage.removeItem('userToken');
+  },
+
+  /**
+   * Google Sign-In with ID Token (Native)
+   */
+  googleSignIn: async (idToken) => {
+    try {
+      const response = await api.post('/auth/google', {
+        token: idToken,
+      });
+      
+      if (response.data.access_token) {
+        await AsyncStorage.setItem('userToken', response.data.access_token);
+        return { success: true, token: response.data.access_token };
+      }
+      
+      return { success: false, error: 'No token received' };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.detail || 'Google sign-in failed',
+      };
+    }
   },
 };
 

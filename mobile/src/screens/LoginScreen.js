@@ -1,7 +1,7 @@
 /**
- * Login Screen
+ * Login Screen with Simple Google Sign-In
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Linking,
 } from 'react-native';
 import {
   TextInput,
@@ -17,14 +18,24 @@ import {
   Title,
   Surface,
   ActivityIndicator,
+  Divider,
 } from 'react-native-paper';
+import * as WebBrowser from 'expo-web-browser';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginScreen({ navigation }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, user, isAuthenticated, checkAuth } = useAuth();
+
+  // Navigate to Home when user is authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      navigation.replace('Home');
+    }
+  }, [isAuthenticated, user, navigation]);
 
   const handleLogin = async () => {
     if (!username.trim() || !password) {
@@ -41,6 +52,81 @@ export default function LoginScreen({ navigation }) {
       // Navigation happens automatically via AuthContext
     } catch (error) {
       Alert.alert('Error', 'An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      const clientId = '718399665277-htdcucr7jbeskuhtd5g0hik6iunsjs1v.apps.googleusercontent.com';
+      const redirectUri = 'http://192.168.100.45.nip.io:8000/api/auth/google/callback';
+      const appRedirectUri = 'timisoaralens://auth'; // Custom scheme for app
+      
+      // Build Google OAuth URL
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `client_id=${clientId}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `response_type=code&` +
+        `scope=openid%20email%20profile&` +
+        `access_type=offline&` +
+        `prompt=select_account`;
+      
+      console.log('Opening Google Sign-In:', authUrl);
+      
+      // Open browser for OAuth - backend will redirect to timisoaralens://auth?code=...
+      const result = await WebBrowser.openAuthSessionAsync(
+        authUrl,
+        appRedirectUri
+      );
+      
+      console.log('OAuth result:', result);
+      
+      if (result.type === 'success' && result.url) {
+        // Extract code from callback URL
+        const url = new URL(result.url);
+        const code = url.searchParams.get('code');
+        
+        if (code) {
+          console.log('Got authorization code, exchanging for token...');
+          
+          // Send code to our backend  
+          const response = await fetch('http://192.168.100.45:8000/api/auth/google/exchange', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              code: code,
+              redirect_uri: redirectUri,
+            }),
+          });
+          
+          const data = await response.json();
+          
+          if (response.ok && data.access_token) {
+            // Save token
+            await AsyncStorage.setItem('userToken', data.access_token);
+            
+            // Update auth context - this will fetch user data and navigate to Home
+            await checkAuth();
+            
+            Alert.alert('Success', 'Successfully signed in with Google!');
+          } else {
+            Alert.alert('Error', data.detail || 'Failed to sign in with Google');
+          }
+        } else {
+          Alert.alert('Error', 'No authorization code received');
+        }
+      } else if (result.type === 'cancel') {
+        console.log('User cancelled Google Sign-In');
+      } else {
+        Alert.alert('Error', 'Failed to complete Google Sign-In');
+      }
+    } catch (error) {
+      console.error('Google Sign-In error:', error);
+      Alert.alert('Error', 'An error occurred during Google Sign-In');
     } finally {
       setLoading(false);
     }
@@ -84,6 +170,22 @@ export default function LoginScreen({ navigation }) {
             loading={loading}
           >
             {loading ? 'Logging in...' : 'Login'}
+          </Button>
+
+          <View style={styles.dividerContainer}>
+            <Divider style={styles.divider} />
+            <Text style={styles.dividerText}>SAU</Text>
+            <Divider style={styles.divider} />
+          </View>
+
+          <Button
+            mode="outlined"
+            onPress={handleGoogleSignIn}
+            style={styles.googleButton}
+            disabled={loading}
+            icon="google"
+          >
+            Continuă cu Google
           </Button>
 
           <Button
@@ -133,6 +235,23 @@ const styles = StyleSheet.create({
   button: {
     marginTop: 10,
     paddingVertical: 6,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  divider: {
+    flex: 1,
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    color: '#666',
+    fontSize: 12,
+  },
+  googleButton: {
+    marginBottom: 10,
+    borderColor: '#4285F4',
   },
   linkButton: {
     marginTop: 10,

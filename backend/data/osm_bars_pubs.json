@@ -1,0 +1,2000 @@
+[
+  {
+    "id": "osm_node_500852985",
+    "name": "Amore",
+    "latitude": 45.7385043,
+    "longitude": 21.2100445,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 500852985
+  },
+  {
+    "id": "osm_node_1205464644",
+    "name": "The Irish PUBlic House",
+    "latitude": 45.7567825,
+    "longitude": 21.230642,
+    "amenity": "pub",
+    "address": {
+      "street": "Strada Eugeniu de Savoya",
+      "housenumber": "4",
+      "city": "Timișoara"
+    },
+    "contact": {
+      "website": "https://www.facebook.com/irishpubtimisoara"
+    },
+    "opening_hours": "Mo-Th 08:00-24:00, Fr 08:00-02:00, Sa 14:00-02:00, Su 14:00-24:00",
+    "outdoor_seating": "yes",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1205464644
+  },
+  {
+    "id": "osm_node_1221380428",
+    "name": "Select",
+    "latitude": 45.7640644,
+    "longitude": 21.219191,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1221380428
+  },
+  {
+    "id": "osm_node_1246694032",
+    "name": "Union Pub",
+    "latitude": 45.758399,
+    "longitude": 21.2275546,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1246694032
+  },
+  {
+    "id": "osm_node_1246694034",
+    "name": "D'arc",
+    "latitude": 45.7583222,
+    "longitude": 21.2279545,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "wifi": "wlan",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1246694034
+  },
+  {
+    "id": "osm_node_1256646026",
+    "name": "Orizont Club",
+    "latitude": 45.7547151,
+    "longitude": 21.2545084,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1256646026
+  },
+  {
+    "id": "osm_node_1263620353",
+    "name": "Zanoni",
+    "latitude": 45.7395869,
+    "longitude": 21.2209456,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1263620353
+  },
+  {
+    "id": "osm_node_1268301489",
+    "name": "Like Pub",
+    "latitude": 45.7501565,
+    "longitude": 21.243588,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1268301489
+  },
+  {
+    "id": "osm_node_1317142513",
+    "name": "D'Arc pe mal",
+    "latitude": 45.7489592,
+    "longitude": 21.2255243,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1317142513
+  },
+  {
+    "id": "osm_node_1650332212",
+    "name": "Stage Pub",
+    "latitude": 45.7563943,
+    "longitude": 21.2287016,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Tu-Su 17:00-02:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1650332212
+  },
+  {
+    "id": "osm_node_1650335622",
+    "name": "Bunker",
+    "latitude": 45.7586087,
+    "longitude": 21.2272007,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1650335622
+  },
+  {
+    "id": "osm_node_1650335624",
+    "name": "The Charlatans",
+    "latitude": 45.7585545,
+    "longitude": 21.2271014,
+    "amenity": "pub",
+    "address": {
+      "street": "Strada Emanuil Ungureanu",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Tu-Su 17:00-02:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1650335624
+  },
+  {
+    "id": "osm_node_1670083990",
+    "name": "The Social",
+    "latitude": 45.7500952,
+    "longitude": 21.2385276,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1670083990
+  },
+  {
+    "id": "osm_node_1713503964",
+    "name": "Factory Pub",
+    "latitude": 45.7545799,
+    "longitude": 21.2496432,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1713503964
+  },
+  {
+    "id": "osm_node_2273469940",
+    "name": "Cafe Saloon",
+    "latitude": 45.7313099,
+    "longitude": 21.2478089,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2273469940
+  },
+  {
+    "id": "osm_node_2525599090",
+    "name": "Charlie's Pub",
+    "latitude": 45.7369668,
+    "longitude": 21.2495616,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "outdoor_seating": "terrace",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2525599090
+  },
+  {
+    "id": "osm_node_3211890442",
+    "name": "Drunken Rat",
+    "latitude": 45.7584024,
+    "longitude": 21.2301092,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Su 11:00-02:00",
+    "wheelchair": "no",
+    "outdoor_seating": "sidewalk",
+    "wifi": "yes",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 3211890442
+  },
+  {
+    "id": "osm_node_3220524461",
+    "name": "Old House",
+    "latitude": 45.7750335,
+    "longitude": 21.2196722,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Sa 11:00-22:30",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 3220524461
+  },
+  {
+    "id": "osm_node_3602850314",
+    "name": "Cuib d'Arte",
+    "latitude": 45.7583483,
+    "longitude": 21.2262588,
+    "amenity": "bar",
+    "address": {
+      "street": "Strada Mărășești",
+      "housenumber": "14",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Th 18:00-01:00; Fr-Sa 18:00-02:00; Su 18:00-00:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 3602850314
+  },
+  {
+    "id": "osm_node_3755520724",
+    "name": "Enoteca de Savoya",
+    "latitude": 45.7566568,
+    "longitude": 21.2283292,
+    "amenity": "bar",
+    "address": {
+      "street": "Strada Eugeniu de Savoya",
+      "housenumber": "11",
+      "postcode": "300085",
+      "city": "Timișoara"
+    },
+    "contact": {
+      "phone": "+40 256 433 644",
+      "website": "https://www.enotecadesavoya.ro/"
+    },
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 3755520724
+  },
+  {
+    "id": "osm_node_3779264478",
+    "name": "Hype Culture",
+    "latitude": 45.757678,
+    "longitude": 21.2273365,
+    "amenity": "bar",
+    "cuisine": "coffee_shop",
+    "address": {
+      "street": "Piața Unirii",
+      "housenumber": "4",
+      "postcode": "300085",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Su 12:00-24:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 3779264478
+  },
+  {
+    "id": "osm_node_3781973807",
+    "name": "Viniloteca",
+    "latitude": 45.7480264,
+    "longitude": 21.219764,
+    "amenity": "bar",
+    "address": {
+      "street": "Strada General Henri Berthelot",
+      "housenumber": "6",
+      "postcode": "300000",
+      "city": "Timișoara"
+    },
+    "contact": {
+      "website": "http://viniloteca.ro/"
+    },
+    "opening_hours": "Mo-Fr 10:00-22:00; Sa 12:00-22:00; Su 16:00-21:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 3781973807
+  },
+  {
+    "id": "osm_node_4163580892",
+    "name": "Caffe Tim Nord",
+    "latitude": 45.7506685,
+    "longitude": 21.2071575,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "24/7",
+    "wifi": "wlan",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4163580892
+  },
+  {
+    "id": "osm_node_4179606110",
+    "name": "Club As",
+    "latitude": 45.7310794,
+    "longitude": 21.2612429,
+    "amenity": "bar",
+    "address": {
+      "street": "Intrarea Neptun",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4179606110
+  },
+  {
+    "id": "osm_node_4206981899",
+    "name": "Zone Cafe",
+    "latitude": 45.7314397,
+    "longitude": 21.2453013,
+    "amenity": "bar",
+    "address": {
+      "street": "Strada Uranus",
+      "housenumber": "29",
+      "postcode": "300708",
+      "city": "Timișoara"
+    },
+    "contact": {
+      "website": "https://www.zonecafe.ro/"
+    },
+    "opening_hours": "L - S: 08:00 - 01:00, D: 09:00 - 01:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4206981899
+  },
+  {
+    "id": "osm_node_4214502952",
+    "name": "MGM Bastion",
+    "latitude": 45.7565436,
+    "longitude": 21.2326735,
+    "amenity": "bar",
+    "cuisine": "breakfast;burger;chicken;german;grill;hot_dog;local",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "24/7",
+    "wifi": "wlan",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4214502952
+  },
+  {
+    "id": "osm_node_4270081029",
+    "name": "Unknown",
+    "latitude": 45.7698413,
+    "longitude": 21.2316365,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4270081029
+  },
+  {
+    "id": "osm_node_4324792689",
+    "name": "PAGO",
+    "latitude": 45.7446645,
+    "longitude": 21.2408375,
+    "amenity": "bar",
+    "address": {
+      "street": "Strada 1 Decembrie 1918",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Su 08:00-23:30",
+    "wifi": "wlan",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4324792689
+  },
+  {
+    "id": "osm_node_4364262288",
+    "name": "Bibliotheka",
+    "latitude": 45.7569527,
+    "longitude": 21.226068,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Sa 10:00-21:00; Su 17:00-21:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4364262288
+  },
+  {
+    "id": "osm_node_4377596489",
+    "name": "Bar Davinci",
+    "latitude": 45.7636854,
+    "longitude": 21.256232,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "wifi": "wlan",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4377596489
+  },
+  {
+    "id": "osm_node_4491011394",
+    "name": "The 80's Pub",
+    "latitude": 45.7409616,
+    "longitude": 21.2400469,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4491011394
+  },
+  {
+    "id": "osm_node_4953009605",
+    "name": "Aethernativ",
+    "latitude": 45.7583288,
+    "longitude": 21.2262228,
+    "amenity": "bar",
+    "address": {
+      "street": "Strada Mărășești",
+      "housenumber": "14",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Su 17:00-24:00",
+    "outdoor_seating": "yes",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4953009605
+  },
+  {
+    "id": "osm_node_5184023901",
+    "name": "Cabinet 3",
+    "latitude": 45.7544156,
+    "longitude": 21.2278046,
+    "amenity": "bar",
+    "address": {
+      "street": "Strada Lucian Blaga",
+      "housenumber": "3",
+      "postcode": "300002",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5184023901
+  },
+  {
+    "id": "osm_node_5184088464",
+    "name": "Frydor Pub",
+    "latitude": 45.7287294,
+    "longitude": 21.2353298,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5184088464
+  },
+  {
+    "id": "osm_node_5224522177",
+    "name": "The Tube",
+    "latitude": 45.7575001,
+    "longitude": 21.2300984,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5224522177
+  },
+  {
+    "id": "osm_node_5224522185",
+    "name": "Beer Republik",
+    "latitude": 45.7586632,
+    "longitude": 21.2291773,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5224522185
+  },
+  {
+    "id": "osm_node_5224522189",
+    "name": "Storia",
+    "latitude": 45.7566704,
+    "longitude": 21.2281946,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Th-Sa 18:00-04:00; Tu 18:00-02:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 5224522189
+  },
+  {
+    "id": "osm_node_6050880789",
+    "name": "Vox Lounge",
+    "latitude": 45.7748662,
+    "longitude": 21.2132271,
+    "amenity": "bar",
+    "address": {
+      "street": "Calea Torontalului",
+      "housenumber": "69",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6050880789
+  },
+  {
+    "id": "osm_node_6052398680",
+    "name": "Essenza Caffe",
+    "latitude": 45.7409416,
+    "longitude": 21.2245682,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Su,PH 08:00-22:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6052398680
+  },
+  {
+    "id": "osm_node_6067258869",
+    "name": "Under the Bridge",
+    "latitude": 45.7481888,
+    "longitude": 21.2125812,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6067258869
+  },
+  {
+    "id": "osm_node_6134959929",
+    "name": "Berărescu",
+    "latitude": 45.7487701,
+    "longitude": 21.2270696,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6134959929
+  },
+  {
+    "id": "osm_node_6254191334",
+    "name": "Terasa Bar Select",
+    "latitude": 45.7301853,
+    "longitude": 21.2151783,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6254191334
+  },
+  {
+    "id": "osm_node_6401984603",
+    "name": "TapRoom",
+    "latitude": 45.7573546,
+    "longitude": 21.2502029,
+    "amenity": "bar",
+    "address": {
+      "street": "Piața Traian",
+      "housenumber": "6",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6401984603
+  },
+  {
+    "id": "osm_node_6419153902",
+    "name": "Pub1989",
+    "latitude": 45.7543931,
+    "longitude": 21.2280068,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {
+      "phone": "+40761663717",
+      "email": "contact.pub1989@gmail.com"
+    },
+    "opening_hours": "Mo-Th,Su 12:00-01:00, Fr-Sa 12:00-04:00",
+    "wheelchair": "no",
+    "outdoor_seating": "yes",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6419153902
+  },
+  {
+    "id": "osm_node_6456320984",
+    "name": "Docks",
+    "latitude": 45.7499888,
+    "longitude": 21.2175403,
+    "amenity": "bar",
+    "address": {
+      "street": "Splaiul Tudor Vladimirescu",
+      "housenumber": "16A",
+      "city": "Timișoara"
+    },
+    "contact": {
+      "phone": "+40770191893"
+    },
+    "outdoor_seating": "yes",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6456320984
+  },
+  {
+    "id": "osm_node_6473013728",
+    "name": "Bereta Taproom & Bottleshop",
+    "latitude": 45.7580723,
+    "longitude": 21.2262099,
+    "amenity": "pub",
+    "address": {
+      "street": "Strada Mărășești",
+      "housenumber": "12",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Fr 17:00-24:00, Sa,Su 15:00-24:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6473013728
+  },
+  {
+    "id": "osm_node_6478221768",
+    "name": "Unknown",
+    "latitude": 45.7507941,
+    "longitude": 21.2081478,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "outdoor_seating": "yes",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6478221768
+  },
+  {
+    "id": "osm_node_6529761163",
+    "name": "Csíki Beer House",
+    "latitude": 45.7336843,
+    "longitude": 21.2188034,
+    "amenity": "pub",
+    "address": {
+      "street": "Bulevardul Constantin Brâncoveanu",
+      "housenumber": "78",
+      "postcode": "300479",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6529761163
+  },
+  {
+    "id": "osm_node_6602902330",
+    "name": "Hamei",
+    "latitude": 45.754174,
+    "longitude": 21.2470404,
+    "amenity": "bar",
+    "address": {
+      "street": "Strada Johann Heinrich Pestalozzi",
+      "housenumber": "22",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6602902330
+  },
+  {
+    "id": "osm_node_6616937817",
+    "name": "Bibliotheka 2",
+    "latitude": 45.756942,
+    "longitude": 21.2262202,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {
+      "facebook": "308543779548762"
+    },
+    "opening_hours": "Mo-Su 14:00-24:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6616937817
+  },
+  {
+    "id": "osm_node_6649815298",
+    "name": "Terasa ATC",
+    "latitude": 45.7342639,
+    "longitude": 21.1726324,
+    "amenity": "biergarten",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6649815298
+  },
+  {
+    "id": "osm_node_6660186078",
+    "name": "La Fulare",
+    "latitude": 45.7314828,
+    "longitude": 21.228102,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6660186078
+  },
+  {
+    "id": "osm_node_6669995687",
+    "name": "Curtea Berarilor Timișoreana",
+    "latitude": 45.756303,
+    "longitude": 21.231835,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "wheelchair": "no",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6669995687
+  },
+  {
+    "id": "osm_node_6687456149",
+    "name": "Unknown",
+    "latitude": 45.7302526,
+    "longitude": 21.2645423,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6687456149
+  },
+  {
+    "id": "osm_node_6687492874",
+    "name": "Blue Bar",
+    "latitude": 45.7321563,
+    "longitude": 21.260139,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6687492874
+  },
+  {
+    "id": "osm_node_6789693021",
+    "name": "Cafe Viena",
+    "latitude": 45.7443146,
+    "longitude": 21.2068121,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6789693021
+  },
+  {
+    "id": "osm_node_6795195189",
+    "name": "Atmosphere",
+    "latitude": 45.7657317,
+    "longitude": 21.2270777,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6795195189
+  },
+  {
+    "id": "osm_node_6927114535",
+    "name": "View",
+    "latitude": 45.7584619,
+    "longitude": 21.2263521,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6927114535
+  },
+  {
+    "id": "osm_node_6930124470",
+    "name": "The Post",
+    "latitude": 45.7552083,
+    "longitude": 21.2344156,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6930124470
+  },
+  {
+    "id": "osm_node_6959488562",
+    "name": "Mayerhoff Brauerei",
+    "latitude": 45.7468872,
+    "longitude": 21.2200316,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "15:00-22:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 6959488562
+  },
+  {
+    "id": "osm_node_7090589993",
+    "name": "La copac",
+    "latitude": 45.7551083,
+    "longitude": 21.2383213,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7090589993
+  },
+  {
+    "id": "osm_node_7090597584",
+    "name": "MGM",
+    "latitude": 45.7499625,
+    "longitude": 21.2385218,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7090597584
+  },
+  {
+    "id": "osm_node_7090633992",
+    "name": "Leone",
+    "latitude": 45.7492712,
+    "longitude": 21.2434718,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7090633992
+  },
+  {
+    "id": "osm_node_7090633993",
+    "name": "Unknown",
+    "latitude": 45.7497688,
+    "longitude": 21.2431037,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7090633993
+  },
+  {
+    "id": "osm_node_7101186978",
+    "name": "Student's Pub",
+    "latitude": 45.7490043,
+    "longitude": 21.239691,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7101186978
+  },
+  {
+    "id": "osm_node_7101186979",
+    "name": "Paradisul Piraților",
+    "latitude": 45.7490597,
+    "longitude": 21.2398089,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7101186979
+  },
+  {
+    "id": "osm_node_7117833075",
+    "name": "Joy Pub",
+    "latitude": 45.7524128,
+    "longitude": 21.2406545,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7117833075
+  },
+  {
+    "id": "osm_node_7761113005",
+    "name": "The Station Pub",
+    "latitude": 45.7621996,
+    "longitude": 21.2117417,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Th 10:00-22:00; Fr,Sa 10:00-23:00; Su 12:00-22:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7761113005
+  },
+  {
+    "id": "osm_node_7976845620",
+    "name": "Barrio",
+    "latitude": 45.756671,
+    "longitude": 21.2304389,
+    "amenity": "bar",
+    "address": {
+      "street": "Strada Eugeniu de Savoya",
+      "housenumber": "6",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7976845620
+  },
+  {
+    "id": "osm_node_9051129364",
+    "name": "Mononom",
+    "latitude": 45.7592194,
+    "longitude": 21.2296781,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9051129364
+  },
+  {
+    "id": "osm_node_9431295697",
+    "name": "Byblos",
+    "latitude": 45.7710273,
+    "longitude": 21.2372643,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9431295697
+  },
+  {
+    "id": "osm_node_9735799890",
+    "name": "Unknown",
+    "latitude": 45.7752208,
+    "longitude": 21.2383331,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9735799890
+  },
+  {
+    "id": "osm_node_10130167503",
+    "name": "Unknown",
+    "latitude": 45.7582643,
+    "longitude": 21.2262214,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 10130167503
+  },
+  {
+    "id": "osm_node_10929272924",
+    "name": "Lucky Bar",
+    "latitude": 45.7388713,
+    "longitude": 21.2385934,
+    "amenity": "bar",
+    "address": {
+      "street": "Calea Martirilor 1989",
+      "housenumber": "11",
+      "postcode": "300735",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Su 09:00-23:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 10929272924
+  },
+  {
+    "id": "osm_node_11775665797",
+    "name": "Unknown",
+    "latitude": 45.7957359,
+    "longitude": 21.212395,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "outdoor_seating": "yes",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 11775665797
+  },
+  {
+    "id": "osm_node_12007832792",
+    "name": "Anto's Bar",
+    "latitude": 45.7613211,
+    "longitude": 21.2490258,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12007832792
+  },
+  {
+    "id": "osm_node_12007832803",
+    "name": "Unknown",
+    "latitude": 45.7610563,
+    "longitude": 21.2491592,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12007832803
+  },
+  {
+    "id": "osm_node_12146657310",
+    "name": "Unknown",
+    "latitude": 45.7265201,
+    "longitude": 21.2092446,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12146657310
+  },
+  {
+    "id": "osm_node_12187628448",
+    "name": "Club El Pedro",
+    "latitude": 45.7544048,
+    "longitude": 21.2581618,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12187628448
+  },
+  {
+    "id": "osm_node_12187659898",
+    "name": "Unknown",
+    "latitude": 45.7544048,
+    "longitude": 21.2581618,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12187659898
+  },
+  {
+    "id": "osm_node_12294905508",
+    "name": "Unknown",
+    "latitude": 45.7316341,
+    "longitude": 21.2356184,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12294905508
+  },
+  {
+    "id": "osm_node_12462622301",
+    "name": "Reciproc Bastion",
+    "latitude": 45.7573449,
+    "longitude": 21.233515,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12462622301
+  },
+  {
+    "id": "osm_node_12485070819",
+    "name": "Czech Inn",
+    "latitude": 45.7651083,
+    "longitude": 21.2296267,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Su 10:00-24:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12485070819
+  },
+  {
+    "id": "osm_node_12803953925",
+    "name": "Aethernativ",
+    "latitude": 45.7583349,
+    "longitude": 21.2262261,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Mo-Su 17:00-24:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12803953925
+  },
+  {
+    "id": "osm_node_12821067274",
+    "name": "Beer Pub",
+    "latitude": 45.7575321,
+    "longitude": 21.2276482,
+    "amenity": "pub",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "opening_hours": "Fr,Sa 21:00-05:00",
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12821067274
+  },
+  {
+    "id": "osm_node_12823334871",
+    "name": "Side Bar",
+    "latitude": 45.7547482,
+    "longitude": 21.2255483,
+    "amenity": "bar",
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12823334871
+  },
+  {
+    "id": "osm_node_13208353225",
+    "name": "Barcelona",
+    "latitude": 45.7313138,
+    "longitude": 21.2568759,
+    "amenity": "bar",
+    "address": {
+      "street": "Strada Venus",
+      "housenumber": "21",
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 13208353225
+  },
+  {
+    "id": "osm_node_4166480804",
+    "name": "Unknown",
+    "latitude": 45.7301559,
+    "longitude": 21.2583347,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4166480804
+  },
+  {
+    "id": "osm_node_4166480805",
+    "name": "Unknown",
+    "latitude": 45.7302785,
+    "longitude": 21.2582217,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4166480805
+  },
+  {
+    "id": "osm_node_4166480806",
+    "name": "Unknown",
+    "latitude": 45.7303916,
+    "longitude": 21.2584735,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4166480806
+  },
+  {
+    "id": "osm_node_4166480807",
+    "name": "Unknown",
+    "latitude": 45.730269,
+    "longitude": 21.2585866,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4166480807
+  },
+  {
+    "id": "osm_node_4209312909",
+    "name": "Unknown",
+    "latitude": 45.7303241,
+    "longitude": 21.2585358,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4209312909
+  },
+  {
+    "id": "osm_node_7731065647",
+    "name": "Unknown",
+    "latitude": 45.7301916,
+    "longitude": 21.2584144,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7731065647
+  },
+  {
+    "id": "osm_node_7731065652",
+    "name": "Unknown",
+    "latitude": 45.7302165,
+    "longitude": 21.2584698,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 7731065652
+  },
+  {
+    "id": "osm_node_1234059441",
+    "name": "Unknown",
+    "latitude": 45.743294,
+    "longitude": 21.2245716,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1234059441
+  },
+  {
+    "id": "osm_node_1234059443",
+    "name": "Unknown",
+    "latitude": 45.7432392,
+    "longitude": 21.2244317,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1234059443
+  },
+  {
+    "id": "osm_node_1234059444",
+    "name": "Unknown",
+    "latitude": 45.7432072,
+    "longitude": 21.224261,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1234059444
+  },
+  {
+    "id": "osm_node_1234059446",
+    "name": "Unknown",
+    "latitude": 45.7431989,
+    "longitude": 21.2244276,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1234059446
+  },
+  {
+    "id": "osm_node_1234059447",
+    "name": "Unknown",
+    "latitude": 45.743309,
+    "longitude": 21.2242714,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1234059447
+  },
+  {
+    "id": "osm_node_1309409106",
+    "name": "Unknown",
+    "latitude": 45.7432326,
+    "longitude": 21.2245653,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1309409106
+  },
+  {
+    "id": "osm_node_2325270691",
+    "name": "Unknown",
+    "latitude": 45.7484946,
+    "longitude": 21.2304143,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2325270691
+  },
+  {
+    "id": "osm_node_2325270693",
+    "name": "Unknown",
+    "latitude": 45.7481196,
+    "longitude": 21.230528,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2325270693
+  },
+  {
+    "id": "osm_node_2325270695",
+    "name": "Unknown",
+    "latitude": 45.7484073,
+    "longitude": 21.2299007,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2325270695
+  },
+  {
+    "id": "osm_node_2325270697",
+    "name": "Unknown",
+    "latitude": 45.7480465,
+    "longitude": 21.2300026,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 2325270697
+  },
+  {
+    "id": "osm_node_4206844340",
+    "name": "Unknown",
+    "latitude": 45.7482333,
+    "longitude": 21.2312781,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4206844340
+  },
+  {
+    "id": "osm_node_4206844341",
+    "name": "Unknown",
+    "latitude": 45.7486246,
+    "longitude": 21.2310654,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4206844341
+  },
+  {
+    "id": "osm_node_8697699248",
+    "name": "Unknown",
+    "latitude": 45.7491143,
+    "longitude": 21.2323446,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 8697699248
+  },
+  {
+    "id": "osm_node_8697699249",
+    "name": "Unknown",
+    "latitude": 45.7491915,
+    "longitude": 21.2326741,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 8697699249
+  },
+  {
+    "id": "osm_node_8697699250",
+    "name": "Unknown",
+    "latitude": 45.7489783,
+    "longitude": 21.2327766,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 8697699250
+  },
+  {
+    "id": "osm_node_8697699251",
+    "name": "Unknown",
+    "latitude": 45.7489012,
+    "longitude": 21.2324471,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 8697699251
+  },
+  {
+    "id": "osm_node_9938072786",
+    "name": "Unknown",
+    "latitude": 45.7483557,
+    "longitude": 21.2304556,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9938072786
+  },
+  {
+    "id": "osm_node_9938072787",
+    "name": "Unknown",
+    "latitude": 45.748205,
+    "longitude": 21.2305029,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9938072787
+  },
+  {
+    "id": "osm_node_9938072798",
+    "name": "Unknown",
+    "latitude": 45.7483106,
+    "longitude": 21.2299279,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9938072798
+  },
+  {
+    "id": "osm_node_9938072802",
+    "name": "Unknown",
+    "latitude": 45.7481057,
+    "longitude": 21.2304283,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9938072802
+  },
+  {
+    "id": "osm_node_9938072803",
+    "name": "Unknown",
+    "latitude": 45.7481005,
+    "longitude": 21.2299871,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9938072803
+  },
+  {
+    "id": "osm_node_9938072804",
+    "name": "Unknown",
+    "latitude": 45.7482272,
+    "longitude": 21.229951,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9938072804
+  },
+  {
+    "id": "osm_node_9938072807",
+    "name": "Unknown",
+    "latitude": 45.7481145,
+    "longitude": 21.2299829,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9938072807
+  },
+  {
+    "id": "osm_node_9938072809",
+    "name": "Unknown",
+    "latitude": 45.7482367,
+    "longitude": 21.2299484,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9938072809
+  },
+  {
+    "id": "osm_node_9938072812",
+    "name": "Unknown",
+    "latitude": 45.7483178,
+    "longitude": 21.2299259,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9938072812
+  },
+  {
+    "id": "osm_node_9938073218",
+    "name": "Unknown",
+    "latitude": 45.7483227,
+    "longitude": 21.2299245,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 9938073218
+  },
+  {
+    "id": "osm_node_11834743862",
+    "name": "Unknown",
+    "latitude": 45.7482289,
+    "longitude": 21.2312491,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 11834743862
+  },
+  {
+    "id": "osm_node_1587518978",
+    "name": "Unknown",
+    "latitude": 45.7563348,
+    "longitude": 21.2240396,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1587518978
+  },
+  {
+    "id": "osm_node_1587518985",
+    "name": "Unknown",
+    "latitude": 45.7563752,
+    "longitude": 21.2236455,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1587518985
+  },
+  {
+    "id": "osm_node_1587519003",
+    "name": "Unknown",
+    "latitude": 45.7564009,
+    "longitude": 21.2240927,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1587519003
+  },
+  {
+    "id": "osm_node_1587519006",
+    "name": "Unknown",
+    "latitude": 45.756467,
+    "longitude": 21.2236782,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 1587519006
+  },
+  {
+    "id": "osm_node_4276564002",
+    "name": "Unknown",
+    "latitude": 45.75055,
+    "longitude": 21.2421822,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4276564002
+  },
+  {
+    "id": "osm_node_4276564003",
+    "name": "Unknown",
+    "latitude": 45.7504807,
+    "longitude": 21.2419715,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4276564003
+  },
+  {
+    "id": "osm_node_4276564004",
+    "name": "Unknown",
+    "latitude": 45.750395,
+    "longitude": 21.2421271,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4276564004
+  },
+  {
+    "id": "osm_node_4276564005",
+    "name": "Unknown",
+    "latitude": 45.750438,
+    "longitude": 21.2422579,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4276564005
+  },
+  {
+    "id": "osm_node_12328980771",
+    "name": "Unknown",
+    "latitude": 45.7504629,
+    "longitude": 21.2420812,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12328980771
+  },
+  {
+    "id": "osm_node_12328980772",
+    "name": "Unknown",
+    "latitude": 45.7504366,
+    "longitude": 21.2420013,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 12328980772
+  },
+  {
+    "id": "osm_node_4208587243",
+    "name": "Unknown",
+    "latitude": 45.734437,
+    "longitude": 21.2628997,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4208587243
+  },
+  {
+    "id": "osm_node_4208587244",
+    "name": "Unknown",
+    "latitude": 45.7345783,
+    "longitude": 21.2631989,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4208587244
+  },
+  {
+    "id": "osm_node_4208587245",
+    "name": "Unknown",
+    "latitude": 45.734499,
+    "longitude": 21.2632757,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4208587245
+  },
+  {
+    "id": "osm_node_4208587246",
+    "name": "Unknown",
+    "latitude": 45.7343577,
+    "longitude": 21.2629765,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 4208587246
+  },
+  {
+    "id": "osm_node_10687727222",
+    "name": "Unknown",
+    "latitude": 45.7856639,
+    "longitude": 21.2364107,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 10687727222
+  },
+  {
+    "id": "osm_node_10687727223",
+    "name": "Unknown",
+    "latitude": 45.7856228,
+    "longitude": 21.2364064,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 10687727223
+  },
+  {
+    "id": "osm_node_10687727224",
+    "name": "Unknown",
+    "latitude": 45.7856173,
+    "longitude": 21.2365141,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 10687727224
+  },
+  {
+    "id": "osm_node_10687727225",
+    "name": "Unknown",
+    "latitude": 45.7856584,
+    "longitude": 21.2365185,
+    "address": {
+      "city": "Timișoara"
+    },
+    "contact": {},
+    "source": "OpenStreetMap",
+    "osm_type": "node",
+    "osm_id": 10687727225
+  }
+]

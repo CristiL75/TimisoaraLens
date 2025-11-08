@@ -45,6 +45,16 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     
     return R * c
 
+def load_cafes():
+    """Load cafes from OSM data"""
+    cafes_path = Path(__file__).parent.parent / "data" / "osm_cafes.json"
+    
+    try:
+        with open(cafes_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
+
 def load_landmarks():
     """Load landmarks from coordinates.json"""
     coords_path = Path(__file__).parent.parent / "data" / "coordinates.json"
@@ -86,6 +96,18 @@ async def check_location(gps: GPSCoordinate):
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"GPS check failed: {str(e)}")
+
+@router.get("/cafes")
+async def get_all_cafes():
+    """Get all cafes from OSM data"""
+    try:
+        cafes = load_cafes()
+        return {
+            "total": len(cafes),
+            "cafes": cafes
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load cafes: {str(e)}")
 
 @router.get("/landmarks")
 async def get_all_landmarks():
