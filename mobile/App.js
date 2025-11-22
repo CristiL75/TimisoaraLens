@@ -14,6 +14,11 @@ import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import MapScreen from './src/screens/MapScreen';
+import ListingsScreen from './src/screens/ListingsScreen';
+import CreateListingScreen from './src/screens/CreateListingScreen';
+import ListingDetailScreen from './src/screens/ListingDetailScreen';
+import EditListingScreen from './src/screens/EditListingScreen';
+import LocationPickerScreen from './src/screens/LocationPickerScreen';
 
 const Stack = createStackNavigator();
 
@@ -39,6 +44,11 @@ function AppStack() {
     >
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="Map" component={MapScreen} />
+      <Stack.Screen name="Listings" component={ListingsScreen} />
+      <Stack.Screen name="CreateListing" component={CreateListingScreen} />
+      <Stack.Screen name="ListingDetail" component={ListingDetailScreen} />
+      <Stack.Screen name="EditListing" component={EditListingScreen} />
+      <Stack.Screen name="LocationPicker" component={LocationPickerScreen} />
     </Stack.Navigator>
   );
 }

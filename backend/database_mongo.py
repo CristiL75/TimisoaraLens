@@ -110,6 +110,18 @@ async def connect_to_mongo():
         await database.quiz_history.create_index("user_id")
         await database.landmark_visits.create_index("user_id")
         
+        # Listings indexes
+        await database.listings.create_index("user_id")
+        await database.listings.create_index("status")
+        # Create geospatial index for location (GeoJSON Point)
+        # If documents contain `location_geo: { type: 'Point', coordinates: [lng, lat] }` this index will be used
+        try:
+            await database.listings.create_index([("location_geo", "2dsphere")])
+        except Exception:
+            # Fallback: also create simple compound index on lat/lon
+            await database.listings.create_index([("location.latitude", 1), ("location.longitude", 1)])
+        await database.listings.create_index("created_at")
+        
         print("✅ MongoDB indexes created")
     except Exception as e:
         print(f"❌ Failed to connect to MongoDB: {e}")

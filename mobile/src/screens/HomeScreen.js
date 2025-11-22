@@ -60,6 +60,30 @@ export default function HomeScreen({ navigation }) {
           </Card.Actions>
         </Card>
 
+        {/* Listings Button */}
+        <Card style={styles.card}>
+          <Card.Content>
+            <View style={styles.titleContainer}>
+              <MaterialCommunityIcons name="home-city" size={28} color="#FF9800" />
+              <Title style={styles.titleText}>Apartamente</Title>
+            </View>
+            <Paragraph style={styles.cardDescription}>
+              Găsește sau oferă apartamente de închiriat în regim hotelier.
+              Adaugă propriul anunț sau descoperă cazări disponibile.
+            </Paragraph>
+          </Card.Content>
+          <Card.Actions>
+            <Button
+              mode="contained"
+              icon="home-search"
+              onPress={() => navigation.navigate('Listings')}
+              style={styles.listingsButton}
+            >
+              Vezi Apartamente
+            </Button>
+          </Card.Actions>
+        </Card>
+
         <Button
           mode="outlined"
           onPress={logout}
@@ -100,6 +124,10 @@ const styles = StyleSheet.create({
   },
   mapButton: {
     marginLeft: 'auto',
+  },
+  listingsButton: {
+    marginLeft: 'auto',
+    backgroundColor: '#FF9800',
   },
   logoutButton: {
     marginTop: 10,

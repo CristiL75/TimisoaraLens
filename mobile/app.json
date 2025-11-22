@@ -17,7 +17,9 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "TimisoaraLens needs your location to show nearby landmarks and help you explore the city.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "TimisoaraLens needs your location to show nearby landmarks and help you explore the city."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "TimisoaraLens needs your location to show nearby landmarks and help you explore the city.",
+        "NSPhotoLibraryUsageDescription": "TimisoaraLens needs access to your photo library to upload listing images.",
+        "NSCameraUsageDescription": "TimisoaraLens needs camera access to take photos for your listings."
       }
     },
     "android": {
@@ -29,7 +31,11 @@
       "package": "com.cristil75.TimisoaraLens",
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "READ_MEDIA_IMAGES",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "CAMERA"
       ]
     },
     "web": {

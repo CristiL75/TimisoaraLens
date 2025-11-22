@@ -235,7 +235,7 @@ export default function MapScreen({ navigation }) {
           </Marker>
         )}
 
-        {/* Cafe Markers - Limited to 30 */}
+        {/* Cafe Markers - Only icon, no label (to avoid duplicating Google Maps labels) */}
         {cafes.map((cafe, index) => (
           <Marker
             key={`cafe-${cafe.id || index}`}
@@ -247,15 +247,8 @@ export default function MapScreen({ navigation }) {
             description={cafe.address?.street || ''}
             tracksViewChanges={false}
           >
-            <View style={styles.cafeMarker}>
-              <View style={styles.cafePin}>
-                <Text style={styles.cafeIcon}>☕</Text>
-              </View>
-              <View style={styles.cafeLabel}>
-                <Text style={styles.cafeName} numberOfLines={1}>
-                  {cafe.name}
-                </Text>
-              </View>
+            <View style={styles.cafePin}>
+              <Text style={styles.cafeIcon}>☕</Text>
             </View>
           </Marker>
         ))}
