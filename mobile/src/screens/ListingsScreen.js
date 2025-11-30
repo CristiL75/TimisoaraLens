@@ -12,7 +12,11 @@ import {
   Card,
   Text,
   Chip,
-  FAB
+  FAB,
+  Portal,
+  Modal,
+  Button,
+  Title
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,6 +26,8 @@ export default function ListingsScreen({ navigation }) {
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [amenitiesModalVisible, setAmenitiesModalVisible] = useState(false);
+  const [amenitiesForModal, setAmenitiesForModal] = useState([]);
 
   useEffect(() => {
     loadListings();
@@ -100,7 +106,7 @@ export default function ListingsScreen({ navigation }) {
           >
             <Card style={styles.card}>
               {listing.images && listing.images.length > 0 && (
-                <Card.Cover source={{ uri: listing.images[0] }} style={styles.cardImage} />
+                <Image source={{ uri: listing.images[0] }} style={styles.cardImage} resizeMode="contain" />
               )}
               <Card.Content style={styles.cardContent}>
                 <View style={styles.headerRow}>
@@ -114,14 +120,14 @@ export default function ListingsScreen({ navigation }) {
                       {listing.title}
                     </Text>
                   </View>
-                  <Chip mode="outlined" style={styles.typeChip}>
+                  <Chip style={styles.typePill} textStyle={styles.typePillText}>
                     {listing.property_type}
                   </Chip>
                 </View>
 
                 <View style={styles.locationRow}>
                   <MaterialCommunityIcons name="map-marker" size={16} color="#666" />
-                  <Text variant="bodySmall" style={styles.address}>
+                  <Text variant="bodySmall" style={styles.address} numberOfLines={1} ellipsizeMode="tail">
                     {listing.location.address}
                   </Text>
                 </View>
@@ -152,14 +158,14 @@ export default function ListingsScreen({ navigation }) {
                 </View>
 
                 {listing.amenities && listing.amenities.length > 0 && (
-                  <View style={styles.amenitiesRow}>
-                    {listing.amenities.slice(0, 3).map((amenity) => (
-                      <Chip key={amenity} compact style={styles.amenityChip}>
+                  <View style={[styles.amenitiesRow, { paddingLeft: 12 }]}>
+                    {listing.amenities.slice(0,3).map((amenity) => (
+                      <Chip key={amenity} compact style={styles.amenityChip} textStyle={styles.amenityText}>
                         {amenity}
                       </Chip>
                     ))}
                     {listing.amenities.length > 3 && (
-                      <Chip compact style={styles.amenityChip}>
+                      <Chip compact style={styles.amenityChip} onPress={() => { setAmenitiesForModal(listing.amenities); setAmenitiesModalVisible(true); }}>
                         +{listing.amenities.length - 3}
                       </Chip>
                     )}
@@ -188,6 +194,17 @@ export default function ListingsScreen({ navigation }) {
         onPress={() => navigation.navigate('CreateListing')}
         label="Adaugă Apartament"
       />
+      <Portal>
+        <Modal visible={amenitiesModalVisible} onDismiss={() => setAmenitiesModalVisible(false)} contentContainerStyle={styles.modalContainer}>
+          <Title>Facilități</Title>
+          <View style={{ marginTop: 8 }}>
+            {amenitiesForModal.map((a) => (
+              <Chip key={a} style={[styles.amenityChip, { marginBottom: 8 }]} textStyle={styles.amenityText}>{a}</Chip>
+            ))}
+          </View>
+          <Button mode="contained" onPress={() => setAmenitiesModalVisible(false)} style={{ marginTop: 12 }}>Închide</Button>
+        </Modal>
+      </Portal>
     </View>
   );
 }
@@ -219,6 +236,8 @@ const styles = StyleSheet.create({
   },
   cardImage: {
     height: 200,
+    width: '100%',
+    backgroundColor: '#000'
   },
   cardContent: {
     paddingTop: 12,
@@ -231,16 +250,40 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flex: 1,
-    gap: 8,
+    marginRight: 8,
   },
   title: {
     fontWeight: 'bold',
     flex: 1,
+    marginLeft: 8,
+    flexWrap: 'wrap',
   },
   typeChip: {
     height: 28,
+  },
+  typeRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  typePill: {
+    backgroundColor: '#f3e9ff',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    minHeight: 38,
+    alignSelf: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'visible',
+  },
+  typePillText: {
+    fontWeight: '600',
+    color: '#4b2fb6',
+    fontSize: 14,
+    lineHeight: 18,
+    textTransform: 'capitalize'
   },
   locationRow: {
     flexDirection: 'row',
@@ -270,13 +313,26 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   amenitiesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 12,
+    paddingVertical: 6,
+    paddingRight: 12,
+    alignItems: 'center',
   },
   amenityChip: {
-    height: 28,
+    height: 32,
+    borderRadius: 12,
+    marginRight: 8,
+    marginBottom: 0,
+    backgroundColor: '#f6efff'
+  },
+  amenityText: {
+    fontSize: 13,
+    color: '#4a2fa8'
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    padding: 20,
+    margin: 20,
+    borderRadius: 8,
   },
   priceRow: {
     flexDirection: 'row',

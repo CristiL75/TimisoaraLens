@@ -1,7 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Alert, Keyboard, Platform } from 'react-native';
+import { View, StyleSheet, Alert, Keyboard, Platform, Linking } from 'react-native';
 import { Appbar, Button, Searchbar, Text, ActivityIndicator } from 'react-native-paper';
-import MapView, { Marker } from 'react-native-maps';
+// react-native-maps is native only and breaks web bundling.
+// Import it dynamically at runtime for native platforms only.
+let MapView = null;
+let Marker = null;
+if (Platform.OS !== 'web') {
+  // require at runtime so bundler doesn't try to include native-only modules on web
+  const maps = require('react-native-maps');
+  MapView = maps.default || maps.MapView || maps;
+  Marker = maps.Marker || maps.MapMarker || null;
+}
 import * as Location from 'expo-location';
 
 const LocationPickerScreen = ({ navigation, route }) => {
@@ -90,41 +99,34 @@ const LocationPickerScreen = ({ navigation, route }) => {
     try {
       setSearching(true);
       Keyboard.dismiss();
-
-      // Geocoding - convertește adresa în coordonate
-      // Adăugăm "Timișoara, Romania" pentru context mai bun
-      const searchText = searchQuery.includes('Timișoara') 
-        ? searchQuery 
+      // On web, use Nominatim for geocoding; on native try expo Location.geocodeAsync
+      const searchText = searchQuery.includes('Timișoara')
+        ? searchQuery
         : `${searchQuery}, Timișoara, Romania`;
-      
-      const results = await Location.geocodeAsync(searchText);
-      
+
+      let results = [];
+      if (Platform.OS === 'web') {
+        // Use Nominatim OpenStreetMap API (no key required) for simple geocoding
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchText)}`;
+        const resp = await fetch(url, { headers: { 'Accept-Language': 'ro' } });
+        const json = await resp.json();
+        results = json.map(r => ({ latitude: parseFloat(r.lat), longitude: parseFloat(r.lon), display_name: r.display_name }));
+      } else {
+        results = await Location.geocodeAsync(searchText);
+      }
+
       if (results && results.length > 0) {
         const { latitude, longitude } = results[0];
-        
-        // Obține adresa formatată
-        const address = await reverseGeocode(latitude, longitude);
-        
-        setSelectedLocation({
-          latitude,
-          longitude,
-          address
-        });
-        
-        // Animează harta către locație
-        if (mapRef.current) {
-          mapRef.current.animateToRegion({
-            latitude,
-            longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          }, 1000);
+        const address = Platform.OS === 'web' ? (results[0].display_name || `${latitude}, ${longitude}`) : await reverseGeocode(latitude, longitude);
+
+        setSelectedLocation({ latitude, longitude, address });
+
+        // Animate map only on native platforms
+        if (mapRef.current && Platform.OS !== 'web') {
+          mapRef.current.animateToRegion({ latitude, longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 }, 1000);
         }
       } else {
-        Alert.alert(
-          'Adresa nu a fost găsită',
-          'Nu am putut găsi această adresă. Încearcă să fie mai specific sau selectează locația pe hartă.'
-        );
+        Alert.alert('Adresa nu a fost găsită', 'Nu am putut găsi această adresă. Încearcă să fii mai specific sau selectează locația pe hartă.');
       }
     } catch (error) {
       console.error('Geocoding error:', error);
@@ -250,27 +252,47 @@ const LocationPickerScreen = ({ navigation, route }) => {
         </View>
       )}
 
-      {/* Hartă */}
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        initialRegion={region}
-        onPress={handleMapPress}
-        showsUserLocation={true}
-        showsMyLocationButton={false}
-      >
-        {selectedLocation.latitude && selectedLocation.longitude && (
-          <Marker
-            coordinate={{
-              latitude: selectedLocation.latitude,
-              longitude: selectedLocation.longitude,
-            }}
-            title="Locație selectată"
-            description={selectedLocation.address}
-            pinColor="#6200ee"
-          />
-        )}
-      </MapView>
+      {/* Hartă (native) sau fallback (web) */}
+      {Platform.OS === 'web' ? (
+        <View style={[styles.map, { justifyContent: 'center', alignItems: 'center' }]}> 
+          <Text style={{ marginBottom: 8, color: '#666' }}>
+            Harta nu este disponibilă în modul web. Poți căuta o adresă sau folosi butonul "Locația mea".
+          </Text>
+          {selectedLocation.latitude && (
+            <Button
+              mode="outlined"
+              onPress={() => {
+                const lat = selectedLocation.latitude;
+                const lon = selectedLocation.longitude;
+                const url = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=18/${lat}/${lon}`;
+                Linking.openURL(url);
+              }}
+            >
+              Deschide în OpenStreetMap
+            </Button>
+          )}
+        </View>
+      ) : (
+        MapView && (
+          <MapView
+            ref={mapRef}
+            style={styles.map}
+            initialRegion={region}
+            onPress={handleMapPress}
+            showsUserLocation={true}
+            showsMyLocationButton={false}
+          >
+            {selectedLocation.latitude && selectedLocation.longitude && Marker && (
+              <Marker
+                coordinate={{ latitude: selectedLocation.latitude, longitude: selectedLocation.longitude }}
+                title="Locație selectată"
+                description={selectedLocation.address}
+                pinColor="#6200ee"
+              />
+            )}
+          </MapView>
+        )
+      )}
 
       {/* Butoane de acțiune */}
       <View style={styles.actionsContainer}>

@@ -93,6 +93,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     
     # Convert ObjectId to string
     user["_id"] = str(user["_id"])
+    # Provide common id aliases so other modules can reliably read the id
+    user["user_id"] = user["_id"]
+    user["id"] = user["_id"]
     return user
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)

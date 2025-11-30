@@ -59,11 +59,38 @@ class ImageUrls(BaseModel):
     """Model for adding images"""
     image_urls: List[str]
 
+
+class ReviewCreate(BaseModel):
+    rating: int
+    comment: Optional[str] = None
+
+
+def _serialize_review(r):
+    if not r:
+        return r
+    out = r.copy()
+    if out.get('_id'):
+        try:
+            out['id'] = str(out['_id'])
+            del out['_id']
+        except Exception:
+            pass
+    return out
+
 def serialize_listing(listing):
     """Convert MongoDB document to JSON-serializable dict"""
     if listing:
         listing['id'] = str(listing['_id'])
         del listing['_id']
+        # serialize reviews ids if present
+        if listing.get('reviews') and isinstance(listing.get('reviews'), list):
+            for r in listing['reviews']:
+                if r and isinstance(r, dict) and r.get('_id'):
+                    try:
+                        r['id'] = str(r['_id'])
+                        del r['_id']
+                    except Exception:
+                        pass
     return listing
 
 def serialize_listings(listings):
@@ -115,6 +142,7 @@ async def create_listing(
             "bedrooms": listing_data.bedrooms,
             "bathrooms": listing_data.bathrooms,
             "amenities": listing_data.amenities,
+            "reviews": [],
             "created_at": datetime.now(),
             "updated_at": datetime.now(),
             "status": "active"
@@ -181,10 +209,23 @@ async def get_listing(
         if not listing:
             raise HTTPException(status_code=404, detail="Listing not found")
         
-        # Add is_owner flag
+        # Add is_owner flag and compute average rating
         serialized_listing = serialize_listing(listing)
         serialized_listing['is_owner'] = (listing.get('user_id') == user_id)
-        
+        # Compute average rating if reviews exist
+        reviews = listing.get('reviews', []) or []
+        if reviews:
+            try:
+                avg = sum([r.get('rating', 0) for r in reviews]) / len(reviews)
+                serialized_listing['average_rating'] = round(avg, 2)
+                serialized_listing['reviews_count'] = len(reviews)
+            except Exception:
+                serialized_listing['average_rating'] = None
+                serialized_listing['reviews_count'] = 0
+        else:
+            serialized_listing['average_rating'] = None
+            serialized_listing['reviews_count'] = 0
+
         return serialized_listing
     
     except HTTPException:
@@ -432,3 +473,127 @@ async def update_listing_images(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to update images: {str(e)}")
+
+
+@router.post("/{listing_id}/reviews")
+async def add_review(
+    listing_id: str,
+    review: ReviewCreate,
+    current_user: dict = Depends(get_current_user),
+    db = Depends(get_database)
+):
+    """Add a review to a listing"""
+    try:
+        user_id = current_user.get('user_id') or current_user.get('id')
+        username = current_user.get('username') or current_user.get('email', 'Unknown')
+
+        try:
+            obj_id = ObjectId(listing_id)
+        except:
+            raise HTTPException(status_code=400, detail="Invalid listing ID format")
+
+        listing = await db.listings.find_one({'_id': obj_id})
+        if not listing:
+            raise HTTPException(status_code=404, detail='Listing not found')
+
+        # Validate rating
+        if not isinstance(review.rating, int) or review.rating < 1 or review.rating > 5:
+            raise HTTPException(status_code=400, detail='Rating must be an integer between 1 and 5')
+
+        review_doc = {
+            '_id': ObjectId(),
+            'user_id': user_id,
+            'username': username,
+            'rating': int(review.rating),
+            'comment': review.comment,
+            'created_at': datetime.now()
+        }
+
+        await db.listings.update_one({'_id': obj_id}, {'$push': {'reviews': review_doc}, '$set': {'updated_at': datetime.now()}})
+
+        updated = await db.listings.find_one({'_id': obj_id})
+        return {
+            'success': True,
+            'review': _serialize_review(review_doc),
+            'reviews_count': len(updated.get('reviews', []))
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'Failed to add review: {str(e)}')
+
+
+@router.get("/{listing_id}/reviews")
+async def get_reviews(listing_id: str, db = Depends(get_database)):
+    """Return reviews for a listing with average rating"""
+    try:
+        try:
+            obj_id = ObjectId(listing_id)
+        except:
+            raise HTTPException(status_code=400, detail="Invalid listing ID format")
+
+        listing = await db.listings.find_one({'_id': obj_id})
+        if not listing:
+            raise HTTPException(status_code=404, detail='Listing not found')
+
+        reviews = listing.get('reviews', []) or []
+        serialized = [_serialize_review(r) for r in reviews]
+        avg = None
+        if reviews:
+            try:
+                avg = round(sum([r.get('rating', 0) for r in reviews]) / len(reviews), 2)
+            except Exception:
+                avg = None
+
+        return {
+            'total': len(serialized),
+            'average_rating': avg,
+            'reviews': serialized
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'Failed to load reviews: {str(e)}')
+
+
+@router.delete("/{listing_id}/reviews/{review_id}")
+async def delete_review(listing_id: str, review_id: str, current_user: dict = Depends(get_current_user), db = Depends(get_database)):
+    """Delete a review if the user is the review author or the listing owner"""
+    try:
+        user_id = current_user.get('user_id') or current_user.get('id')
+        try:
+            obj_id = ObjectId(listing_id)
+        except:
+            raise HTTPException(status_code=400, detail="Invalid listing ID format")
+
+        listing = await db.listings.find_one({'_id': obj_id})
+        if not listing:
+            raise HTTPException(status_code=404, detail='Listing not found')
+
+        reviews = listing.get('reviews', []) or []
+        # find review
+        target = None
+        for r in reviews:
+            rid = str(r.get('_id')) if r.get('_id') else r.get('id')
+            if rid == review_id:
+                target = r
+                break
+
+        if not target:
+            raise HTTPException(status_code=404, detail='Review not found')
+
+        # allow deletion if review author or listing owner
+        if target.get('user_id') != user_id and listing.get('user_id') != user_id:
+            raise HTTPException(status_code=403, detail='Not authorized to delete this review')
+
+        # remove review by matching _id
+        await db.listings.update_one({'_id': obj_id}, {'$pull': {'reviews': {'_id': ObjectId(target.get('_id'))}}, '$set': {'updated_at': datetime.now()}})
+
+        return {'success': True, 'message': 'Review deleted'}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'Failed to delete review: {str(e)}')

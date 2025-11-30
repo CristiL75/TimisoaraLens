@@ -6,7 +6,10 @@ import {
   Image, 
   Alert,
   TouchableOpacity,
-  Platform
+  Platform,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+  Keyboard
 } from 'react-native';
 import { 
   Appbar, 
@@ -299,7 +302,13 @@ export default function CreateListingScreen({ navigation, route }) {
         <Appbar.Content title="Adaugă Apartament" />
       </Appbar.Header>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 80}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps='handled' contentContainerStyle={{ paddingBottom: 140 }}>
         {/* Titlu */}
         <Card style={styles.card}>
           <Card.Content>
@@ -582,7 +591,9 @@ export default function CreateListingScreen({ navigation, route }) {
         </Button>
 
         <View style={styles.bottomPadding} />
-      </ScrollView>
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -610,7 +621,7 @@ const styles = StyleSheet.create({
   chipContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    marginBottom: 8,
   },
   chip: {
     marginRight: 8,

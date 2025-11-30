@@ -6,7 +6,8 @@ import {
   Image,
   Dimensions,
   Alert,
-  Linking
+  Linking,
+  TouchableOpacity
 } from 'react-native';
 import { 
   Appbar, 
@@ -14,10 +15,14 @@ import {
   Text,
   Chip,
   Button,
-  ActivityIndicator
+  ActivityIndicator,
+  TextInput,
+  Avatar,
+  Divider
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../context/AuthContext';
 import { API_URL } from '../services/api';
 
 const { width } = Dimensions.get('window');
@@ -28,10 +33,31 @@ export default function ListingDetailScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [newRating, setNewRating] = useState(5);
+  const [newComment, setNewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     loadListingDetail();
+    loadReviews();
   }, []);
+
+  const loadReviews = async () => {
+    try {
+      setReviewsLoading(true);
+      const response = await fetch(`${API_URL}/api/listings/${listingId}/reviews`);
+      const data = await response.json();
+      if (response.ok) {
+        setReviews(data.reviews || []);
+      }
+    } catch (error) {
+      console.error('Failed to load reviews:', error);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
 
   const loadListingDetail = async () => {
     try {
@@ -48,7 +74,8 @@ export default function ListingDetailScreen({ route, navigation }) {
       
       if (response.ok) {
         setListing(data);
-        // Backend sends is_owner flag
+        // Backend may send is_owner flag; we'll additionally verify against current logged user
+        // Keep the state for backward compatibility but the UI will compute final ownership
         setIsOwner(data.is_owner || false);
       } else {
         Alert.alert('Eroare', 'Nu s-au putut încărca detaliile anunțului');
@@ -62,6 +89,20 @@ export default function ListingDetailScreen({ route, navigation }) {
       setLoading(false);
     }
   };
+
+  // Compute effective ownership by comparing authenticated user id with listing owner id
+  const { user: currentUser } = useAuth();
+  const effectiveIsOwner = (() => {
+    if (!listing) return false;
+    // Try several possible id fields to be robust
+    const ownerId = listing?.owner?.user_id || listing?.user_id || listing?.owner?.id || listing?.owner?._id;
+    const cuId = currentUser?.id || currentUser?._id || currentUser?.user_id;
+    if (!cuId || !ownerId) {
+      // fall back to backend-provided flag if present
+      return !!listing.is_owner || !!isOwner;
+    }
+    return String(ownerId) === String(cuId) || !!listing.is_owner || !!isOwner;
+  })();
 
   const confirmDelete = () => {
     Alert.alert(
@@ -119,6 +160,71 @@ export default function ListingDetailScreen({ route, navigation }) {
     }
   };
 
+  const submitReview = async () => {
+    try {
+      if (!newRating || newRating < 1 || newRating > 5) {
+        Alert.alert('Eroare', 'Alege un rating între 1 și 5 stele');
+        return;
+      }
+      setSubmittingReview(true);
+      const token = await AsyncStorage.getItem('userToken');
+      const response = await fetch(`${API_URL}/api/listings/${listingId}/reviews`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ rating: parseInt(newRating), comment: newComment })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setNewRating(5);
+        setNewComment('');
+        loadReviews();
+        // reload listing to update average rating/count
+        loadListingDetail();
+      } else {
+        Alert.alert('Eroare', data.detail || 'Nu s-a putut trimite review-ul');
+      }
+    } catch (error) {
+      console.error('Failed to submit review:', error);
+      Alert.alert('Eroare', 'Eroare de conexiune');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const confirmDeleteReview = (reviewId) => {
+    Alert.alert(
+      'Șterge review',
+      'Sigur vrei să ștergi acest review?',
+      [
+        { text: 'Anulează', style: 'cancel' },
+        { text: 'Șterge', style: 'destructive', onPress: () => deleteReview(reviewId) }
+      ]
+    );
+  };
+
+  const deleteReview = async (reviewId) => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      const response = await fetch(`${API_URL}/api/listings/${listingId}/reviews/${reviewId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        loadReviews();
+        loadListingDetail();
+      } else {
+        Alert.alert('Eroare', data.detail || 'Nu s-a putut șterge review-ul');
+      }
+    } catch (error) {
+      console.error('Failed to delete review:', error);
+      Alert.alert('Eroare', 'Eroare de conexiune');
+    }
+  };
+
   const getPropertyIcon = (type) => {
     const icons = {
       apartment: 'office-building',
@@ -128,6 +234,14 @@ export default function ListingDetailScreen({ route, navigation }) {
       room: 'door'
     };
     return icons[type] || 'home';
+  };
+
+  // Helper to build initials for avatar
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(' ').filter(Boolean);
+    if (parts.length === 1) return parts[0].slice(0,2).toUpperCase();
+    return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
   };
 
   if (loading) {
@@ -154,7 +268,7 @@ export default function ListingDetailScreen({ route, navigation }) {
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title="Detalii Apartament" />
-        {isOwner && (
+        {effectiveIsOwner && (
           <>
             <Appbar.Action 
               icon="pencil" 
@@ -373,8 +487,96 @@ export default function ListingDetailScreen({ route, navigation }) {
             </Card>
           )}
 
+          {/* Reviews */}
+          <Card style={styles.card}>
+            <Card.Content>
+              <View style={styles.sectionHeader}>
+                <MaterialCommunityIcons name="star-circle" size={24} color="#6200ee" />
+                <Text variant="titleMedium" style={styles.sectionTitle}>
+                  Recenzii
+                </Text>
+              </View>
+
+              <View style={styles.avgRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <MaterialCommunityIcons name="star" size={18} color="#fbc02d" />
+                  <Text variant="headlineSmall" style={styles.avgRatingText}>
+                    {listing.average_rating ? Number(listing.average_rating).toFixed(1) : 'N/A'}
+                  </Text>
+                  <Text variant="bodyMedium" style={styles.avgCountText}>
+                    {listing.reviews_count || 0} recenzii
+                  </Text>
+                </View>
+              </View>
+
+              {reviewsLoading ? (
+                <ActivityIndicator />
+              ) : (
+                reviews.length === 0 ? (
+                  <Text variant="bodySmall" style={{ color: '#666' }}>Fii primul care lasă o recenzie.</Text>
+                ) : (
+                  reviews.map((r) => (
+                    <View key={r.id} style={styles.reviewCard}>
+                      <View style={styles.reviewerRow}>
+                        <Avatar.Text size={44} label={getInitials(r.username)} style={styles.avatar} />
+                        <View style={{ flex: 1, marginLeft: 12 }}>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <View>
+                              <Text variant="titleSmall" style={styles.reviewerName}>{r.username || 'Utilizator'}</Text>
+                              <Text variant="bodySmall" style={styles.reviewDate}>{r.created_at ? new Date(r.created_at).toLocaleString() : ''}</Text>
+                            </View>
+                            <View style={styles.starRow}>
+                              {[1,2,3,4,5].map((i) => (
+                                <MaterialCommunityIcons key={i} name={i <= r.rating ? 'star' : 'star-outline'} size={18} color="#fbc02d" />
+                              ))}
+                              <Text style={{ marginLeft: 8, color: '#666' }}>{r.rating}/5</Text>
+                            </View>
+                          </View>
+                          {r.comment ? <Text style={styles.reviewComment}>{r.comment}</Text> : null}
+                        </View>
+                      </View>
+                      {((effectiveIsOwner) || (currentUser && (r.user_id === currentUser.id || r.user_id === currentUser._id || r.username === currentUser.username))) && (
+                        <View style={{ alignItems: 'flex-end', marginTop: 8 }}>
+                          <Button compact onPress={() => confirmDeleteReview(r.id)}>Șterge</Button>
+                        </View>
+                      )}
+                    </View>
+                  ))
+                )
+              )}
+
+              <Divider style={{ marginVertical: 12 }} />
+
+              {/* Submit review form */}
+              <View style={styles.reviewForm}>
+                <Text variant="titleSmall" style={{ marginBottom: 8 }}>Lasă o recenzie</Text>
+                <View style={styles.starRow}>
+                  {[1,2,3,4,5].map((s) => (
+                    <TouchableOpacity key={s} onPress={() => setNewRating(s)} style={styles.starButton}>
+                      <MaterialCommunityIcons name={s <= newRating ? 'star' : 'star-outline'} size={28} color="#fbc02d" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TextInput
+                  mode="outlined"
+                  label="Comentariu (opțional)"
+                  value={newComment}
+                  onChangeText={setNewComment}
+                  multiline
+                  numberOfLines={4}
+                  style={styles.commentInput}
+                />
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                  <Button mode="contained" onPress={submitReview} loading={submittingReview} style={{ marginTop: 8 }}>
+                    Trimite
+                  </Button>
+                </View>
+              </View>
+            </Card.Content>
+          </Card>
+
           {/* Contact/Book Button */}
-          {!isOwner && (
+          {!effectiveIsOwner && (
             <Button
               mode="contained"
               icon="phone"
@@ -387,7 +589,7 @@ export default function ListingDetailScreen({ route, navigation }) {
           )}
 
           {/* Delete Button - Only for Owner */}
-          {isOwner && (
+          {effectiveIsOwner && (
             <Button
               mode="contained"
               icon="delete"
@@ -556,4 +758,54 @@ const styles = StyleSheet.create({
   bottomPadding: {
     height: 40,
   },
+  avgRow: {
+    marginBottom: 8,
+  },
+  avgRatingText: {
+    marginLeft: 8,
+    fontWeight: '700',
+    color: '#333'
+  },
+  avgCountText: {
+    marginLeft: 12,
+    color: '#666'
+  },
+  reviewCard: {
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    elevation: 1,
+  },
+  reviewerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start'
+  },
+  avatar: {
+    backgroundColor: '#e0e0e0'
+  },
+  reviewerName: {
+    fontWeight: '600'
+  },
+  reviewDate: {
+    color: '#666'
+  },
+  reviewComment: {
+    marginTop: 8,
+    lineHeight: 20
+  },
+  starRow: {
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  starButton: {
+    padding: 6
+  },
+  reviewForm: {
+    marginTop: 4
+  },
+  commentInput: {
+    marginTop: 8,
+    minHeight: 80
+  }
 });
