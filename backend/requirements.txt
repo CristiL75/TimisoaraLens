@@ -9,7 +9,9 @@ python-dotenv==1.0.0
 
 # Google OAuth
 google-auth==2.25.2
-httpx==0.28.1
+# httpx: pin to the 0.25.x series to satisfy `ollama` dependency (<0.26.0)
+# If you later remove or upgrade ollama, you can relax this constraint.
+httpx>=0.25.2,<0.26.0
 
 # AI Core - LangChain + Ollama
 langchain==0.1.4
@@ -51,6 +53,7 @@ python-multipart==0.0.6
 # httpx is already pinned above to 0.28.1. Removed the duplicate/conflicting constraint to avoid resolution errors during deployment.
 
 # Utilities
-pandas==2.2.0
+# pandas: pin to >=2.2.3 to fix Python 3.13 C++ attribute compilation issues on Render
+pandas>=2.2.3
 requests==2.31.0
 tqdm==4.66.1
