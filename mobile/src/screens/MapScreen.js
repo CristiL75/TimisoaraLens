@@ -8,10 +8,22 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  Platform,
+  Linking,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+// react-native-maps is native-only and breaks web bundling.
+// Import it dynamically at runtime for native platforms only.
+let MapView = null;
+let Marker = null;
+let PROVIDER_GOOGLE = null;
+if (Platform.OS !== 'web') {
+  const maps = require('react-native-maps');
+  MapView = maps.default || maps.MapView || maps;
+  Marker = maps.Marker || maps.MapMarker || null;
+  PROVIDER_GOOGLE = maps.PROVIDER_GOOGLE || null;
+}
 import * as Location from 'expo-location';
-import { Text, Appbar, Searchbar } from 'react-native-paper';
+import { Text, Appbar, Searchbar, Button } from 'react-native-paper';
 
 export default function MapScreen({ navigation }) {
   const [location, setLocation] = useState(null);
@@ -200,59 +212,78 @@ export default function MapScreen({ navigation }) {
         />
       )}
       
-      <MapView
-        ref={(ref) => setMapRef(ref)}
-        style={styles.map}
-        provider={PROVIDER_GOOGLE}
-        initialRegion={location || TIMISOARA_CENTER}
-        showsUserLocation={false}
-        showsMyLocationButton={false}
-        showsCompass={true}
-        showsScale={true}
-        loadingEnabled={true}
-      >
-        {/* Draggable User Marker (always visible) */}
-        {userMarkerPosition && (
-          <Marker
-            coordinate={{
-              latitude: userMarkerPosition.latitude,
-              longitude: userMarkerPosition.longitude,
+      {Platform.OS === 'web' || !MapView ? (
+        <View style={[styles.map, { justifyContent: 'center', alignItems: 'center' }]}> 
+          <Text style={{ marginBottom: 8, color: '#666' }}>Harta nu este disponibilă în modul web.</Text>
+          <Button
+            mode="outlined"
+            onPress={() => {
+              const lat = (location || TIMISOARA_CENTER).latitude;
+              const lon = (location || TIMISOARA_CENTER).longitude;
+              const url = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=12/${lat}/${lon}`;
+              Linking.openURL(url);
             }}
-            draggable={true}
-            onDragStart={handleMarkerDragStart}
-            onDrag={handleMarkerDrag}
-            onDragEnd={handleMarkerDragEnd}
-            title="Tu (drag pentru a muta)"
-            description={`📍 ${userMarkerPosition.latitude.toFixed(6)}, ${userMarkerPosition.longitude.toFixed(6)}`}
           >
-            <Image 
-              source={require('../../assets/person.png')} 
-              style={[
-                styles.userIcon,
-                isDragging && styles.userIconDragging
-              ]}
-            />
-          </Marker>
-        )}
+            Deschide în OpenStreetMap
+          </Button>
+        </View>
+      ) : (
+        <MapView
+          ref={(ref) => setMapRef(ref)}
+          style={styles.map}
+          provider={PROVIDER_GOOGLE}
+          initialRegion={location || TIMISOARA_CENTER}
+          showsUserLocation={false}
+          showsMyLocationButton={false}
+          showsCompass={true}
+          showsScale={true}
+          loadingEnabled={true}
+        >
+          {/* Draggable User Marker (always visible) */}
+          {userMarkerPosition && Marker && (
+            <Marker
+              coordinate={{
+                latitude: userMarkerPosition.latitude,
+                longitude: userMarkerPosition.longitude,
+              }}
+              draggable={true}
+              onDragStart={handleMarkerDragStart}
+              onDrag={handleMarkerDrag}
+              onDragEnd={handleMarkerDragEnd}
+              title="Tu (drag pentru a muta)"
+              description={`📍 ${userMarkerPosition.latitude.toFixed(6)}, ${userMarkerPosition.longitude.toFixed(6)}`}
+            >
+              <Image 
+                source={require('../../assets/person.png')} 
+                style={[
+                  styles.userIcon,
+                  isDragging && styles.userIconDragging
+                ]}
+              />
+            </Marker>
+          )}
 
-        {/* Cafe Markers - Only icon, no label (to avoid duplicating Google Maps labels) */}
-        {cafes.map((cafe, index) => (
-          <Marker
-            key={`cafe-${cafe.id || index}`}
-            coordinate={{
-              latitude: cafe.latitude,
-              longitude: cafe.longitude,
-            }}
-            title={cafe.name}
-            description={cafe.address?.street || ''}
-            tracksViewChanges={false}
-          >
-            <View style={styles.cafePin}>
-              <Text style={styles.cafeIcon}>☕</Text>
-            </View>
-          </Marker>
-        ))}
-      </MapView>
+          {/* Cafe Markers - Only icon, no label (to avoid duplicating Google Maps labels) */}
+          {cafes.map((cafe, index) => (
+            Marker ? (
+              <Marker
+                key={`cafe-${cafe.id || index}`}
+                coordinate={{
+                  latitude: cafe.latitude,
+                  longitude: cafe.longitude,
+                }}
+                title={cafe.name}
+                description={cafe.address?.street || ''}
+                tracksViewChanges={false}
+              >
+                <View style={styles.cafePin}>
+                  <Text style={styles.cafeIcon}>☕</Text>
+                </View>
+              </Marker>
+            ) : null
+          ))}
+        </MapView>
+      )}
 
       {errorMsg && (
         <View style={styles.errorContainer}>

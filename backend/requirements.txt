@@ -48,7 +48,7 @@ passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
 
 # HTTP & CORS
-httpx>=0.25.2,<0.26.0
+# httpx is already pinned above to 0.28.1. Removed the duplicate/conflicting constraint to avoid resolution errors during deployment.
 
 # Utilities
 pandas==2.2.0

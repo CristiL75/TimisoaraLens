@@ -3,9 +3,28 @@
  */
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
-// Backend URL - IP direct pentru testing local
-export const API_URL = 'http://192.168.100.45:8000';
+// Backend URL configuration
+// Priority (first available):
+// 1. expo config extra: app.json -> expo.extra.API_URL (recommended for per-device/runtime overrides)
+// 2. manifest.extra (older SDKs)
+// 3. Fallback default for local development
+const DEFAULT_LOCAL_API = 'http://10.30.60.139:8000';
+export const API_URL =
+  Constants?.expoConfig?.extra?.API_URL ||
+  Constants?.manifest?.extra?.API_URL ||
+  DEFAULT_LOCAL_API;
+
+// Debug: print resolved API_URL at runtime so we can confirm the app is pointing
+// to the expected backend when running in Expo/Expo Go. This will appear in Metro logs.
+try {
+  // eslint-disable-next-line no-console
+  console.log('[api] Resolved API_URL ->', API_URL);
+} catch (e) {
+  // ignore logging errors in environments where console isn't available
+}
+
 const API_BASE = `${API_URL}/api`;
 
 const api = axios.create({
@@ -16,11 +35,59 @@ const api = axios.create({
   },
 });
 
+// Development override support: allows setting a runtime API URL without
+// editing app.json. The override is persisted to AsyncStorage under
+// 'DEV_API_URL' so it survives reloads until cleared.
+let OVERRIDE_API_URL = null;
+
+export const setDevApiUrl = (url) => {
+  try {
+    if (!url) return;
+    const trimmed = url.replace(/\/$/, '');
+    OVERRIDE_API_URL = trimmed;
+    api.defaults.baseURL = `${trimmed}/api`;
+    // persist for subsequent reloads
+    AsyncStorage.setItem('DEV_API_URL', trimmed).catch(() => {});
+    // eslint-disable-next-line no-console
+    console.log('[api] Dev API override set ->', trimmed);
+  } catch (e) {
+    // ignore
+  }
+};
+
+export const clearDevApiUrl = async () => {
+  try {
+    OVERRIDE_API_URL = null;
+    api.defaults.baseURL = API_BASE;
+    await AsyncStorage.removeItem('DEV_API_URL');
+    // eslint-disable-next-line no-console
+    console.log('[api] Dev API override cleared');
+  } catch (e) {
+    // ignore
+  }
+};
+
+// On module load, apply any persisted dev override.
+(async () => {
+  try {
+    const v = await AsyncStorage.getItem('DEV_API_URL');
+    if (v) {
+      OVERRIDE_API_URL = v;
+      api.defaults.baseURL = `${v.replace(/\/$/, '')}/api`;
+      // eslint-disable-next-line no-console
+      console.log('[api] Applied persisted DEV_API_URL ->', v);
+    }
+  } catch (e) {
+    // ignore
+  }
+})();
+
 // Add token to requests if available
 api.interceptors.request.use(
   async (config) => {
     const token = await AsyncStorage.getItem('userToken');
-    if (token) {
+    if (token && config) {
+      config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -29,6 +96,26 @@ api.interceptors.request.use(
     return Promise.reject(error);
   }
 );
+
+/**
+ * Helper to format axios errors for logging
+ */
+function formatAxiosError(err) {
+  if (!err) return 'Unknown error';
+  const out = {
+    message: err.message,
+    code: err.code,
+    status: err.response?.status,
+    url: err.config?.url,
+    method: err.config?.method,
+    responseData: err.response?.data,
+  };
+  try {
+    return JSON.stringify(out);
+  } catch (e) {
+    return String(out.message || out.code || 'Axios error');
+  }
+}
 
 // Auth API
 export const authAPI = {
@@ -45,9 +132,12 @@ export const authAPI = {
       });
       return { success: true, data: response.data };
     } catch (error) {
+      // Log full error for debugging in Metro / device logs
+      // eslint-disable-next-line no-console
+      console.error('[api] register error:', formatAxiosError(error));
       return {
         success: false,
-        error: error.response?.data?.detail || 'Registration failed',
+        error: error.response?.data?.detail || error.message || 'Registration failed',
       };
     }
   },
@@ -69,9 +159,11 @@ export const authAPI = {
       
       return { success: false, error: 'No token received' };
     } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[api] login error:', formatAxiosError(error));
       return {
         success: false,
-        error: error.response?.data?.detail || 'Login failed',
+        error: error.response?.data?.detail || error.message || 'Login failed',
       };
     }
   },
@@ -84,9 +176,11 @@ export const authAPI = {
       const response = await api.get('/auth/me');
       return { success: true, data: response.data };
     } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[api] getCurrentUser error:', formatAxiosError(error));
       return {
         success: false,
-        error: error.response?.data?.detail || 'Failed to get user info',
+        error: error.response?.data?.detail || error.message || 'Failed to get user info',
       };
     }
   },
@@ -114,9 +208,11 @@ export const authAPI = {
       
       return { success: false, error: 'No token received' };
     } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[api] googleSignIn error:', formatAxiosError(error));
       return {
         success: false,
-        error: error.response?.data?.detail || 'Google sign-in failed',
+        error: error.response?.data?.detail || error.message || 'Google sign-in failed',
       };
     }
   },
@@ -136,9 +232,11 @@ export const gpsAPI = {
       });
       return { success: true, data: response.data };
     } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[api] checkLocation error:', formatAxiosError(error));
       return {
         success: false,
-        error: error.response?.data?.detail || 'GPS check failed',
+        error: error.response?.data?.detail || error.message || 'GPS check failed',
       };
     }
   },
@@ -151,9 +249,11 @@ export const gpsAPI = {
       const response = await api.get('/gps/landmarks');
       return { success: true, data: response.data };
     } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[api] getAllLandmarks error:', formatAxiosError(error));
       return {
         success: false,
-        error: error.response?.data?.detail || 'Failed to get landmarks',
+        error: error.response?.data?.detail || error.message || 'Failed to get landmarks',
       };
     }
   },

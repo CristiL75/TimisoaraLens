@@ -42,6 +42,7 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
+      "API_URL": "https://hypercoagulable-nonobservably-andrea.ngrok-free.dev",
       "eas": {
         "projectId": "86158998-40ec-40c6-a881-4ac65294927b"
       }
