@@ -9,21 +9,20 @@ python-dotenv==1.0.0
 
 # Google OAuth
 google-auth==2.25.2
-# httpx: pin to the 0.25.x series to satisfy `ollama` dependency (<0.26.0)
-# If you later remove or upgrade ollama, you can relax this constraint.
-httpx>=0.25.2,<0.26.0
+# httpx: upgraded to 0.28.1 after removing ollama dependency below
+httpx==0.28.1
 
-# AI Core - LangChain + Ollama
-langchain==0.1.4
-langchain-community==0.0.16
-ollama==0.1.6
+# AI Core - LangChain + Ollama (COMMENTED OUT - not using RAG yet; uncomment when needed)
+# langchain==0.1.4
+# langchain-community==0.0.16
+# ollama==0.1.6
 
-# Vector Database
-chromadb==0.4.22
+# Vector Database (COMMENTED OUT - not using RAG yet; uncomment when needed)
+# chromadb==0.4.22
 
-# Embeddings
-sentence-transformers==2.3.1
-transformers==4.37.2
+# Embeddings (COMMENTED OUT - not using RAG yet; uncomment when needed)
+# sentence-transformers==2.3.1
+# transformers==4.37.2
 
 # Computer Vision - TO BE ADDED LATER
 # torch==2.2.0
@@ -52,8 +51,8 @@ python-multipart==0.0.6
 # HTTP & CORS
 # httpx is already pinned above to 0.28.1. Removed the duplicate/conflicting constraint to avoid resolution errors during deployment.
 
-# Utilities
+# Utilities (COMMENTED OUT heavy ML/data packages - uncomment when needed)
 # pandas: pin to >=2.2.3 to fix Python 3.13 C++ attribute compilation issues on Render
-pandas>=2.2.3
+# pandas>=2.2.3
 requests==2.31.0
-tqdm==4.66.1
+# tqdm==4.66.1
