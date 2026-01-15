@@ -26,10 +26,11 @@ class Location(BaseModel):
 class POI(BaseModel):
     """Point of Interest model"""
     name: str
-    category: str  # cafe, restaurant, bar, museum, etc.
+    category: str = "restaurant"  # cafe, restaurant, bar, museum, etc.
     latitude: float
     longitude: float
     address: Optional[str] = None
+    description: Optional[str] = None  # Short description about the place
     distance_km: Optional[float] = None
 
 class SuggestedRoute(BaseModel):
