@@ -10,7 +10,7 @@ import Constants from 'expo-constants';
 // 1. expo config extra: app.json -> expo.extra.API_URL (recommended for per-device/runtime overrides)
 // 2. manifest.extra (older SDKs)
 // 3. Fallback default for local development
-const DEFAULT_LOCAL_API = 'http://10.30.60.139:8000';
+const DEFAULT_LOCAL_API = 'https://timisoaralens.onrender.com';
 export const API_URL =
   Constants?.expoConfig?.extra?.API_URL ||
   Constants?.manifest?.extra?.API_URL ||
