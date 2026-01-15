@@ -19,6 +19,7 @@ import CreateListingScreen from './src/screens/CreateListingScreen';
 import ListingDetailScreen from './src/screens/ListingDetailScreen';
 import EditListingScreen from './src/screens/EditListingScreen';
 import LocationPickerScreen from './src/screens/LocationPickerScreen';
+import RouteBuilderScreen from './src/screens/RouteBuilderScreen';
 
 const Stack = createStackNavigator();
 
@@ -49,6 +50,7 @@ function AppStack() {
       <Stack.Screen name="ListingDetail" component={ListingDetailScreen} />
       <Stack.Screen name="EditListing" component={EditListingScreen} />
       <Stack.Screen name="LocationPicker" component={LocationPickerScreen} />
+      <Stack.Screen name="RouteBuilder" component={RouteBuilderScreen} />
     </Stack.Navigator>
   );
 }

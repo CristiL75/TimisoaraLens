@@ -9,6 +9,9 @@ from datetime import datetime
 from bson import ObjectId
 from database_mongo import get_database
 from api.auth import get_current_user
+import json
+import os
+import math
 
 router = APIRouter()
 
@@ -34,6 +37,7 @@ class Listing(BaseModel):
     bedrooms: int
     bathrooms: int
     amenities: List[str] = []  # wifi, parking, kitchen, etc.
+    suggested_route: Optional[SuggestedRoute] = None  # Tourist route suggestion
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     status: str = "active"  # active, inactive, pending
@@ -54,11 +58,30 @@ class ListingCreate(BaseModel):
     contact_name: str
     contact_phone: str
     contact_email: Optional[str] = None
+    suggested_route: Optional[SuggestedRoute] = None
 
 class ImageUrls(BaseModel):
     """Model for adding images"""
     image_urls: List[str]
 
+
+class POI(BaseModel):
+    """Point of Interest model"""
+    name: str
+    category: str  # cafe, restaurant, bar, museum, etc.
+    latitude: float
+    longitude: float
+    address: Optional[str] = None
+    distance_km: Optional[float] = None
+
+class SuggestedRoute(BaseModel):
+    """Suggested tourist route for listing"""
+    title: str
+    description: Optional[str] = None
+    poi_ids: List[str] = []  # List of POI names/IDs
+    pois: List[POI] = []  # Actual POI objects
+    total_distance_km: Optional[float] = None
+    estimated_time_hours: Optional[float] = None
 
 class ReviewCreate(BaseModel):
     rating: int
@@ -92,6 +115,44 @@ def serialize_listing(listing):
                     except Exception:
                         pass
     return listing
+
+def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate distance between two points in km using Haversine formula"""
+    R = 6371  # Earth radius in km
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    
+    a = math.sin(delta_phi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda/2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    
+    return R * c
+
+def _load_poi_data(category: str) -> List[dict]:
+    """Load POI data from JSON files"""
+    data_dir = os.path.join(os.path.dirname(__file__), '..', 'data')
+    
+    # Map category to file name
+    category_map = {
+        'cafe': 'osm_cafes.json',
+        'restaurant': 'osm_bars_pubs.json',  # Using bars/pubs as restaurants for now
+        'entertainment': 'osm_entertainment.json',
+        'shop': 'osm_shops.json',
+        'religious': 'osm_religious.json'
+    }
+    
+    filename = category_map.get(category, f'osm_{category}.json')
+    filepath = os.path.join(data_dir, filename)
+    
+    try:
+        if os.path.exists(filepath):
+            with open(filepath, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"Error loading {filepath}: {str(e)}")
+    
+    return []
 
 def serialize_listings(listings):
     """Convert list of MongoDB documents to JSON-serializable list"""
@@ -142,6 +203,7 @@ async def create_listing(
             "bedrooms": listing_data.bedrooms,
             "bathrooms": listing_data.bathrooms,
             "amenities": listing_data.amenities,
+            "suggested_route": listing_data.suggested_route.dict() if listing_data.suggested_route else None,
             "reviews": [],
             "created_at": datetime.now(),
             "updated_at": datetime.now(),

@@ -46,13 +46,18 @@ export default function CreateListingScreen({ navigation, route }) {
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
+  const [suggestedRoute, setSuggestedRoute] = useState(null);
 
   const propertyTypes = ['apartment', 'house', 'studio', 'villa', 'room'];
   const availableAmenities = ['wifi', 'parking', 'kitchen', 'tv', 'ac', 'heating', 'washer', 'balcony'];
 
   useEffect(() => {
     requestPermissions();
-  }, []);
+    // Check if route returned with suggested route data
+    if (route?.params?.suggestedRoute) {
+      setSuggestedRoute(route.params.suggestedRoute);
+    }
+  }, [route?.params?.suggestedRoute]);
 
   // Callback pentru LocationPicker
   const handleLocationSelected = (location) => {
@@ -250,7 +255,10 @@ export default function CreateListingScreen({ navigation, route }) {
         amenities,
         contact_name: contactName.trim(),
         contact_phone: contactPhone.trim(),
-        contact_email: contactEmail.trim() || null
+        contact_email: contactEmail.trim() || null,
+        suggested_route: suggestedRoute ? {
+          places: suggestedRoute.places
+        } : null
       };
 
       const token = await AsyncStorage.getItem('userToken');
@@ -493,6 +501,63 @@ export default function CreateListingScreen({ navigation, route }) {
           </Card.Content>
         </Card>
 
+        {/* Traseu Turistic Sugerat */}
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              🗺️ Traseu Turistic Sugerat (opțional)
+            </Text>
+            <Text variant="bodySmall" style={{ color: '#666', marginBottom: 12 }}>
+              Sugerează locuri interesante pe care vizitatorii le pot vizita în apropiere
+            </Text>
+            
+            {suggestedRoute && suggestedRoute.places && suggestedRoute.places.length > 0 ? (
+              <View style={styles.routeContainer}>
+                <Text variant="bodyMedium" style={{ fontWeight: '600', marginBottom: 8 }}>
+                  ✓ Locuri selectate ({suggestedRoute.places.length}):
+                </Text>
+                <View style={styles.placeChipsContainer}>
+                  {suggestedRoute.places.map((place, idx) => (
+                    <Chip
+                      key={idx}
+                      icon="check-circle"
+                      style={styles.placeChip}
+                    >
+                      {place.name}
+                    </Chip>
+                  ))}
+                </View>
+                <Button
+                  mode="text"
+                  onPress={() => navigation.navigate('RouteBuilder', { 
+                    initialLocation: { latitude, longitude }
+                  })}
+                  style={{ marginTop: 8 }}
+                >
+                  ✏️ Editează Traseu
+                </Button>
+              </View>
+            ) : (
+              <Button
+                mode="contained"
+                onPress={() => {
+                  if (!latitude || !longitude) {
+                    Alert.alert('Atenție', 'Te rog selectează mai întâi locația apartamentului');
+                    return;
+                  }
+                  navigation.navigate('RouteBuilder', { 
+                    initialLocation: { latitude, longitude }
+                  });
+                }}
+                icon="plus"
+                style={styles.routeButton}
+              >
+                Adaugă Traseu Turistic
+              </Button>
+            )}
+          </Card.Content>
+        </Card>
+
         {/* Imagini */}
         <Card style={styles.card}>
           <Card.Content>
@@ -682,6 +747,26 @@ const styles = StyleSheet.create({
   },
   createButtonContent: {
     paddingVertical: 8,
+  },
+  routeContainer: {
+    backgroundColor: '#e8f5e9',
+    padding: 12,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
+  },
+  placeChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  placeChip: {
+    marginRight: 4,
+    marginBottom: 4,
+  },
+  routeButton: {
+    marginVertical: 8,
   },
   bottomPadding: {
     height: 40,
