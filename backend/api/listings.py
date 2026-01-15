@@ -23,6 +23,25 @@ class Location(BaseModel):
     city: str = "Timișoara"
     country: str = "Romania"
 
+class POI(BaseModel):
+    """Point of Interest model"""
+    name: str
+    category: str  # cafe, restaurant, bar, museum, etc.
+    latitude: float
+    longitude: float
+    address: Optional[str] = None
+    distance_km: Optional[float] = None
+
+class SuggestedRoute(BaseModel):
+    """Suggested tourist route for listing"""
+    title: str = "Traseu Turistic"
+    description: Optional[str] = None
+    poi_ids: List[str] = []  # List of POI names/IDs
+    pois: List[POI] = []  # Actual POI objects
+    total_distance_km: Optional[float] = None
+    estimated_time_hours: Optional[float] = None
+    places: Optional[List[dict]] = None  # Places from frontend (name, latitude, longitude)
+
 class Listing(BaseModel):
     """Property listing model"""
     id: Optional[str] = None
@@ -63,25 +82,6 @@ class ListingCreate(BaseModel):
 class ImageUrls(BaseModel):
     """Model for adding images"""
     image_urls: List[str]
-
-
-class POI(BaseModel):
-    """Point of Interest model"""
-    name: str
-    category: str  # cafe, restaurant, bar, museum, etc.
-    latitude: float
-    longitude: float
-    address: Optional[str] = None
-    distance_km: Optional[float] = None
-
-class SuggestedRoute(BaseModel):
-    """Suggested tourist route for listing"""
-    title: str
-    description: Optional[str] = None
-    poi_ids: List[str] = []  # List of POI names/IDs
-    pois: List[POI] = []  # Actual POI objects
-    total_distance_km: Optional[float] = None
-    estimated_time_hours: Optional[float] = None
 
 class ReviewCreate(BaseModel):
     rating: int
