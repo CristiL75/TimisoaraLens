@@ -11,6 +11,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { 
   Appbar, 
   TextInput, 
@@ -51,13 +52,68 @@ export default function CreateListingScreen({ navigation, route }) {
   const propertyTypes = ['apartment', 'house', 'studio', 'villa', 'room'];
   const availableAmenities = ['wifi', 'parking', 'kitchen', 'tv', 'ac', 'heating', 'washer', 'balcony'];
 
+  // Salvează starea formului în AsyncStorage când se schimbă
   useEffect(() => {
-    requestPermissions();
-    // Check if route returned with suggested route data
+    saveFormState();
+  }, [title, description, propertyType, address, latitude, longitude, pricePerNight, maxGuests, bedrooms, bathrooms, amenities, contactName, contactPhone, contactEmail, suggestedRoute]);
+
+  // Restaurează starea formului la focus
+  useFocusEffect(
+    React.useCallback(() => {
+      restoreFormState();
+    }, [])
+  );
+
+  // Actualizează suggestedRoute când vine din route.params (DUPĂ restaurare)
+  useEffect(() => {
     if (route?.params?.suggestedRoute) {
+      console.log('📍 CreateListing: Primit suggestedRoute din RouteBuilder');
+      console.log('Locații:', JSON.stringify(route.params.suggestedRoute, null, 2));
       setSuggestedRoute(route.params.suggestedRoute);
     }
   }, [route?.params?.suggestedRoute]);
+
+  // Salvează starea formului
+  const saveFormState = async () => {
+    try {
+      const formState = {
+        title, description, propertyType, address, latitude, longitude,
+        pricePerNight, maxGuests, bedrooms, bathrooms, amenities,
+        contactName, contactPhone, contactEmail, suggestedRoute
+      };
+      await AsyncStorage.setItem('createListingFormState', JSON.stringify(formState));
+    } catch (error) {
+      console.error('Error saving form state:', error);
+    }
+  };
+
+  // Restaurează starea formului
+  const restoreFormState = async () => {
+    try {
+      const saved = await AsyncStorage.getItem('createListingFormState');
+      if (saved) {
+        const state = JSON.parse(saved);
+        setTitle(state.title || '');
+        setDescription(state.description || '');
+        setPropertyType(state.propertyType || 'apartment');
+        setAddress(state.address || '');
+        setLatitude(state.latitude || null);
+        setLongitude(state.longitude || null);
+        setPricePerNight(state.pricePerNight || '');
+        setMaxGuests(state.maxGuests || '');
+        setBedrooms(state.bedrooms || '');
+        setBathrooms(state.bathrooms || '');
+        setAmenities(state.amenities || []);
+        setContactName(state.contactName || '');
+        setContactPhone(state.contactPhone || '');
+        setContactEmail(state.contactEmail || '');
+        // Restaura și suggestedRoute din AsyncStorage (va fi suprascris de useEffect dacă vine din route.params)
+        setSuggestedRoute(state.suggestedRoute || null);
+      }
+    } catch (error) {
+      console.error('Error restoring form state:', error);
+    }
+  };
 
   // Callback pentru LocationPicker
   const handleLocationSelected = (location) => {
@@ -79,6 +135,10 @@ export default function CreateListingScreen({ navigation, route }) {
       );
     }
   };
+
+  useEffect(() => {
+    requestPermissions();
+  }, []);
 
   const getCurrentLocation = async () => {
     try {
@@ -256,13 +316,24 @@ export default function CreateListingScreen({ navigation, route }) {
         contact_name: contactName.trim(),
         contact_phone: contactPhone.trim(),
         contact_email: contactEmail.trim() || null,
-        suggested_route: suggestedRoute ? {
+        suggested_route: suggestedRoute && suggestedRoute.places && suggestedRoute.places.length > 0 ? {
+          title: "Traseu Turistic",
+          pois: suggestedRoute.places.map(place => ({
+            name: place.name,
+            category: "attraction",
+            latitude: place.latitude,
+            longitude: place.longitude,
+            address: place.display_name,
+            description: place.description
+          })),
           places: suggestedRoute.places
         } : null
       };
 
-      const token = await AsyncStorage.getItem('userToken');
+      console.log('🚀 Trimitere listing cu suggested_route:', JSON.stringify(listingData.suggested_route, null, 2));
       
+      const token = await AsyncStorage.getItem('userToken');
+
       const response = await fetch(`${API_URL}/api/listings/create`, {
         method: 'POST',
         headers: {
@@ -290,7 +361,15 @@ export default function CreateListingScreen({ navigation, route }) {
         Alert.alert(
           'Succes!',
           'Anunțul a fost creat cu succes',
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
+          [{
+            text: 'OK',
+            onPress: async () => {
+              // Curăță starea formului din AsyncStorage
+              await AsyncStorage.removeItem('createListingFormState');
+              // Navighează direct la lista de anunțuri
+              navigation.navigate('Listings');
+            }
+          }]
         );
       } else {
         Alert.alert('Eroare', data.detail || 'Nu s-a putut crea anunțul');

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, 
   ScrollView, 
@@ -7,7 +7,8 @@ import {
   Dimensions,
   Alert,
   Linking,
-  TouchableOpacity
+  TouchableOpacity,
+  Platform
 } from 'react-native';
 import { 
   Appbar, 
@@ -25,6 +26,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { API_URL } from '../services/api';
 
+// react-native-maps
+let MapView = null;
+let Marker = null;
+if (Platform.OS !== 'web') {
+  const maps = require('react-native-maps');
+  MapView = maps.default || maps.MapView || maps;
+  Marker = maps.Marker || maps.MapMarker || null;
+}
+
 const { width } = Dimensions.get('window');
 
 export default function ListingDetailScreen({ route, navigation }) {
@@ -38,6 +48,9 @@ export default function ListingDetailScreen({ route, navigation }) {
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [selectedPoiIndex, setSelectedPoiIndex] = useState(null);
+  const [mapReady, setMapReady] = useState(false);
+  const mapRef = useRef(null);
 
   useEffect(() => {
     loadListingDetail();
@@ -461,6 +474,140 @@ export default function ListingDetailScreen({ route, navigation }) {
             </Card.Content>
           </Card>
 
+          {/* Suggested Route Map */}
+          {listing.suggested_route && listing.suggested_route.places && listing.suggested_route.places.length > 0 && Platform.OS !== 'web' && MapView && (
+            <Card style={styles.card}>
+              <Card.Content>
+                <View style={styles.sectionHeader}>
+                  <MaterialCommunityIcons name="map" size={24} color="#6200ee" />
+                  <Text variant="titleMedium" style={styles.sectionTitle}>
+                    Hartă Locații Sugerate
+                  </Text>
+                </View>
+                <View style={styles.mapContainer}>
+                  <MapView
+                    ref={mapRef}
+                    style={styles.map}
+                    initialRegion={{
+                      latitude: listing.location.latitude,
+                      longitude: listing.location.longitude,
+                      latitudeDelta: 0.05,
+                      longitudeDelta: 0.05,
+                    }}
+                    onMapReady={() => {
+                      setMapReady(true);
+                      // Zoomează pentru a arăta apartament + locații
+                      if (mapRef.current && listing.suggested_route?.places?.length > 0) {
+                        setTimeout(() => {
+                          const coordinates = [
+                            {
+                              latitude: listing.location.latitude,
+                              longitude: listing.location.longitude,
+                            },
+                            ...listing.suggested_route.places.map(p => ({
+                              latitude: parseFloat(p.latitude),
+                              longitude: parseFloat(p.longitude),
+                            }))
+                          ];
+                          
+                          mapRef.current.fitToCoordinates(coordinates, {
+                            edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+                            animated: true,
+                          });
+                        }, 500);
+                      }
+                    }}
+                  >
+                    {/* Marker apartament */}
+                    <Marker
+                      coordinate={{
+                        latitude: listing.location.latitude,
+                        longitude: listing.location.longitude,
+                      }}
+                      title="Apartament"
+                      pinColor="blue"
+                    />
+
+                    {/* Markeri locații sugerate */}
+                    {listing.suggested_route.places.map((place, idx) => (
+                      <Marker
+                        key={`poi_${idx}`}
+                        coordinate={{
+                          latitude: place.latitude,
+                          longitude: place.longitude,
+                        }}
+                        title={`${idx + 1}. ${place.name}`}
+                        description={place.display_name}
+                        pinColor="green"
+                        onPress={() => setSelectedPoiIndex(idx)}
+                      />
+                    ))}
+                  </MapView>
+                </View>
+              </Card.Content>
+            </Card>
+          )}
+
+          {/* Suggested Route Details */}
+          {listing.suggested_route && listing.suggested_route.places && listing.suggested_route.places.length > 0 && (
+            <Card style={styles.card}>
+              <Card.Content>
+                <View style={styles.sectionHeader}>
+                  <MaterialCommunityIcons name="map-marker-path" size={24} color="#6200ee" />
+                  <Text variant="titleMedium" style={styles.sectionTitle}>
+                    Traseu Turistic Recomandat
+                  </Text>
+                </View>
+                <Text variant="bodyMedium" style={{ marginBottom: 12, color: '#666' }}>
+                  Locații interesante de vizitat în zona:
+                </Text>
+                {listing.suggested_route.places.map((place, idx) => (
+                  <TouchableOpacity 
+                    key={idx} 
+                    style={[styles.routePlace, selectedPoiIndex === idx && styles.routePlaceSelected]}
+                    onPress={() => {
+                      setSelectedPoiIndex(idx);
+                      console.log(`🎯 Focus POI ${idx}: lat=${place.latitude}, lng=${place.longitude}`);
+                      // Zoomează harta la locația selectată
+                      if (mapRef.current) {
+                        setTimeout(() => {
+                          const lat = parseFloat(place.latitude);
+                          const lng = parseFloat(place.longitude);
+                          const latDelta = 0.005; // Zoom mai exact
+                          const lngDelta = latDelta / Math.cos(lat * Math.PI / 180); // Ajustare pentru latitudine
+                          
+                          mapRef.current.animateToRegion({
+                            latitude: lat,
+                            longitude: lng,
+                            latitudeDelta: latDelta,
+                            longitudeDelta: lngDelta,
+                          }, 500);
+                        }, 100);
+                      }
+                    }}
+                  >
+                    <View style={styles.routePlaceHeader}>
+                      <MaterialCommunityIcons name="map-marker" size={20} color="#6200ee" />
+                      <Text variant="titleSmall" style={{ marginLeft: 8, fontWeight: 'bold' }}>
+                        {idx + 1}. {place.name}
+                      </Text>
+                    </View>
+                    {place.display_name && (
+                      <Text variant="bodySmall" style={{ marginLeft: 28, color: '#666', marginBottom: 4 }}>
+                        📍 {place.display_name}
+                      </Text>
+                    )}
+                    {place.description && (
+                      <Text variant="bodySmall" style={{ marginLeft: 28, color: '#555', marginBottom: 8 }}>
+                        {place.description}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </Card.Content>
+            </Card>
+          )}
+
           {/* Amenities */}
           {listing.amenities && listing.amenities.length > 0 && (
             <Card style={styles.card}>
@@ -694,6 +841,28 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontWeight: 'bold',
   },
+  mapContainer: {
+    height: 300,
+    marginVertical: 12,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  map: {
+    width: '100%',
+    height: '100%',
+  },
+  markerCallout: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 4,
+    maxWidth: 200,
+  },
+  markerCalloutText: {
+    fontSize: 12,
+    color: '#333',
+    lineHeight: 16,
+  },
   address: {
     marginBottom: 4,
   },
@@ -769,6 +938,24 @@ const styles = StyleSheet.create({
   avgCountText: {
     marginLeft: 12,
     color: '#666'
+  },
+  routePlace: {
+    marginBottom: 12,
+    paddingLeft: 12,
+    paddingVertical: 10,
+    paddingRight: 10,
+    borderLeftWidth: 2,
+    borderLeftColor: '#6200ee',
+    borderRadius: 4,
+  },
+  routePlaceSelected: {
+    backgroundColor: '#f0e6ff',
+    borderLeftColor: '#6200ee',
+  },
+  routePlaceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   reviewCard: {
     backgroundColor: '#fff',

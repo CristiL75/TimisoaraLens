@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Alert, Keyboard, Platform, ScrollView } from 'react-native';
+import { View, StyleSheet, Alert, Keyboard, Platform, ScrollView, KeyboardAvoidingView } from 'react-native';
 import { Appbar, Button, Searchbar, Text, Chip, Card, TextInput, Dialog, Portal } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -34,6 +34,7 @@ const RouteBuilderScreen = ({ navigation, route }) => {
     latitudeDelta: 0.05,
     longitudeDelta: 0.05,
   });
+  const [mapExpanded, setMapExpanded] = useState(false);
 
   // Adaugă locație la traseu
   const addPlaceToRoute = (place) => {
@@ -65,6 +66,15 @@ const RouteBuilderScreen = ({ navigation, route }) => {
         }, 500);
       }, 100);
     }
+  };
+
+  // Update locație după drag
+  const handleMarkerDragEnd = (placeId, coordinate) => {
+    setSelectedPlaces(selectedPlaces.map(place => 
+      place.id === placeId 
+        ? { ...place, latitude: coordinate.latitude, longitude: coordinate.longitude }
+        : place
+    ));
   };
 
   // Șterge locație din traseu
@@ -150,6 +160,9 @@ const RouteBuilderScreen = ({ navigation, route }) => {
       return;
     }
 
+    console.log('✅ RouteBuilder: Finalizare traseu cu', selectedPlaces.length, 'locații');
+    console.log('📍 Locații:', JSON.stringify(selectedPlaces, null, 2));
+
     // Trimite datele înapoi la CreateListingScreen
     navigation.navigate('CreateListing', {
       suggestedRoute: {
@@ -166,9 +179,9 @@ const RouteBuilderScreen = ({ navigation, route }) => {
         <Appbar.Content title="Sugerează Traseu Turistic" />
       </Appbar.Header>
 
-      {/* Hartă (referință vizuală + tap pentru adăugare) */}
+      {/* Hartă (referință vizuală + drag pentru mișcare) */}
       {Platform.OS !== 'web' && MapView && (
-        <View style={styles.mapContainer}>
+        <View style={[styles.mapContainer, mapExpanded && styles.mapContainerExpanded]}>
           <MapView
             ref={mapRef}
             style={styles.map}
@@ -197,13 +210,39 @@ const RouteBuilderScreen = ({ navigation, route }) => {
                 title={`${idx + 1}. ${place.name}`}
                 description={place.display_name}
                 pinColor="green"
+                draggable
+                onDragEnd={(e) => handleMarkerDragEnd(place.id, e.nativeEvent.coordinate)}
               />
             ))}
           </MapView>
           <View style={styles.mapHint}>
             <Text style={styles.mapHintText}>
-              💡 Folosește butonul de mai jos pentru a adăuga locații
+              {selectedPlaces.length > 0 
+                ? '💡 Apasă și trage markerii pentru a-i muta' 
+                : '💡 Folosește butonul de mai jos pentru a adăuga locații'}
             </Text>
+          </View>
+          <View style={styles.mapButtonsContainer}>
+            <Button
+              mode="text"
+              icon={mapExpanded ? "arrow-collapse" : "arrow-expand"}
+              onPress={() => setMapExpanded(!mapExpanded)}
+              style={styles.mapButton}
+              labelStyle={styles.mapButtonLabel}
+            >
+              {mapExpanded ? "Compactare" : "Expandare"}
+            </Button>
+            {mapExpanded && (
+              <Button
+                mode="text"
+                icon="arrow-down"
+                onPress={() => setMapExpanded(false)}
+                style={styles.mapButton}
+                labelStyle={styles.mapButtonLabel}
+              >
+                Înapoi
+              </Button>
+            )}
           </View>
         </View>
       )}
@@ -247,19 +286,6 @@ const RouteBuilderScreen = ({ navigation, route }) => {
             </View>
           </View>
         )}
-                <Chip
-                  key={place.id}
-                  icon="close"
-                  onClose={() => removePlaceFromRoute(place.id)}
-                  style={styles.chip}
-                  closeIcon="close-circle"
-                >
-                  {idx + 1}. {place.name}
-                </Chip>
-              ))}
-            </View>
-          </View>
-        )}
 
         {selectedPlaces.length === 0 && (
           <View style={styles.emptyState}>
@@ -280,47 +306,55 @@ const RouteBuilderScreen = ({ navigation, route }) => {
 
       {/* Dialog pentru Adăugare Manuală */}
       <Portal>
-        <Dialog visible={showManualDialog} onDismiss={() => setShowManualDialog(false)}>
-          <Dialog.Title>Adaugă Locație Manual</Dialog.Title>
-          <Dialog.Content>
-            <TextInput
-              label="Nume locație *"
-              value={manualName}
-              onChangeText={setManualName}
-              placeholder="ex: Restaurant La Floare"
-              mode="outlined"
-              style={styles.dialogInput}
-            />
-            <TextInput
-              label="Adresă *"
-              value={manualAddress}
-              onChangeText={setManualAddress}
-              placeholder="ex: Gh Lazăr 3"
-              mode="outlined"
-              style={styles.dialogInput}
-            />
-            <TextInput
-              label="Descriere (opțional)"
-              value={manualDescription}
-              onChangeText={setManualDescription}
-              placeholder="ex: Restaurant tradițional românesc cu mâncare excelentă"
-              mode="outlined"
-              multiline
-              numberOfLines={3}
-              style={styles.dialogInput}
-            />
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setShowManualDialog(false)}>Anulează</Button>
-            <Button 
-              onPress={handleManualAdd} 
-              loading={manualLoading}
-              disabled={manualLoading}
-            >
-              Adaugă
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+          style={{ flex: 1 }}
+        >
+          <Dialog visible={showManualDialog} onDismiss={() => setShowManualDialog(false)}>
+            <Dialog.Title>Adaugă Locație Manual</Dialog.Title>
+            <Dialog.Content>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <TextInput
+                  label="Nume locație *"
+                  value={manualName}
+                  onChangeText={setManualName}
+                  placeholder="ex: Restaurant La Floare"
+                  mode="outlined"
+                  style={styles.dialogInput}
+                />
+                <TextInput
+                  label="Adresă *"
+                  value={manualAddress}
+                  onChangeText={setManualAddress}
+                  placeholder="ex: Gh Lazăr 3"
+                  mode="outlined"
+                  style={styles.dialogInput}
+                />
+                <TextInput
+                  label="Descriere (opțional)"
+                  value={manualDescription}
+                  onChangeText={setManualDescription}
+                  placeholder="ex: Restaurant tradițional românesc cu mâncare excelentă"
+                  mode="outlined"
+                  multiline
+                  numberOfLines={3}
+                  style={styles.dialogInput}
+                />
+              </ScrollView>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setShowManualDialog(false)}>Anulează</Button>
+              <Button 
+                onPress={handleManualAdd} 
+                loading={manualLoading}
+                disabled={manualLoading}
+              >
+                Adaugă
+              </Button>
+            </Dialog.Actions>
+          </Dialog>
+        </KeyboardAvoidingView>
       </Portal>
 
       {/* Buttons */}
@@ -355,18 +389,35 @@ const styles = StyleSheet.create({
     backgroundColor: '#e0e0e0',
     position: 'relative',
   },
+  mapContainerExpanded: {
+    height: '70%',
+  },
   map: {
     ...StyleSheet.absoluteFillObject,
   },
   mapHint: {
     position: 'absolute',
-    bottom: 10,
+    bottom: 50,
     left: 12,
     right: 12,
     backgroundColor: 'rgba(0,0,0,0.7)',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
+  },
+  mapButtonsContainer: {
+    position: 'absolute',
+    bottom: 8,
+    right: 12,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  mapButton: {
+    margin: 0,
+    padding: 0,
+  },
+  mapButtonLabel: {
+    fontSize: 12,
   },
   mapHintText: {
     color: '#fff',
