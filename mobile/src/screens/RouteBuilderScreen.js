@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, Alert, Keyboard, Platform, ScrollView, KeyboardAvoidingView } from 'react-native';
 import { Appbar, Button, Searchbar, Text, Chip, Card, TextInput, Dialog, Portal } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // react-native-maps is native only
 let MapView = null;
@@ -154,7 +155,7 @@ const RouteBuilderScreen = ({ navigation, route }) => {
   };
 
   // Finalizează traseul și trimite înapoi
-  const finishRoute = () => {
+  const finishRoute = async () => {
     if (selectedPlaces.length === 0) {
       Alert.alert('Atenție', 'Te rog selectează cel puțin o locație');
       return;
@@ -163,13 +164,21 @@ const RouteBuilderScreen = ({ navigation, route }) => {
     console.log('✅ RouteBuilder: Finalizare traseu cu', selectedPlaces.length, 'locații');
     console.log('📍 Locații:', JSON.stringify(selectedPlaces, null, 2));
 
-    // Trimite datele înapoi la CreateListingScreen
-    navigation.navigate('CreateListing', {
-      suggestedRoute: {
+    // Salvăm temporar în AsyncStorage pentru a prelua în CreateListing
+    try {
+      const routeData = {
         places: selectedPlaces,
-        totalPlaces: selectedPlaces.length
-      }
-    });
+        totalPlaces: selectedPlaces.length,
+        timestamp: Date.now()
+      };
+      await AsyncStorage.setItem('pendingSuggestedRoute', JSON.stringify(routeData));
+      console.log('💾 Saved route to AsyncStorage');
+    } catch (error) {
+      console.error('Error saving route:', error);
+    }
+    
+    // Revenim la screen-ul anterior
+    navigation.goBack();
   };
 
   return (

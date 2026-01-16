@@ -53,15 +53,39 @@ export default function CreateListingScreen({ navigation, route }) {
   const availableAmenities = ['wifi', 'parking', 'kitchen', 'tv', 'ac', 'heating', 'washer', 'balcony'];
 
   // Salvează starea formului în AsyncStorage când se schimbă
+  // NB: Nu includem suggestedRoute în dependencies pentru a nu-l șterge din AsyncStorage
   useEffect(() => {
     saveFormState();
-  }, [title, description, propertyType, address, latitude, longitude, pricePerNight, maxGuests, bedrooms, bathrooms, amenities, contactName, contactPhone, contactEmail, suggestedRoute]);
+  }, [title, description, propertyType, address, latitude, longitude, pricePerNight, maxGuests, bedrooms, bathrooms, amenities, contactName, contactPhone, contactEmail]);
 
-  // Restaurează starea formului la focus
+  // Restaurează starea formului la focus (doar prima dată când se deschide ecranul)
+  const [isFirstFocus, setIsFirstFocus] = React.useState(true);
   useFocusEffect(
     React.useCallback(() => {
-      restoreFormState();
-    }, [])
+      const loadData = async () => {
+        // Verifică dacă avem un traseu pending din RouteBuilder
+        try {
+          const pendingRoute = await AsyncStorage.getItem('pendingSuggestedRoute');
+          if (pendingRoute) {
+            const routeData = JSON.parse(pendingRoute);
+            console.log('📍 CreateListing: Loaded pending route from AsyncStorage');
+            setSuggestedRoute(routeData);
+            // Șterge pending route după ce l-am preluat
+            await AsyncStorage.removeItem('pendingSuggestedRoute');
+          }
+        } catch (error) {
+          console.error('Error loading pending route:', error);
+        }
+
+        // Restaurează form state doar prima dată
+        if (isFirstFocus) {
+          await restoreFormState();
+          setIsFirstFocus(false);
+        }
+      };
+      
+      loadData();
+    }, [isFirstFocus])
   );
 
   // Actualizează suggestedRoute când vine din route.params (DUPĂ restaurare)
@@ -79,7 +103,8 @@ export default function CreateListingScreen({ navigation, route }) {
       const formState = {
         title, description, propertyType, address, latitude, longitude,
         pricePerNight, maxGuests, bedrooms, bathrooms, amenities,
-        contactName, contactPhone, contactEmail, suggestedRoute
+        contactName, contactPhone, contactEmail
+        // Nu salvam suggestedRoute în AsyncStorage
       };
       await AsyncStorage.setItem('createListingFormState', JSON.stringify(formState));
     } catch (error) {
@@ -107,8 +132,7 @@ export default function CreateListingScreen({ navigation, route }) {
         setContactName(state.contactName || '');
         setContactPhone(state.contactPhone || '');
         setContactEmail(state.contactEmail || '');
-        // Restaura și suggestedRoute din AsyncStorage (va fi suprascris de useEffect dacă vine din route.params)
-        setSuggestedRoute(state.suggestedRoute || null);
+        // Nu restauram suggestedRoute din AsyncStorage - se va seta via route.params
       }
     } catch (error) {
       console.error('Error restoring form state:', error);
@@ -608,9 +632,12 @@ export default function CreateListingScreen({ navigation, route }) {
                 </View>
                 <Button
                   mode="text"
-                  onPress={() => navigation.navigate('RouteBuilder', { 
-                    initialLocation: { latitude, longitude }
-                  })}
+                  onPress={() => {
+                    saveFormState(); // Salvează starea înainte de a naviga
+                    navigation.navigate('RouteBuilder', { 
+                      initialLocation: { latitude, longitude }
+                    });
+                  }}
                   style={{ marginTop: 8 }}
                 >
                   ✏️ Editează Traseu
@@ -624,6 +651,7 @@ export default function CreateListingScreen({ navigation, route }) {
                     Alert.alert('Atenție', 'Te rog selectează mai întâi locația apartamentului');
                     return;
                   }
+                  saveFormState(); // Salvează starea înainte de a naviga
                   navigation.navigate('RouteBuilder', { 
                     initialLocation: { latitude, longitude }
                   });

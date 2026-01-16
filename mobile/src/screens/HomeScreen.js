@@ -36,30 +36,6 @@ export default function HomeScreen({ navigation }) {
           </Card.Content>
         </Card>
 
-        {/* Map Button */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <View style={styles.titleContainer}>
-              <MaterialCommunityIcons name="map-search" size={28} color="#2196F3" />
-              <Title style={styles.titleText}>Explorează Timișoara</Title>
-            </View>
-            <Paragraph style={styles.cardDescription}>
-              Vezi harta interactivă cu obiectivele turistice din Timișoara.
-              Locația ta va fi afișată automat pe hartă.
-            </Paragraph>
-          </Card.Content>
-          <Card.Actions>
-            <Button
-              mode="contained"
-              icon="map-marker"
-              onPress={() => navigation.navigate('Map')}
-              style={styles.mapButton}
-            >
-              Deschide Harta
-            </Button>
-          </Card.Actions>
-        </Card>
-
         {/* Listings Button */}
         <Card style={styles.card}>
           <Card.Content>
