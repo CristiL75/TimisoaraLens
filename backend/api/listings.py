@@ -2,7 +2,7 @@
 Listings Module - Hotel/Apartment Listings Management
 Allows users to create, update, and manage property listings
 """
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Query
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
@@ -225,23 +225,188 @@ async def create_listing(
         raise HTTPException(status_code=500, detail=f"Failed to create listing: {str(e)}")
 
 @router.get("/all")
-async def get_all_listings(status: Optional[str] = "active", db = Depends(get_database)):
+async def get_all_listings(
+    status: Optional[str] = "active",
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    min_bedrooms: Optional[int] = None,
+    min_guests: Optional[int] = None,
+    property_type: Optional[str] = None,
+    amenities: Optional[List[str]] = Query(None),
+    latitude: Optional[float] = None,
+    longitude: Optional[float] = None,
+    radius_km: Optional[float] = None,
+    db = Depends(get_database)
+):
     """
-    Get all listings from MongoDB, optionally filtered by status
+    Get all listings from MongoDB with optional filters
+    
+    Filters:
+    - status: active, inactive, pending
+    - min_price: minimum price per night
+    - max_price: maximum price per night
+    - min_bedrooms: minimum number of bedrooms
+    - min_guests: minimum capacity (max_guests)
+    - property_type: apartment, house, studio, villa, room
+    - amenities: list of required amenities (e.g., WiFi, AC, Parking)
+    - latitude, longitude, radius_km: proximity search (all 3 required)
     """
     try:
-        # Build filter
+        # Log incoming parameters for debugging
+        print(f"[LISTINGS] Filtering with ALL params:")
+        print(f"  - status={status}")
+        print(f"  - price: {min_price} to {max_price}")
+        print(f"  - bedrooms: min={min_bedrooms}")
+        print(f"  - guests: min={min_guests}")
+        print(f"  - property_type={property_type}")
+        print(f"  - amenities={amenities}")
+        print(f"  - proximity: lat={latitude}, lng={longitude}, radius={radius_km}")
+        
+        # Build filter query
         filter_query = {}
+        
         if status:
             filter_query['status'] = status
         
+        if min_price is not None:
+            filter_query['price_per_night'] = filter_query.get('price_per_night', {})
+            filter_query['price_per_night']['$gte'] = min_price
+        
+        if max_price is not None:
+            filter_query['price_per_night'] = filter_query.get('price_per_night', {})
+            filter_query['price_per_night']['$lte'] = max_price
+        
+        if min_bedrooms is not None:
+            filter_query['bedrooms'] = {'$gte': min_bedrooms}
+        
+        if min_guests is not None:
+            filter_query['max_guests'] = {'$gte': min_guests}
+        
+        if property_type:
+            filter_query['property_type'] = property_type
+        
+        if amenities and len(amenities) > 0:
+            # Filter listings that have ALL specified amenities
+            filter_query['amenities'] = {'$all': amenities}
+        
+        # Proximity search using MongoDB geospatial query
+        if latitude is not None and longitude is not None and radius_km is not None:
+            # Convert km to meters (MongoDB uses meters)
+            radius_meters = radius_km * 1000
+            print(f"[LISTINGS] Applying proximity filter: center=({latitude}, {longitude}), radius={radius_km}km ({radius_meters}m)")
+            
+            # GeoJSON Point for the search center
+            filter_query['location_geo'] = {
+                '$near': {
+                    '$geometry': {
+                        'type': 'Point',
+                        'coordinates': [longitude, latitude]  # [lng, lat] order for GeoJSON
+                    },
+                    '$maxDistance': radius_meters
+                }
+            }
+        
         # Query MongoDB
+        print(f"[LISTINGS] Executing query with filter: {filter_query}")
         cursor = db.listings.find(filter_query)
         listings = await cursor.to_list(length=None)
+        print(f"[LISTINGS] Found {len(listings)} listings (pre-fallback)")
+
+        # In-memory fallback filtering to enforce correctness even if DB query misses constraints
+        # (e.g., due to older deployments or inconsistent field types). This keeps behavior robust.
+        initial_count = len(listings)
+        if any([
+            min_price is not None,
+            max_price is not None,
+            min_bedrooms is not None,
+            min_guests is not None,
+            property_type is not None,
+            amenities is not None and len(amenities) > 0,
+        ]):
+            def has_all_amenities(item_amenities, required):
+                try:
+                    if not required:
+                        return True
+                    item_set = set([str(a).lower() for a in (item_amenities or [])])
+                    req_set = set([str(a).lower() for a in required])
+                    return req_set.issubset(item_set)
+                except Exception:
+                    return False
+
+            filtered = []
+            for it in listings:
+                try:
+                    price = it.get('price_per_night')
+                    beds = it.get('bedrooms')
+                    guests = it.get('max_guests')
+                    ptype = it.get('property_type')
+                    ams = it.get('amenities')
+
+                    if min_price is not None:
+                        try:
+                            if float(price) < float(min_price):
+                                continue
+                        except Exception:
+                            continue
+                    if max_price is not None:
+                        try:
+                            if float(price) > float(max_price):
+                                continue
+                        except Exception:
+                            continue
+                    if min_bedrooms is not None:
+                        try:
+                            if int(beds) < int(min_bedrooms):
+                                continue
+                        except Exception:
+                            continue
+                    if min_guests is not None:
+                        try:
+                            if int(guests) < int(min_guests):
+                                continue
+                        except Exception:
+                            continue
+                    if property_type is not None and property_type != '':
+                        if str(ptype).lower() != str(property_type).lower():
+                            continue
+                    if amenities and len(amenities) > 0:
+                        if not has_all_amenities(ams, amenities):
+                            continue
+                    filtered.append(it)
+                except Exception:
+                    # skip malformed items
+                    continue
+
+            listings = filtered
+            print(f"[LISTINGS] Applied in-memory fallback filters: {initial_count} -> {len(listings)}")
+        
+        # Calculate distance for each listing if proximity search is used
+        if latitude is not None and longitude is not None:
+            for listing in listings:
+                if listing.get('location'):
+                    listing_lat = listing['location'].get('latitude')
+                    listing_lng = listing['location'].get('longitude')
+                    if listing_lat and listing_lng:
+                        distance = _haversine_distance(latitude, longitude, listing_lat, listing_lng)
+                        listing['distance_km'] = round(distance, 2)
         
         return {
             "total": len(listings),
-            "listings": serialize_listings(listings)
+            "listings": serialize_listings(listings),
+            "filters_applied": {
+                "status": status,
+                "min_price": min_price,
+                "max_price": max_price,
+                "min_bedrooms": min_bedrooms,
+                "min_guests": min_guests,
+                "property_type": property_type,
+                "amenities": amenities,
+                "proximity": {
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "radius_km": radius_km
+                } if latitude and longitude and radius_km else None
+            }
         }
     
     except Exception as e:
