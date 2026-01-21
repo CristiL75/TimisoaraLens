@@ -1,77 +1,122 @@
 """
-RAG Module - Retrieval Augmented Generation
-Uses ChromaDB + LangChain + Ollama for contextual information
+RAG API routes for the chatbot.
+Proxies requests to HuggingFace Space RAG service.
+
+Prerequisites:
+    - Set HF_RAG_SPACE_URL environment variable to your HF Space URL
+    - Example: https://your-username-timisoaralens-rag.hf.space
 """
+
+import os
+import logging
+from typing import Optional
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional, List
+import httpx
 
-router = APIRouter()
+logger = logging.getLogger(__name__)
 
-class RAGQuery(BaseModel):
-    """RAG query model"""
-    question: str
-    landmark_id: Optional[int] = None
-    max_results: int = 3
+# No prefix here; main.py mounts at /api/rag
+router = APIRouter(tags=["RAG"])
 
-class RAGResponse(BaseModel):
-    """RAG response model"""
+# Configuration
+HF_RAG_SPACE_URL = os.getenv("HF_RAG_SPACE_URL", "")
+TOP_K = 5
+
+
+# Pydantic models
+class RAGQueryRequest(BaseModel):
+    query: str
+    top_k: Optional[int] = TOP_K
+
+
+class RAGQueryResponse(BaseModel):
     answer: str
-    sources: List[dict]
-    landmark_context: Optional[str]
+    sources: list = []
+    query: str
 
-@router.post("/query", response_model=RAGResponse)
-async def query_rag(query: RAGQuery):
+
+@router.post("/query", response_model=RAGQueryResponse)
+async def rag_query(request: RAGQueryRequest):
     """
-    Query the RAG system for information
-    TODO: Implement ChromaDB + LangChain + Ollama integration
+    Query the RAG system via HuggingFace Space.
+    Proxies the request to the dedicated RAG service.
     """
-    try:
-        # TODO: 
-        # 1. Load ChromaDB collection
-        # 2. Search for relevant documents using embeddings
-        # 3. Build context from retrieved documents
-        # 4. Query Ollama LLM with context
-        # 5. Return formatted response
-        
-        return RAGResponse(
-            answer="RAG system not yet initialized. Please load documents into ChromaDB first.",
-            sources=[],
-            landmark_context=None
+    if not HF_RAG_SPACE_URL:
+        raise HTTPException(
+            status_code=503,
+            detail="RAG service not configured. Set HF_RAG_SPACE_URL environment variable."
         )
     
+    try:
+        logger.info(f"Proxying RAG query to HF Space: {request.query}")
+        
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                f"{HF_RAG_SPACE_URL}/query",
+                json=request.dict(),
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            return RAGQueryResponse(**data)
+            
+    except httpx.HTTPError as e:
+        logger.error(f"HF Space request error: {e}")
+        raise HTTPException(
+            status_code=502,
+            detail=f"RAG service error: {str(e)}"
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"RAG query failed: {str(e)}")
+        logger.error(f"RAG query error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"RAG error: {str(e)}")
+
+
+@router.get("/health")
+async def rag_health():
+    """Check RAG service health"""
+    if not HF_RAG_SPACE_URL:
+        return {
+            "status": "not_configured",
+            "message": "HF_RAG_SPACE_URL not set"
+        }
+    
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{HF_RAG_SPACE_URL}/health")
+            response.raise_for_status()
+            return response.json()
+    except Exception as e:
+        logger.error(f"Health check error: {e}")
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
 
 @router.get("/status")
 async def rag_status():
-    """Check RAG system status"""
-    return {
-        "chromadb_ready": False,
-        "ollama_connected": False,
-        "documents_loaded": 0,
-        "embeddings_count": 0,
-        "message": "RAG system needs initialization"
-    }
-
-@router.post("/ingest")
-async def ingest_documents():
-    """
-    Ingest documents from data/documents/ into ChromaDB
-    TODO: Implement document ingestion pipeline
-    """
-    try:
-        # TODO:
-        # 1. Read all documents from data/documents/
-        # 2. Split into chunks
-        # 3. Generate embeddings
-        # 4. Store in ChromaDB
-        
+    """Get RAG system status"""
+    if not HF_RAG_SPACE_URL:
         return {
-            "status": "pending",
-            "message": "Document ingestion not yet implemented",
-            "documents_processed": 0
+            "status": "not_configured",
+            "hf_space_url": None,
+            "message": "Set HF_RAG_SPACE_URL environment variable"
         }
     
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{HF_RAG_SPACE_URL}/status")
+            response.raise_for_status()
+            data = response.json()
+            data["hf_space_url"] = HF_RAG_SPACE_URL
+            return data
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Document ingestion failed: {str(e)}")
+        logger.error(f"Status check error: {e}")
+        return {
+            "status": "error",
+            "hf_space_url": HF_RAG_SPACE_URL,
+            "error": str(e)
+        }
+

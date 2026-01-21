@@ -259,4 +259,44 @@ export const gpsAPI = {
   },
 };
 
+// RAG API
+export const ragAPI = {
+  /**
+   * Query RAG system for information
+   */
+  query: async (query, top_k = 5) => {
+    try {
+      const response = await api.post('/rag/query', {
+        query,
+        top_k,
+      });
+      return { success: true, data: response.data };
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[api] ragAPI.query error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'RAG query failed',
+      };
+    }
+  },
+
+  /**
+   * Check RAG system health
+   */
+  health: async () => {
+    try {
+      const response = await api.get('/rag/status');
+      return { success: true, data: response.data };
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[api] ragAPI.health error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'RAG health check failed',
+      };
+    }
+  },
+};
+
 export default api;

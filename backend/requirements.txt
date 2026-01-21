@@ -12,17 +12,12 @@ google-auth==2.25.2
 # httpx: upgraded to 0.28.1 after removing ollama dependency below
 httpx==0.28.1
 
-# AI Core - LangChain + Ollama (COMMENTED OUT - not using RAG yet; uncomment when needed)
-# langchain==0.1.4
-# langchain-community==0.0.16
-# ollama==0.1.6
+# Web Scraping & Data Processing
+requests==2.31.0
+beautifulsoup4==4.12.2
 
-# Vector Database (COMMENTED OUT - not using RAG yet; uncomment when needed)
-# chromadb==0.4.22
-
-# Embeddings (COMMENTED OUT - not using RAG yet; uncomment when needed)
-# sentence-transformers==2.3.1
-# transformers==4.37.2
+# RAG - Proxy only (heavy deps moved to HF Space)
+# qdrant-client, sentence-transformers, torch, transformers -> now in hf-space-rag/
 
 # Computer Vision - TO BE ADDED LATER
 # torch==2.2.0
