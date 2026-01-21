@@ -13,8 +13,7 @@ import os
 load_dotenv()
 
 # Import routers
-from api import auth, gps, quiz, listings  # rag commented out for deployment
-# from api import rag  # Uncomment when RAG packages are enabled
+from api import auth, gps, quiz, listings, rag
 from database_mongo import connect_to_mongo, close_mongo_connection
 
 @asynccontextmanager
@@ -73,7 +72,7 @@ async def health_check():
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(gps.router, prefix="/api/gps", tags=["GPS"])
-# app.include_router(rag.router, prefix="/api/rag", tags=["RAG"])  # Commented out for deployment
+app.include_router(rag.router, prefix="/api/rag", tags=["RAG"])
 app.include_router(quiz.router, prefix="/api/quiz", tags=["Quiz"])
 app.include_router(listings.router, prefix="/api/listings", tags=["Listings"])
 
