@@ -1,0 +1,63 @@
+@startuml TimisoaraLens Use Case Diagram - Simplified
+!theme plain
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Utilizator" as user
+
+rectangle "TimisoaraLens Application" {
+    
+    package "Autentificare" {
+        usecase (UC1: Înregistrare) as UC1
+        usecase (UC2: Login) as UC2
+        usecase (UC3: Logout) as UC3
+    }
+    
+    package "Apartamente" {
+        usecase (UC4: Vizualizare\nLista) as UC4
+        usecase (UC5: Creare\nAnunț) as UC5
+        usecase (UC6: Editare\nAnunț) as UC6
+        usecase (UC7: Ștergere\nAnunț) as UC7
+        usecase (UC8: Detalii\nApartament) as UC8
+    }
+    
+    package "Trasee Turistice" {
+        usecase (UC9: Construire\nTraseu) as UC9
+        usecase (UC10: Drag & Drop\nMarkere) as UC10
+    }
+    
+    package "Recenzii" {
+        usecase (UC11: Vizualizare\nRecenzii) as UC11
+        usecase (UC12: Adaugare\nRecenzie) as UC12
+        usecase (UC13: Editare\nRecenzie) as UC13
+        usecase (UC14: Stergere\nRecenzie) as UC14
+    }
+    
+}
+
+
+' Actori
+user --> UC1
+user --> UC2
+user --> UC3
+user --> UC4
+user --> UC5
+user --> UC6
+user --> UC7
+user --> UC8
+user --> UC11
+user --> UC12
+user --> UC13
+user --> UC14
+
+' Use cases
+UC5 ..> UC9 : <<extend>>
+UC6 ..> UC9 : <<extend>>
+UC9 ..> UC10 : <<include>>
+UC8 ..> UC11 : <<include>>
+UC8 ..> UC12 : <<extend>>
+UC2 ..> UC12 : <<precondition>>
+UC13 ..> UC12 : <<extend>>
+UC14 ..> UC12 : <<extend>>
+
+@enduml

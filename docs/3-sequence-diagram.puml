@@ -1,0 +1,318 @@
+@startuml Create Listing with Route Builder - Complete Sequence Diagram
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 200
+
+actor "Proprietar\nApartament" as User
+participant "CreateListingScreen" as Create
+participant "AsyncStorage" as Storage
+participant "expo-location" as GPS
+participant "expo-image-picker" as Camera
+participant "RouteBuilderScreen" as RouteBuilder
+participant "LocationPickerScreen" as LocationPicker
+participant "react-native-maps\nMapView" as Map
+participant "Nominatim\nOSM API" as OSM
+participant "API Service\n(Axios)" as API
+participant "FastAPI\nBackend" as Backend
+database "MongoDB" as DB
+
+== 📝 INIȚIALIZARE FORMULAR ==
+
+User -> Create : Deschide ecran\n"Adaugă Apartament"
+activate Create
+
+Create -> Storage : restoreFormState()
+activate Storage
+Storage --> Create : Saved form data\n(dacă există)
+deactivate Storage
+
+note right of Create
+  **isFirstFocus = true**
+  Restaurare doar prima dată
+  pentru a nu suprascrie
+  datele când revine din
+  sub-screens
+end note
+
+Create --> User : Afișează formular\n(gol sau restaurat)
+
+== 📝 COMPLETARE DETALII APARTAMENT ==
+
+User -> Create : Introduce titlu,\ndescriere, tip proprietate
+
+loop Pentru fiecare câmp modificat
+    Create -> Storage : saveFormState()
+    note right: Auto-save la fiecare\nschimbare de câmp
+end
+
+User -> Create : Selectează amenities\n(WiFi, Parcare, etc.)
+Create -> Create : toggleAmenity()
+Create -> Storage : saveFormState()
+
+User -> Create : Introduce preț,\nnr. oaspeți, camere
+
+== 📍 SETARE LOCAȚIE GPS ==
+
+User -> Create : Click "Locația Mea"
+Create -> GPS : getCurrentPositionAsync()
+activate GPS
+
+GPS --> Create : {latitude, longitude,\naccuracy}
+deactivate GPS
+
+Create -> GPS : reverseGeocodeAsync(\nlat, lng)
+activate GPS
+
+GPS -> OSM : Reverse geocoding request
+activate OSM
+OSM --> GPS : Address components
+deactivate OSM
+
+GPS --> Create : [{street, city, country}]
+deactivate GPS
+
+Create -> Create : setLatitude()\nsetLongitude()\nsetAddress()
+Create -> Storage : saveFormState()
+
+alt Selectare manuală pe hartă
+    User -> Create : Click "Alege pe Hartă"
+    Create -> Storage : saveFormState()
+    Create -> LocationPicker : navigate({...})
+    activate LocationPicker
+    
+    LocationPicker -> Map : Afișează hartă
+    User -> LocationPicker : Tap pe locație
+    LocationPicker -> OSM : reverseGeocode(coords)
+    OSM --> LocationPicker : Adresă
+    LocationPicker --> Create : return {lat, lng, address}
+    deactivate LocationPicker
+    
+    Create -> Create : updateLocation()
+    Create -> Storage : saveFormState()
+end
+
+== 📷 UPLOAD IMAGINI ==
+
+User -> Create : Click "Adaugă Imagini"
+
+alt Opțiune: Camera
+    Create -> Camera : requestCameraPermissionsAsync()
+    Camera --> Create : Permission granted
+    
+    Create -> Camera : launchCameraAsync({\nquality: 0.8,\nallowsEditing: true})
+    activate Camera
+    User -> Camera : Face poză
+    Camera --> Create : {uri: "file://..."}
+    deactivate Camera
+    
+    Create -> Create : addImage(uri)
+else Opțiune: Galerie
+    Create -> Camera : requestMediaLibraryPermissionsAsync()
+    Camera --> Create : Permission granted
+    
+    Create -> Camera : launchImageLibraryAsync({\nallowsMultipleSelection: true})
+    activate Camera
+    User -> Camera : Selectează imagini
+    Camera --> Create : [{uri}, {uri}, ...]
+    deactivate Camera
+    
+    Create -> Create : addImages(uris)
+end
+
+Create -> Storage : saveFormState()
+
+== 🗺️ CONSTRUIRE TRASEU TURISTIC ==
+
+User -> Create : Click "Adaugă Traseu\nTuristic"
+
+Create -> Create : validateLocation()
+
+alt Locație validă
+    Create -> Storage : saveFormState()
+    note right: Salvare explicită\nînainte de navigare
+    
+    Create -> RouteBuilder : navigate({\ninitialLocation: {lat, lng}})
+    activate RouteBuilder
+    
+    RouteBuilder -> Map : Inițializare hartă\ncentrată pe apartament
+    RouteBuilder --> User : Afișează hartă\n+ search bar
+    
+    === 🔍 CĂUTARE LOCAȚII ===
+    
+    User -> RouteBuilder : Introduce "Catedrala\nMitropolitană"
+    RouteBuilder -> OSM : search({\nq: "Catedrala...",\ncity: "Timișoara"})
+    activate OSM
+    OSM --> RouteBuilder : [{name, lat, lng,\ndisplay_name}, ...]
+    deactivate OSM
+    
+    RouteBuilder --> User : Afișează rezultate
+    User -> RouteBuilder : Selectează rezultat
+    RouteBuilder -> RouteBuilder : addPlaceToRoute(place)
+    RouteBuilder -> Map : Adaugă marker\n+ animateToRegion()
+    
+    === ➕ ADĂUGARE MANUALĂ ===
+    
+    User -> RouteBuilder : Click "Adaugă\nLocație Manuală"
+    RouteBuilder --> User : Deschide dialog
+    
+    User -> RouteBuilder : Introduce nume\n+ adresă
+    RouteBuilder -> OSM : search({q: adresă})
+    activate OSM
+    OSM --> RouteBuilder : {lat, lng}
+    deactivate OSM
+    
+    RouteBuilder -> RouteBuilder : addPlaceToRoute({\nname, lat, lng,\ndescription})
+    RouteBuilder -> Map : Adaugă marker
+    
+    === 🖱️ DRAG & DROP MARKERE ===
+    
+    User -> Map : Drag marker\nla poziție nouă
+    Map --> RouteBuilder : onMarkerDragEnd(\nid, newCoords)
+    RouteBuilder -> RouteBuilder : handleMarkerDragEnd()
+    RouteBuilder -> RouteBuilder : updatePlaceCoordinates()
+    
+    === ✅ FINALIZARE TRASEU ===
+    
+    User -> RouteBuilder : Click "Finalizează (3)"
+    
+    RouteBuilder -> RouteBuilder : validateRoute()\n(min 1 locație)
+    
+    RouteBuilder -> Storage : setItem(\n'pendingSuggestedRoute',\n{places, totalPlaces, timestamp})
+    activate Storage
+    Storage --> RouteBuilder : Success
+    deactivate Storage
+    
+    note right of RouteBuilder
+      **Salvare temporară**
+      Nu folosim route.params
+      pentru că navigate()
+      ar crea un nou screen
+    end note
+    
+    RouteBuilder -> RouteBuilder : navigation.goBack()
+    deactivate RouteBuilder
+    
+    === 🔄 REVENIRE LA CREATE LISTING ===
+    
+    Create -> Create : useFocusEffect triggered
+    
+    Create -> Storage : getItem(\n'pendingSuggestedRoute')
+    activate Storage
+    Storage --> Create : {places, totalPlaces}
+    deactivate Storage
+    
+    Create -> Create : setSuggestedRoute(data)
+    
+    Create -> Storage : removeItem(\n'pendingSuggestedRoute')
+    note right: Curățare după\npreluare reușită
+    
+    Create --> User : Afișează traseu\ncu (3) locații
+    
+else Locație invalidă
+    Create --> User : Alert: "Selectează\nmai întâi locația"
+end
+
+== 💾 VALIDARE ȘI SUBMIT ==
+
+User -> Create : Click "Creează Anunț"
+
+Create -> Create : validateForm()
+
+alt Validare eșuată
+    Create --> User : Alert: "Câmp X\nlipsește"
+else Validare reușită
+    Create -> Storage : getItem('userToken')
+    activate Storage
+    Storage --> Create : JWT token
+    deactivate Storage
+    
+    Create -> Create : Pregătire payload:\n{\n  title, description,\n  property_type,\n  latitude, longitude,\n  price_per_night,\n  amenities,\n  suggested_route: {\n    title, pois, places\n  }\n}
+    
+    Create -> API : POST /api/listings/create\nHeaders: {Authorization:\nBearer {token}}
+    activate API
+    
+    API -> Backend : HTTP Request
+    activate Backend
+    
+    Backend -> Backend : verify_jwt_token(token)
+    Backend -> Backend : validate_listing_data()
+    
+    Backend -> DB : db.listings.insert_one({\n  user_id,\n  title,\n  ...,\n  suggested_route,\n  created_at,\n  status: "active"\n})
+    activate DB
+    DB --> Backend : {inserted_id}
+    deactivate DB
+    
+    Backend --> API : {success: true,\nlisting: {...}}
+    deactivate Backend
+    
+    API --> Create : Response 201 Created
+    deactivate API
+    
+    === 📸 UPLOAD IMAGINI ===
+    
+    alt Dacă există imagini
+        Create -> API : POST /api/listings/\n{listing_id}/images\nBody: {image_urls: [...]}
+        activate API
+        
+        API -> Backend : Upload image URLs
+        activate Backend
+        
+        Backend -> DB : db.listings.update_one(\n{_id: listing_id},\n{$set: {image_urls: [...]}} )
+        activate DB
+        DB --> Backend : Success
+        deactivate DB
+        
+        Backend --> API : Success
+        deactivate Backend
+        API --> Create : Images uploaded
+        deactivate API
+    end
+    
+    === 🧹 CLEANUP ===
+    
+    Create -> Storage : removeItem(\n'createListingFormState')
+    activate Storage
+    Storage --> Create : Cleared
+    deactivate Storage
+    
+    Create -> Create : navigation.navigate(\n'Listings')
+    
+    Create --> User : Alert: "Anunțul a fost\ncreat cu succes!"
+    deactivate Create
+end
+
+== 📱 AFIȘARE ÎN LISTINGS ==
+
+User -> "ListingsScreen" as Listings : Navigate to Listings
+activate Listings
+
+Listings -> API : GET /api/listings/all
+activate API
+
+API -> Backend : HTTP Request
+activate Backend
+
+Backend -> DB : db.listings.find({\nstatus: "active"\n}).sort({created_at: -1})
+activate DB
+DB --> Backend : [listings...]
+deactivate DB
+
+Backend --> API : {listings: [...]}
+deactivate Backend
+
+API --> Listings : Listings array
+deactivate API
+
+Listings --> User : Afișează lista\ncu nou anunț adăugat
+
+note right of Listings
+  Fiecare listing afișează:
+  - Titlu, preț, locație
+  - Nr. oaspeți, camere
+  - Traseu turistic (3) locații
+  - Imagini în carousel
+end note
+
+deactivate Listings
+
+@enduml

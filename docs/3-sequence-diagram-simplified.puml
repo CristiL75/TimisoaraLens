@@ -1,0 +1,71 @@
+@startuml TimisoaraLens App - State Diagram
+!theme plain
+
+[*] --> Splash
+
+Splash : - Check stored token\n- Auto-login
+
+Splash --> Unauthenticated : No token found
+Splash --> Home : Token valid
+
+Unauthenticated : - Login screen\nactive
+
+Unauthenticated --> Register : User clicks\nregister
+
+Register : - Registration form
+
+Register --> Unauthenticated : Cancel or\nback button
+
+Register --> Home : Registration\nsuccess
+
+Unauthenticated --> Home : Login\nsuccess
+
+Home : - Authenticated\n- Main menu
+
+Home --> ViewListings : Click "Apartamente"
+
+Home --> Logout : Click logout
+
+Logout --> Unauthenticated : Token cleared
+
+ViewListings : - List of apartments\n- Pull to refresh
+
+ViewListings --> Home : Back button
+
+ViewListings --> ViewDetail : Click apartment
+
+ViewDetail : - Single listing\ndetails\n- Display reviews\n- Authenticated users can add review
+
+ViewDetail --> Home : Back
+
+ViewDetail --> ViewReviews : Click "See all reviews"
+
+ViewReviews : - List of all reviews\n- Rating statistics\n- User comments
+
+ViewReviews --> ViewDetail : Back
+
+ViewDetail --> AddReview : Click "Add Review"\n(if authenticated)
+
+AddReview : - Review form\n- Star rating\n- Title & comment
+
+AddReview --> ViewDetail : Submit success\nor cancel
+
+ViewDetail --> EditReview : Edit own review\n(if author)
+
+EditReview : - Update form\n- Change rating/comment
+
+EditReview --> ViewDetail : Update success
+
+EditListing : - Edit form\nfor listing
+
+EditListing --> ViewDetail : Update success\nor cancel
+
+CreateListing : - Multi-step form\n- Fill details\n- GPS + Images\n- Route builder
+
+CreateListing --> ViewListings : Submit\nsuccess
+
+CreateListing --> Home : Cancel\n(form saved)
+
+Home --> CreateListing : Click\n"New Listing"
+
+@enduml

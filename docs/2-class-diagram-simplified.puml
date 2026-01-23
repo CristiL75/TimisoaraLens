@@ -1,0 +1,109 @@
+@startuml TimisoaraLens Class Diagram - Simplified
+!theme plain
+
+' ============================================================
+' MOBILE APPLICATION
+' ============================================================
+
+package "Mobile App - React Native" {
+    
+    package "Screens" #LightBlue {
+        class HomeScreen
+        class LoginScreen
+        class RegisterScreen
+        class ListingsScreen
+        class CreateListingScreen
+        class RouteBuilderScreen
+        class ListingDetailScreen
+        class EditListingScreen
+    }
+    
+    package "State & Services" #LightGreen {
+        class AuthContext
+        class APIService
+    }
+    
+    package "Data Models" #Lavender {
+        class User
+        class Listing
+        class Route
+        class Place
+        class Review
+    }
+}
+
+' ============================================================
+' BACKEND API - FASTAPI
+' ============================================================
+
+package "Backend API - FastAPI" #LightCyan {
+    
+    package "Routers" {
+        class AuthRouter
+        class ListingsRouter
+        class GPSRouter
+        class ReviewsRouter
+    }
+    
+    package "Database" #WhiteSmoke {
+        class UserModel
+        class ListingModel
+        class ReviewModel
+        class MongoDBConnection
+    }
+}
+
+' ============================================================
+' RELATIONSHIPS
+' ============================================================
+
+' Mobile screens use context and services
+LoginScreen --> AuthContext
+RegisterScreen --> AuthContext
+CreateListingScreen --> AuthContext
+ListingDetailScreen --> AuthContext
+
+LoginScreen --> APIService
+RegisterScreen --> APIService
+ListingsScreen --> APIService
+CreateListingScreen --> APIService
+EditListingScreen --> APIService
+ListingDetailScreen --> APIService
+RouteBuilderScreen --> APIService
+
+' Screen navigation
+HomeScreen --> ListingsScreen
+ListingsScreen --> CreateListingScreen
+ListingsScreen --> ListingDetailScreen
+CreateListingScreen --> RouteBuilderScreen
+ListingDetailScreen --> EditListingScreen
+
+' Data relationships
+Listing *-- Route : contains
+Route *-- Place : contains
+
+AuthContext --> User
+ListingsScreen --> Listing
+CreateListingScreen --> Listing
+ListingDetailScreen --> Listing
+
+' Review relationships
+ListingDetailScreen --> Review : displays
+Review --> User : created by
+Listing *-- Review : contains 0..*
+
+' API calls
+APIService --> AuthRouter : HTTP
+APIService --> ListingsRouter : HTTP
+APIService --> GPSRouter : HTTP
+APIService --> ReviewsRouter : HTTP
+
+' Backend relationships
+AuthRouter --> UserModel
+AuthRouter --> MongoDBConnection
+ListingsRouter --> ListingModel
+ListingsRouter --> MongoDBConnection
+ReviewsRouter --> ReviewModel
+ReviewsRouter --> MongoDBConnection
+
+@enduml
