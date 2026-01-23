@@ -1,0 +1,445 @@
+@startuml TimisoaraLens Class Diagram - Complete Application
+!theme plain
+
+' ============================================================
+' MOBILE APPLICATION - REACT NATIVE
+' ============================================================
+
+package "Mobile App - React Native" <<Rectangle>> {
+    
+    ' ========== SCREENS ==========
+    package "Screens Layer" #LightBlue {
+        class HomeScreen {
+            -navigation: Navigation
+            -user: User
+            --
+            +componentDidMount(): void
+            +navigateToListings(): void
+            +navigateToMap(): void
+            +handleLogout(): void
+            +render(): JSX.Element
+        }
+        
+        class LoginScreen {
+            -email: string
+            -password: string
+            -loading: boolean
+            -error: string
+            --
+            +handleEmailChange(text): void
+            +handlePasswordChange(text): void
+            +handleLogin(): Promise<void>
+            +navigateToRegister(): void
+            +render(): JSX.Element
+        }
+        
+        class RegisterScreen {
+            -email: string
+            -username: string
+            -password: string
+            -fullName: string
+            -loading: boolean
+            --
+            +handleRegister(): Promise<void>
+            +validateForm(): boolean
+            +render(): JSX.Element
+        }
+        
+        class ListingsScreen {
+            -listings: Listing[]
+            -loading: boolean
+            -refreshing: boolean
+            -error: string
+            --
+            +componentDidMount(): void
+            +fetchListings(): Promise<void>
+            +onRefresh(): Promise<void>
+            +navigateToCreate(): void
+            +navigateToDetail(id): void
+            +render(): JSX.Element
+        }
+        
+        class CreateListingScreen {
+            -title: string
+            -description: string
+            -propertyType: string
+            -latitude: number
+            -longitude: number
+            -address: string
+            -pricePerNight: string
+            -maxGuests: string
+            -bedrooms: string
+            -bathrooms: string
+            -amenities: string[]
+            -images: string[]
+            -suggestedRoute: Route
+            -contactName: string
+            -contactPhone: string
+            -contactEmail: string
+            -loading: boolean
+            -isFirstFocus: boolean
+            --
+            +saveFormState(): Promise<void>
+            +restoreFormState(): Promise<void>
+            +getCurrentLocation(): Promise<void>
+            +pickImages(): Promise<void>
+            +takePhoto(): Promise<void>
+            +toggleAmenity(amenity): void
+            +validateForm(): boolean
+            +createListing(): Promise<void>
+            +navigateToRouteBuilder(): void
+            +navigateToLocationPicker(): void
+            +render(): JSX.Element
+        }
+        
+        class RouteBuilderScreen {
+            -selectedPlaces: Place[]
+            -region: Region
+            -mapExpanded: boolean
+            -manualName: string
+            -manualAddress: string
+            -manualDescription: string
+            -showManualDialog: boolean
+            --
+            +addPlaceToRoute(place): void
+            +removePlaceFromRoute(id): void
+            +handleMarkerDragEnd(id, coords): void
+            +handleManualAdd(): Promise<void>
+            +searchPlaces(query): Promise<void>
+            +finishRoute(): Promise<void>
+            +render(): JSX.Element
+        }
+        
+        class ListingDetailScreen {
+            -listing: Listing
+            -loading: boolean
+            -isOwner: boolean
+            --
+            +componentDidMount(): void
+            +fetchListing(id): Promise<void>
+            +handleEdit(): void
+            +handleDelete(): Promise<void>
+            +confirmDelete(): void
+            +render(): JSX.Element
+        }
+        
+        class EditListingScreen {
+            -listing: Listing
+            -title: string
+            -description: string
+            -pricePerNight: string
+            -loading: boolean
+            --
+            +componentDidMount(): void
+            +loadListing(id): Promise<void>
+            +updateListing(): Promise<void>
+            +validateForm(): boolean
+            +render(): JSX.Element
+        }
+        
+        class LocationPickerScreen {
+            -region: Region
+            -selectedLocation: Location
+            -address: string
+            --
+            +onMapPress(coords): void
+            +reverseGeocode(coords): Promise<void>
+            +confirmLocation(): void
+            +render(): JSX.Element
+        }
+    }
+    
+    ' ========== CONTEXT (STATE MANAGEMENT) ==========
+    package "Context Layer" #LightGreen {
+        class AuthContext {
+            -user: User
+            -isAuthenticated: boolean
+            -isLoading: boolean
+            --
+            +login(token, user): Promise<void>
+            +logout(): Promise<void>
+            +checkAuth(): Promise<void>
+            +setUser(user): void
+            +Provider: React.Provider<AuthContextValue>
+        }
+    }
+    
+    ' ========== SERVICES ==========
+    package "Services Layer" #LightYellow {
+        class APIService {
+            -{static} API_URL: string
+            -{static} axiosInstance: AxiosInstance
+            --
+            ' Auth endpoints
+            +{static} login(credentials): Promise<TokenResponse>
+            +{static} register(userData): Promise<TokenResponse>
+            +{static} getCurrentUser(): Promise<User>
+            
+            ' Listings endpoints
+            +{static} createListing(data): Promise<ListingResponse>
+            +{static} getListings(skip, limit): Promise<Listing[]>
+            +{static} getListing(id): Promise<Listing>
+            +{static} updateListing(id, data): Promise<Listing>
+            +{static} deleteListing(id): Promise<void>
+            +{static} uploadImages(id, urls): Promise<void>
+            +{static} getCafes(): Promise<Cafe[]>
+            
+            ' Helper methods
+            -{static} setAuthToken(token): void
+            -{static} getAuthToken(): Promise<string>
+        }
+    }
+    
+    ' ========== MODELS ==========
+    package "Data Models" #Lavender {
+        class User {
+            +id: string
+            +email: string
+            +username: string
+            +fullName: string
+            +isActive: boolean
+            +isAdmin: boolean
+            +createdAt: Date
+            +lastLogin: Date
+        }
+        
+        class Listing {
+            +id: string
+            +userId: string
+            +title: string
+            +description: string
+            +propertyType: string
+            +latitude: number
+            +longitude: number
+            +address: string
+            +pricePerNight: number
+            +maxGuests: number
+            +bedrooms: number
+            +bathrooms: number
+            +amenities: string[]
+            +imageUrls: string[]
+            +status: string
+            +suggestedRoute: Route
+            +contactName: string
+            +contactPhone: string
+            +contactEmail: string
+            +createdAt: Date
+            +updatedAt: Date
+        }
+        
+        class Route {
+            +title: string
+            +places: Place[]
+            +totalPlaces: number
+        }
+        
+        class Place {
+            +id: string
+            +name: string
+            +latitude: number
+            +longitude: number
+            +display_name: string
+            +description: string
+            +category: string
+        }
+        
+        class Location {
+            +latitude: number
+            +longitude: number
+            +accuracy: number
+        }
+        
+        class Region {
+            +latitude: number
+            +longitude: number
+            +latitudeDelta: number
+            +longitudeDelta: number
+        }
+        
+        class Cafe {
+            +name: string
+            +latitude: number
+            +longitude: number
+            +display_name: string
+        }
+    }
+    
+    package "Storage" #LightCyan {
+        class AsyncStorageManager {
+            +{static} TOKEN_KEY: string = "userToken"
+            +{static} FORM_STATE_KEY: string = "createListingFormState"
+            +{static} PENDING_ROUTE_KEY: string = "pendingSuggestedRoute"
+            --
+            +{static} saveToken(token): Promise<void>
+            +{static} getToken(): Promise<string>
+            +{static} removeToken(): Promise<void>
+            +{static} saveFormState(state): Promise<void>
+            +{static} getFormState(): Promise<FormState>
+            +{static} removeFormState(): Promise<void>
+            +{static} savePendingRoute(route): Promise<void>
+            +{static} getPendingRoute(): Promise<Route>
+            +{static} removePendingRoute(): Promise<void>
+        }
+    }
+}
+
+' ============================================================
+' BACKEND API - FASTAPI PYTHON
+' ============================================================
+
+package "Backend API - FastAPI" <<Database>> {
+    
+    package "API Routers" #LightCyan {
+        class AuthRouter {
+            +router: APIRouter
+            --
+            +register(userData): UserResponse
+            +login(credentials): Token
+            +loginJson(credentials): Token
+            +getCurrentUser(token): UserResponse
+            +getUsersCount(): int
+        }
+        
+        class ListingsRouter {
+            +router: APIRouter
+            --
+            +createListing(data, user): ListingResponse
+            +getAllListings(skip, limit): List<Listing>
+            +getListing(id): Listing
+            +getUserListings(userId): List<Listing>
+            +updateListing(id, data, user): Listing
+            +deleteListing(id, user): void
+            +uploadImages(id, urls, user): void
+        }
+        
+        class GPSRouter {
+            +router: APIRouter
+            --
+            +getCafes(): List<Cafe>
+        }
+    }
+    
+    package "Database Models" #WhiteSmoke {
+        class UserModel {
+            +email: EmailStr
+            +username: str
+            +hashed_password: str
+            +full_name: str
+            +is_active: bool
+            +is_admin: bool
+            +created_at: datetime
+            +last_login: datetime
+        }
+        
+        class ListingModel {
+            +user_id: str
+            +title: str
+            +description: str
+            +property_type: str
+            +latitude: float
+            +longitude: float
+            +address: str
+            +price_per_night: float
+            +max_guests: int
+            +bedrooms: int
+            +bathrooms: int
+            +amenities: list
+            +image_urls: list
+            +status: str
+            +suggested_route: dict
+            +contact_name: str
+            +contact_phone: str
+            +contact_email: str
+            +created_at: datetime
+            +updated_at: datetime
+        }
+        
+    }
+    
+    package "Auth Utilities" #PeachPuff {
+        class AuthUtils {
+            +{static} get_current_user(token): User
+        }
+    }
+    
+    package "Database Connection" #Honeydew {
+        class MongoDBConnection {
+            +{static} mongodb_client: AsyncIOMotorClient
+            +{static} database: Database
+            --
+            +{static} connect_to_mongo(): void
+            +{static} close_mongo_connection(): void
+            +{static} get_database(): Database
+            +{static} get_users_collection(): Collection
+            +{static} get_listings_collection(): Collection
+        }
+    }
+}
+
+' ============================================================
+' RELATIONSHIPS - MOBILE APP
+' ============================================================
+
+' Screens to Context
+LoginScreen --> AuthContext : uses
+RegisterScreen --> AuthContext : uses
+HomeScreen --> AuthContext : uses
+CreateListingScreen --> AuthContext : uses
+ListingDetailScreen --> AuthContext : uses
+
+' Screens to Services
+LoginScreen --> APIService : login()
+RegisterScreen --> APIService : register()
+ListingsScreen --> APIService : getListings()
+CreateListingScreen --> APIService : createListing()
+ListingDetailScreen --> APIService : getListing(), deleteListing()
+EditListingScreen --> APIService : updateListing()
+RouteBuilderScreen --> APIService : searchPlaces()
+
+' Screens navigation
+HomeScreen --> ListingsScreen : navigates
+ListingsScreen --> CreateListingScreen : navigates
+ListingsScreen --> ListingDetailScreen : navigates
+ListingDetailScreen --> EditListingScreen : navigates
+CreateListingScreen --> RouteBuilderScreen : navigates
+CreateListingScreen --> LocationPickerScreen : navigates
+ListingDetailScreen --> CreateListingScreen : edit mode
+
+' Services to Context
+APIService --> AuthContext : updates user state
+EditListingScreen --> Listing : updates
+ListingDetailScreen --> Listing : displays
+RouteBuilderScreen --> Route : builds
+RouteBuilderScreen --> Place : manages list
+AuthContext --> User : manages
+ListingsScreen --> Listing : displays list
+
+Listing *-- Route : contains
+Route *-- Place : contains 0..*
+
+' ============================================================
+' RELATIONSHIPS - BACKEND API
+' ============================================================
+
+' Routers to Auth
+ListingsRouter --> AuthUtils : verify_current_user
+
+' Routers to Database
+AuthRouter --> MongoDBConnection : users collection
+ListingsRouter --> MongoDBConnection : listings collection
+
+' Routers to Models
+AuthRouter --> UserModel : creates
+ListingsRouter --> ListingModel : creates
+
+MongoDBConnection --> UserModel : stores
+MongoDBConnection --> ListingModel : stores
+
+' ============================================================
+' CROSS-SYSTEM RELATIONSHIPS
+' ============================================================
+
+APIService -down-> AuthRouter : HTTP POST /auth/login
+APIService -down-> ListingsRouter : HTTP GET/POST/PUT/DELETE /listings
+APIService -down-> GPSRouter : HTTP GET /gps/cafes
+@enduml

@@ -12,6 +12,7 @@ import {
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import ChatWidget from '../components/ChatWidget';
 
 export default function HomeScreen({ navigation }) {
   const { user, logout } = useAuth();
@@ -69,6 +70,8 @@ export default function HomeScreen({ navigation }) {
           Logout
         </Button>
       </ScrollView>
+
+      <ChatWidget />
     </View>
   );
 }
