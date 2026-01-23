@@ -26,8 +26,14 @@ TOP_K = 5
 
 
 # Pydantic models
+class ConversationMessage(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+
 class RAGQueryRequest(BaseModel):
     query: str
+    conversation_history: Optional[list[ConversationMessage]] = None
     top_k: Optional[int] = TOP_K
 
 
@@ -41,7 +47,7 @@ class RAGQueryResponse(BaseModel):
 async def rag_query(request: RAGQueryRequest):
     """
     Query the RAG system via HuggingFace Space.
-    Proxies the request to the dedicated RAG service.
+    Proxies the request to the dedicated RAG service with optional conversation history.
     """
     if not HF_RAG_SPACE_URL:
         raise HTTPException(

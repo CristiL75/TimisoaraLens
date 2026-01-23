@@ -50,8 +50,17 @@ export default function ChatWidget() {
     setInput('');
     setIsLoading(true);
 
-    // Query RAG endpoint
-    const result = await ragAPI.query(trimmedInput, 5);
+    // Build conversation history (exclude welcome message) for context
+    const conversationHistory = messages
+      .filter((msg) => msg.id !== 'welcome') // Don't include welcome in history
+      .map((msg) => ({
+        role: msg.from === 'user' ? 'user' : 'assistant',
+        content: msg.text,
+      }))
+      .concat({ role: 'user', content: trimmedInput }); // Add current query
+
+    // Query RAG endpoint with conversation context
+    const result = await ragAPI.query(trimmedInput, conversationHistory, 5);
 
     if (result.success) {
       const botMessage = {
@@ -95,7 +104,7 @@ export default function ChatWidget() {
                 />
               )}
             />
-            <Card.Content style={styles.messagesContainer}>
+            <View style={styles.cardContentWrapper}>
               <ScrollView
                 style={styles.messagesScroll}
                 contentContainerStyle={styles.messagesContent}
@@ -129,7 +138,7 @@ export default function ChatWidget() {
                   </View>
                 )}
               </ScrollView>
-            </Card.Content>
+            </View>
             <Card.Actions style={styles.inputRow}>
               <TextInput
                 style={styles.input}
@@ -176,9 +185,9 @@ const styles = StyleSheet.create({
     maxHeight: 420,
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    overflow: 'hidden',
   },
-  messagesContainer: {
+  cardContentWrapper: {
+    overflow: 'hidden',
     maxHeight: 280,
     paddingHorizontal: 4,
   },

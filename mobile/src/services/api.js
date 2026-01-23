@@ -262,13 +262,19 @@ export const gpsAPI = {
 // RAG API
 export const ragAPI = {
   /**
-   * Query RAG system for information
+   * Query RAG system for information with optional conversation history
+   * @param {string} query - The user's question
+   * @param {Array} conversation_history - Array of {role: "user"|"assistant", content: string}
+   * @param {number} top_k - Number of sources to retrieve
    */
-  query: async (query, top_k = 5) => {
+  query: async (query, conversation_history = [], top_k = 5) => {
     try {
       const response = await api.post('/rag/query', {
         query,
+        conversation_history,
         top_k,
+      }, {
+        timeout: 60000, // 60s timeout for RAG (HF Space cold start can be slow)
       });
       return { success: true, data: response.data };
     } catch (error) {
