@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient
 import httpx
+from langdetect import detect, LangDetectException
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -59,8 +60,14 @@ def get_qdrant_client():
 
 
 # Pydantic models
+class ConversationMessage(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+
 class RAGQueryRequest(BaseModel):
     query: str
+    conversation_history: Optional[list[ConversationMessage]] = None
     top_k: Optional[int] = TOP_K
 
 
@@ -147,21 +154,51 @@ async def rag_query(request: RAGQueryRequest):
             context_text += f"[Sursa {i}] {payload.get('heading', 'N/A')}\n"
             context_text += f"{payload.get('text', '')}\n\n"
 
-        # Build prompt
-        system_prompt = (
-            "Ești un asistent util despre Timișoara, România. "
-            "Răspunde la întrebări pe baza contextului furnizat. "
-            "Dacă nu știi răspunsul, spune-o politicos. "
-            "Răspunde în aceeași limbă ca întrebarea. "
-            "Ține răspunsuri concis și relevant."
-        )
+        # Detect query language
+        try:
+            detected_lang = detect(request.query)
+            logger.info(f"Detected language: {detected_lang}")
+        except LangDetectException:
+            detected_lang = "ro"  # Default to Romanian
+            logger.warning("Language detection failed, defaulting to Romanian")
 
-        user_prompt = f"""Context:
+        # Language-specific instructions
+        lang_instructions = {
+            "en": "Answer in English.",
+            "ro": "Răspunde în română.",
+            "de": "Antworte auf Deutsch.",
+            "fr": "Répondez en françPrevious conversation:\n"
+            for msg in request.conversation_history[-4:]:  # Keep last 4 messages for context
+                role = "User" if msg.role == "user" else "Assistant"
+                conversation_context += f"{role}: {msg.content}\n"
+            conversation_context += "\n"
+
+        user_prompt = f"""{conversation_context}Knowledge base context:
 {context_text}
 
-Întrebare: {request.query}
+New question: {request.query}
 
-Răspuns scurt bazat pe contextul de mai sus:"""
+Short and relevant answer based one answer, say so politely. "
+            f"{answer_language} "
+            f"Keep answers concise and relevant. "
+            f"You can refer to previous conversation if relevant."
+        )
+
+        # Build conversation context if available
+        conversation_context = ""
+        if request.conversation_history:
+            conversation_context = "Conversația anterioară:\n"
+            for msg in request.conversation_history[-4:]:  # Keep last 4 messages for context
+                role = "Utilizator" if msg.role == "user" else "Asistent"
+                conversation_context += f"{role}: {msg.content}\n"
+            conversation_context += "\n"
+
+        user_prompt = f"""{conversation_context}Context din bază de cunoștințe:
+{context_text}
+
+Noua întrebare: {request.query}
+
+Răspuns scurt și relevant bazat pe context:"""
 
         full_prompt = f"{system_prompt}\n\n{user_prompt}"
 
