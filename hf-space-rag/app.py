@@ -167,7 +167,27 @@ async def rag_query(request: RAGQueryRequest):
             "en": "Answer in English.",
             "ro": "Răspunde în română.",
             "de": "Antworte auf Deutsch.",
-            "fr": "Répondez en françPrevious conversation:\n"
+            "fr": "Répondez en français.",
+            "es": "Responde en español.",
+            "it": "Rispondi in italiano.",
+            "hu": "Válaszolj magyarul.",
+        }
+        answer_language = lang_instructions.get(detected_lang, "Answer in the same language as the question.")
+
+        # Build system prompt with language instruction
+        system_prompt = (
+            f"You are a helpful assistant about Timișoara, Romania. "
+            f"Answer questions based on the provided context. "
+            f"If you don't know the answer, say so politely. "
+            f"{answer_language} "
+            f"Keep answers concise and relevant. "
+            f"You can refer to previous conversation if relevant."
+        )
+
+        # Build conversation context if available
+        conversation_context = ""
+        if request.conversation_history:
+            conversation_context = "Previous conversation:\n"
             for msg in request.conversation_history[-4:]:  # Keep last 4 messages for context
                 role = "User" if msg.role == "user" else "Assistant"
                 conversation_context += f"{role}: {msg.content}\n"
@@ -178,27 +198,7 @@ async def rag_query(request: RAGQueryRequest):
 
 New question: {request.query}
 
-Short and relevant answer based one answer, say so politely. "
-            f"{answer_language} "
-            f"Keep answers concise and relevant. "
-            f"You can refer to previous conversation if relevant."
-        )
-
-        # Build conversation context if available
-        conversation_context = ""
-        if request.conversation_history:
-            conversation_context = "Conversația anterioară:\n"
-            for msg in request.conversation_history[-4:]:  # Keep last 4 messages for context
-                role = "Utilizator" if msg.role == "user" else "Asistent"
-                conversation_context += f"{role}: {msg.content}\n"
-            conversation_context += "\n"
-
-        user_prompt = f"""{conversation_context}Context din bază de cunoștințe:
-{context_text}
-
-Noua întrebare: {request.query}
-
-Răspuns scurt și relevant bazat pe context:"""
+Short and relevant answer based on context:"""
 
         full_prompt = f"{system_prompt}\n\n{user_prompt}"
 
