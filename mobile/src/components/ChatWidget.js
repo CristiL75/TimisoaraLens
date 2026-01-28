@@ -17,6 +17,7 @@ import {
   FAB,
 } from 'react-native-paper';
 import { ragAPI } from '../services/api';
+import SuggestedQuestions from './SuggestedQuestions';
 
 /**
  * Floating chatbot widget with RAG integration.
@@ -62,12 +63,17 @@ export default function ChatWidget() {
     // Query RAG endpoint with conversation context
     const result = await ragAPI.query(trimmedInput, conversationHistory, 5);
 
+    console.log('RAG Result:', result); // DEBUG
+
     if (result.success) {
+      const answerText = result.data.answer || '(răspuns gol)';
+      console.log('Answer text:', answerText); // DEBUG
       const botMessage = {
         id: `b-${Date.now()}`,
         from: 'bot',
-        text: result.data.answer,
+        text: answerText,
         sources: result.data.sources,
+        suggestedQuestions: result.data.suggested_questions || [],
       };
       setMessages((prev) => [...prev, botMessage]);
     } else {
@@ -83,6 +89,23 @@ export default function ChatWidget() {
   };
 
   const toggleOpen = () => setIsOpen((prev) => !prev);
+
+  const handleSelectSuggestedQuestion = (question) => {
+    setInput(question);
+  };
+
+  const renderMessageText = (text) => {
+    const parts = text
+      .split(/\n+/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    return parts.map((p, idx) => (
+      <Text key={idx} style={styles.bubbleText}>
+        {p}
+      </Text>
+    ));
+  };
 
   return (
     <Portal>
@@ -111,23 +134,30 @@ export default function ChatWidget() {
                 showsVerticalScrollIndicator={false}
               >
                 {messages.map((msg) => (
-                  <View
-                    key={msg.id}
-                    style={[
-                      styles.bubble,
-                      msg.from === 'user' ? styles.userBubble : styles.botBubble,
-                    ]}
-                  >
-                    <Text style={styles.bubbleText}>{msg.text}</Text>
-                    {msg.sources && msg.sources.length > 0 && (
-                      <View style={styles.sourcesContainer}>
-                        <Text style={styles.sourcesLabel}>Surse:</Text>
-                        {msg.sources.slice(0, 2).map((source, idx) => (
-                          <Text key={idx} style={styles.sourceItem}>
-                            • {source.heading} ({source.source})
-                          </Text>
-                        ))}
-                      </View>
+                  <View key={msg.id}>
+                    <View
+                      style={[
+                        styles.bubble,
+                        msg.from === 'user' ? styles.userBubble : styles.botBubble,
+                      ]}
+                    >
+                      {renderMessageText(msg.text)}
+                      {msg.sources && msg.sources.length > 0 && (
+                        <View style={styles.sourcesContainer}>
+                          <Text style={styles.sourcesLabel}>Surse:</Text>
+                          {msg.sources.slice(0, 2).map((source, idx) => (
+                            <Text key={idx} style={styles.sourceItem}>
+                              • {source.heading} ({source.source})
+                            </Text>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                    {msg.suggestedQuestions && msg.suggestedQuestions.length > 0 && (
+                      <SuggestedQuestions
+                        questions={msg.suggestedQuestions}
+                        onSelectQuestion={handleSelectSuggestedQuestion}
+                      />
                     )}
                   </View>
                 ))}
