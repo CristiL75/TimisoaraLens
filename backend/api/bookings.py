@@ -49,6 +49,7 @@ class ProviderCreateRequest(BaseModel):
 class ProviderResponse(BaseModel):
     """Provider response"""
     id: str
+    user_id: Optional[str] = None
     category: str
     reservation_type: str
     name: str
@@ -198,6 +199,7 @@ async def list_providers():
     return [
         ProviderResponse(
             id=str(p["_id"]),
+            user_id=p.get("user_id", None),
             category=p.get("category", "food_drinks"),
             reservation_type=p.get("reservation_type", "table_based"),
             name=p["name"],
@@ -231,6 +233,7 @@ async def get_provider(provider_id: str):
     
     return ProviderResponse(
         id=str(provider["_id"]),
+        user_id=provider.get("user_id", None),
         category=provider.get("category", "food_drinks"),
         reservation_type=provider.get("reservation_type", "table_based"),
         name=provider["name"],
