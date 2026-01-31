@@ -85,7 +85,7 @@ from fastapi.security import OAuth2PasswordBearer
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login-json")
 
-def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user(token: str = Depends(oauth2_scheme)):
     from jose import jwt
     from database_mongo import get_users_collection
     try:
@@ -107,6 +107,6 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
     # Caută userul în MongoDB după email și returnează _id-ul real
     import asyncio
     users_col = get_users_collection()
-    user_doc = asyncio.get_event_loop().run_until_complete(users_col.find_one({"email": email}))
+    user_doc = await users_col.find_one({"email": email})
     user_id = str(user_doc["_id"]) if user_doc and "_id" in user_doc else None
     return {"email": email, "username": username, "id": user_id}
