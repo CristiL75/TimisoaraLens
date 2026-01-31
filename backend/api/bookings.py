@@ -137,7 +137,7 @@ class AvailabilityResponse(BaseModel):
 @router.post("/providers", response_model=ProviderResponse, status_code=status.HTTP_201_CREATED)
 async def create_provider(request: ProviderCreateRequest, current_user: dict = Depends(get_current_user)):
     """Create a new service provider"""
-    print("[DEBUG] create_provider CALLED!")
+    print("[DEBUG] === create_provider CALLED ===")
     try:
         print("[DEBUG] ProviderCreateRequest:", request)
     except Exception as e:
