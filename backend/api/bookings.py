@@ -137,8 +137,11 @@ class AvailabilityResponse(BaseModel):
 @router.post("/providers", response_model=ProviderResponse, status_code=status.HTTP_201_CREATED)
 async def create_provider(request: ProviderCreateRequest, current_user: dict = Depends(get_current_user)):
     """Create a new service provider"""
-    import logging
-    logging.warning("[DEBUG] create_provider called. Request: %s", request.json() if hasattr(request, 'json') else str(request))
+    print("[DEBUG] create_provider CALLED!")
+    try:
+        print("[DEBUG] ProviderCreateRequest:", request)
+    except Exception as e:
+        print("[DEBUG] Exception printing request:", e)
     providers_col = get_providers_collection()
     try:
         provider = Provider(
@@ -160,7 +163,7 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
             status="active"
         )
         result = await providers_col.insert_one(provider.model_dump(by_alias=True, exclude={"id"}))
-        logging.warning("[DEBUG] Provider created with id: %s", str(result.inserted_id))
+        print("[DEBUG] Provider created with id:", str(result.inserted_id))
         return ProviderResponse(
             id=str(result.inserted_id),
             category=provider.category,
@@ -179,7 +182,7 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
             status=provider.status
         )
     except Exception as e:
-        logging.error("[DEBUG] Exception in create_provider: %s", str(e), exc_info=True)
+        print("[DEBUG] Exception in create_provider:", str(e))
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 
