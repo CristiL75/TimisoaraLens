@@ -2,6 +2,8 @@
  * Create/Manage Provider Screen
  */
 import React, { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '../services/api';
 import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import {
   Appbar,
@@ -30,6 +32,8 @@ const DAYS = [
 ];
 
 export default function ManageProviderScreen({ navigation, route }) {
+      // Stare pentru mese (chiar dacă nu folosești încă UI-ul de mese)
+      const [tables, setTables] = useState([]);
     // Facilități pentru restaurante/pub
     const [facilities, setFacilities] = useState({
       terasa: false,
@@ -90,36 +94,72 @@ export default function ManageProviderScreen({ navigation, route }) {
   };
 
   const handleSave = async () => {
-    if (!name || !email || !phone) {
-      Alert.alert('Eroare', 'Completează toate câmpurile obligatorii');
-      return;
+    try {
+      // Validare simplă, extinde după nevoie
+      if (!name || !email || !phone) {
+        Alert.alert('Eroare', 'Completează toate câmpurile obligatorii');
+        return;
+      }
+      // Validare email simplă
+      const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+      if (!emailRegex.test(email)) {
+        Alert.alert('Eroare', 'Introdu o adresă de email validă!');
+        return;
+      }
+
+      setLoading(true);
+      const providerData = {
+        category,
+        reservation_type: reservationType,
+        name,
+        email,
+        phone,
+        description: description || null,
+        images,
+        tables,
+        booking_settings: {
+          type: reservationType,
+          default_duration_minutes: parseInt(duration),
+          buffer_minutes: parseInt(buffer),
+          advance_booking_hours: 2,
+          max_advance_days: 30,
+          auto_confirm: autoConfirm,
+        },
+        working_hours: workingHours,
+        address,
+        latitude,
+        longitude,
+        ...(category === 'food_drinks' ? { facilities } : {}),
+      };
+      const token = await AsyncStorage.getItem('userToken');
+      const response = await fetch(`${API_URL}/api/bookings/providers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(providerData)
+      });
+      const data = await response.json();
+      if (response.ok && data && data.id) {
+        Alert.alert('Succes!', 'Serviciul a fost creat cu succes', [{
+          text: 'OK',
+          onPress: () => navigation.navigate('Services')
+        }]);
+      } else {
+        // Extrage mesajul de eroare din răspunsul backend (Pydantic/FastAPI)
+        let errorMsg = 'Nu s-a putut crea serviciul';
+        if (data && data.detail) {
+          if (typeof data.detail === 'string') errorMsg = data.detail;
+          else if (Array.isArray(data.detail) && data.detail[0]?.msg) errorMsg = data.detail[0].msg;
+        }
+        Alert.alert('Eroare', errorMsg);
+      }
+    } catch (error) {
+      Alert.alert('Eroare', error?.message || JSON.stringify(error));
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(true);
-
-    const providerData = {
-      category,
-      reservation_type: reservationType,
-      name,
-      email,
-      phone,
-      description: description || null,
-      images,
-      tables,
-      booking_settings: {
-        type: reservationType,
-        default_duration_minutes: parseInt(duration),
-        buffer_minutes: parseInt(buffer),
-        advance_booking_hours: 2,
-        max_advance_days: 30,
-        auto_confirm: autoConfirm,
-      },
-      working_hours: workingHours,
-      address,
-      latitude,
-      longitude,
-      ...(category === 'food_drinks' ? { facilities } : {}),
-    };
                         {category === 'food_drinks' && (
                           <Card style={styles.card}>
                             <Card.Content>

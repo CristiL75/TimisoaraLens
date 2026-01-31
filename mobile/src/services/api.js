@@ -330,7 +330,18 @@ export const bookingsAPI = {
    */
   createProvider: async (providerData) => {
     try {
-      const response = await api.post('/bookings/providers', providerData);
+      const token = await AsyncStorage.getItem('userToken');
+      const response = await api.post(
+        '/bookings/providers',
+        providerData,
+        {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : undefined,
+            'Content-Type': 'application/json',
+          },
+          timeout: 10000,
+        }
+      );
       return { success: true, data: response.data };
     } catch (error) {
       console.error('[api] createProvider error:', formatAxiosError(error));

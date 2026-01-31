@@ -144,8 +144,10 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
         print("[DEBUG] Exception printing request:", e)
     providers_col = get_providers_collection()
     try:
+        # Acceptă atât 'id' cât și 'sub' ca identificator user
+        user_id_val = current_user.get("id") or current_user.get("sub")
         provider = Provider(
-            user_id=PyObjectId(current_user["id"]),
+            user_id=PyObjectId(user_id_val) if user_id_val else None,
             listing_id=PyObjectId(request.listing_id) if request.listing_id else None,
             category=request.category,
             reservation_type=request.reservation_type,
