@@ -198,7 +198,7 @@ class BookingSettings(BaseModel):
 class Provider(BaseModel):
     """Service provider (restaurant, pub, etc.)"""
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
-        user_id: str  # Link to user account
+    user_id: str  # Link to user account
     listing_id: Optional[PyObjectId] = None  # Link to existing listing (optional)
     
     category: str = "food_drinks"  # ex: "food_drinks"
