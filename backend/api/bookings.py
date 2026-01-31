@@ -141,8 +141,9 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
     print("[DEBUG] === create_provider CALLED ===")
     try:
         print("[DEBUG] ProviderCreateRequest:", request)
+        print("[DEBUG] current_user:", current_user)
     except Exception as e:
-        print("[DEBUG] Exception printing request:", e)
+        print("[DEBUG] Exception printing request or user:", e)
     providers_col = get_providers_collection()
     try:
         # Acceptă atât 'id' cât și 'sub' ca identificator user
