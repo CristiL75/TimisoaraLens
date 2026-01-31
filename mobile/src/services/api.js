@@ -312,7 +312,7 @@ export const bookingsAPI = {
    */
   createProvider: async (providerData) => {
     try {
-      const response = await api.post('/bookings/providers', providerData);
+      const response = await api.post('/api/bookings/providers', providerData);
       return { success: true, data: response.data };
     } catch (error) {
       console.error('[api] createProvider error:', formatAxiosError(error));
@@ -328,7 +328,7 @@ export const bookingsAPI = {
    */
   getProviders: async () => {
     try {
-      const response = await api.get('/bookings/providers');
+      const response = await api.get('/api/bookings/providers');
       return { success: true, data: response.data };
     } catch (error) {
       console.error('[api] getProviders error:', formatAxiosError(error));
@@ -344,7 +344,7 @@ export const bookingsAPI = {
    */
   getProvider: async (providerId) => {
     try {
-      const response = await api.get(`/bookings/providers/${providerId}`);
+      const response = await api.get(`/api/bookings/providers/${providerId}`);
       return { success: true, data: response.data };
     } catch (error) {
       console.error('[api] getProvider error:', formatAxiosError(error));
@@ -360,7 +360,7 @@ export const bookingsAPI = {
    */
   updateProvider: async (providerId, providerData) => {
     try {
-      const response = await api.put(`/bookings/providers/${providerId}`, providerData);
+      const response = await api.put(`/api/bookings/providers/${providerId}`, providerData);
       return { success: true, data: response.data };
     } catch (error) {
       console.error('[api] updateProvider error:', formatAxiosError(error));
@@ -370,19 +370,13 @@ export const bookingsAPI = {
       };
     }
   },
-      return {
-        success: false,
-        error: error.response?.data?.detail || error.message || 'Failed to get provider',
-      };
-    }
-  },
 
   /**
    * Add a table to provider
    */
   createTable: async (tableData) => {
     try {
-      const response = await api.post('/bookings/tables', tableData);
+      const response = await api.post('/api/bookings/tables', tableData);
       return { success: true, data: response.data };
     } catch (error) {
       console.error('[api] createTable error:', formatAxiosError(error));
@@ -398,7 +392,7 @@ export const bookingsAPI = {
    */
   getTables: async (providerId) => {
     try {
-      const response = await api.get(`/bookings/tables/${providerId}`);
+      const response = await api.get(`/api/bookings/tables/${providerId}`);
       return { success: true, data: response.data };
     } catch (error) {
       console.error('[api] getTables error:', formatAxiosError(error));
@@ -414,7 +408,7 @@ export const bookingsAPI = {
    */
   createBooking: async (bookingData) => {
     try {
-      const response = await api.post('/bookings/', bookingData);
+      const response = await api.post('/api/bookings/', bookingData);
       return { success: true, data: response.data };
     } catch (error) {
       console.error('[api] createBooking error:', formatAxiosError(error));
@@ -430,7 +424,7 @@ export const bookingsAPI = {
    */
   checkAvailability: async (providerId, date, partySize) => {
     try {
-      const response = await api.get(`/bookings/availability/${providerId}`, {
+      const response = await api.get(`/api/bookings/availability/${providerId}`, {
         params: { date, party_size: partySize }
       });
       return { success: true, data: response.data };
@@ -448,7 +442,7 @@ export const bookingsAPI = {
    */
   cancelBooking: async (bookingId) => {
     try {
-      const response = await api.delete(`/bookings/${bookingId}`);
+      const response = await api.delete(`/api/bookings/${bookingId}`);
       return { success: true, data: response.data };
     } catch (error) {
       console.error('[api] cancelBooking error:', formatAxiosError(error));

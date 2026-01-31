@@ -201,14 +201,20 @@ class Provider(BaseModel):
     user_id: PyObjectId  # Link to user account
     listing_id: Optional[PyObjectId] = None  # Link to existing listing (optional)
     
+    category: str = "food_drinks"  # ex: "food_drinks"
+    reservation_type: str = "table_based"  # ex: "table_based"
     name: str
     email: EmailStr
     phone: str
     description: Optional[str] = None
-    
+    images: list[str] = []  # URLs to images
+    address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
     booking_settings: BookingSettings
     working_hours: list[WorkingHours]
-    
+
     status: str = "active"  # "active", "pending", "suspended"
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -225,7 +231,9 @@ class Table(BaseModel):
     
     name: str  # "Masa 1", "Table A", etc.
     seats: int  # Number of seats
-    location: Optional[str] = None  # "interior", "exterior", "terasa"
+    zone: Optional[str] = None  # "interior", "terasa", "bar"
+    special_options: list[str] = []  # ex: ["nefumători", "lângă geam", "VIP"]
+    location: Optional[str] = None  # compatibilitate veche
     
     status: str = "active"  # "active", "inactive"
     created_at: datetime = Field(default_factory=datetime.utcnow)

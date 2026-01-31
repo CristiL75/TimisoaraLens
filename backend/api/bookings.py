@@ -30,10 +30,16 @@ router = APIRouter(prefix="/bookings", tags=["Bookings"])
 
 class ProviderCreateRequest(BaseModel):
     """Request to create a new provider"""
+    category: str = "food_drinks"
+    reservation_type: str = "table_based"
     name: str
     email: EmailStr
     phone: str
     description: Optional[str] = None
+    images: List[str] = []
+    address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     listing_id: Optional[str] = None
     booking_settings: BookingSettings
     working_hours: List[WorkingHours]
@@ -42,10 +48,16 @@ class ProviderCreateRequest(BaseModel):
 class ProviderResponse(BaseModel):
     """Provider response"""
     id: str
+    category: str
+    reservation_type: str
     name: str
     email: str
     phone: str
     description: Optional[str]
+    images: List[str]
+    address: Optional[str]
+    latitude: Optional[float]
+    longitude: Optional[float]
     booking_settings: BookingSettings
     working_hours: List[WorkingHours]
     status: str
@@ -56,6 +68,8 @@ class TableCreateRequest(BaseModel):
     provider_id: str
     name: str
     seats: int
+    zone: Optional[str] = None
+    special_options: List[str] = []
     location: Optional[str] = None
 
 
@@ -65,6 +79,8 @@ class TableResponse(BaseModel):
     provider_id: str
     name: str
     seats: int
+    zone: Optional[str]
+    special_options: List[str]
     location: Optional[str]
     status: str
 
@@ -124,10 +140,16 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
     provider = Provider(
         user_id=PyObjectId(current_user["id"]),
         listing_id=PyObjectId(request.listing_id) if request.listing_id else None,
+        category=request.category,
+        reservation_type=request.reservation_type,
         name=request.name,
         email=request.email,
         phone=request.phone,
         description=request.description,
+        images=request.images,
+        address=request.address,
+        latitude=request.latitude,
+        longitude=request.longitude,
         booking_settings=request.booking_settings,
         working_hours=request.working_hours,
         status="active"
@@ -137,10 +159,16 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
     
     return ProviderResponse(
         id=str(result.inserted_id),
+        category=provider.category,
+        reservation_type=provider.reservation_type,
         name=provider.name,
         email=provider.email,
         phone=provider.phone,
         description=provider.description,
+        images=provider.images,
+        address=provider.address,
+        latitude=provider.latitude,
+        longitude=provider.longitude,
         booking_settings=provider.booking_settings,
         working_hours=provider.working_hours,
         status=provider.status
@@ -157,10 +185,16 @@ async def list_providers():
     return [
         ProviderResponse(
             id=str(p["_id"]),
+            category=p.get("category", "food_drinks"),
+            reservation_type=p.get("reservation_type", "table_based"),
             name=p["name"],
             email=p["email"],
             phone=p["phone"],
             description=p.get("description"),
+            images=p.get("images", []),
+            address=p.get("address"),
+            latitude=p.get("latitude"),
+            longitude=p.get("longitude"),
             booking_settings=BookingSettings(**p["booking_settings"]),
             working_hours=[WorkingHours(**wh) for wh in p["working_hours"]],
             status=p["status"]
@@ -184,10 +218,16 @@ async def get_provider(provider_id: str):
     
     return ProviderResponse(
         id=str(provider["_id"]),
+        category=provider.get("category", "food_drinks"),
+        reservation_type=provider.get("reservation_type", "table_based"),
         name=provider["name"],
         email=provider["email"],
         phone=provider["phone"],
         description=provider.get("description"),
+        images=provider.get("images", []),
+        address=provider.get("address"),
+        latitude=provider.get("latitude"),
+        longitude=provider.get("longitude"),
         booking_settings=BookingSettings(**provider["booking_settings"]),
         working_hours=[WorkingHours(**wh) for wh in provider["working_hours"]],
         status=provider["status"]
@@ -216,15 +256,20 @@ async def update_provider(
     
     # Update provider
     update_data = {
+        "category": request.category,
+        "reservation_type": request.reservation_type,
         "name": request.name,
         "email": request.email,
         "phone": request.phone,
         "description": request.description,
+        "images": request.images,
+        "address": request.address,
+        "latitude": request.latitude,
+        "longitude": request.longitude,
         "booking_settings": request.booking_settings.model_dump(),
         "working_hours": [wh.model_dump() for wh in request.working_hours],
         "updated_at": datetime.utcnow()
     }
-    
     if request.listing_id:
         update_data["listing_id"] = ObjectId(request.listing_id)
     
@@ -238,10 +283,16 @@ async def update_provider(
     
     return ProviderResponse(
         id=str(updated_provider["_id"]),
+        category=updated_provider.get("category", "food_drinks"),
+        reservation_type=updated_provider.get("reservation_type", "table_based"),
         name=updated_provider["name"],
         email=updated_provider["email"],
         phone=updated_provider["phone"],
         description=updated_provider.get("description"),
+        images=updated_provider.get("images", []),
+        address=updated_provider.get("address"),
+        latitude=updated_provider.get("latitude"),
+        longitude=updated_provider.get("longitude"),
         booking_settings=BookingSettings(**updated_provider["booking_settings"]),
         working_hours=[WorkingHours(**wh) for wh in updated_provider["working_hours"]],
         status=updated_provider["status"]
@@ -273,6 +324,8 @@ async def create_table(request: TableCreateRequest, current_user: dict = Depends
         provider_id=PyObjectId(request.provider_id),
         name=request.name,
         seats=request.seats,
+        zone=request.zone,
+        special_options=request.special_options,
         location=request.location,
         status="active"
     )
@@ -284,6 +337,8 @@ async def create_table(request: TableCreateRequest, current_user: dict = Depends
         provider_id=request.provider_id,
         name=table.name,
         seats=table.seats,
+        zone=table.zone,
+        special_options=table.special_options,
         location=table.location,
         status=table.status
     )

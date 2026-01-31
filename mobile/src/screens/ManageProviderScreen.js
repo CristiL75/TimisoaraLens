@@ -16,6 +16,8 @@ import {
   Divider,
 } from 'react-native-paper';
 import { bookingsAPI } from '../services/api';
+import ImagePicker from 'expo-image-picker';
+import { LocationPickerScreen } from '../screens/LocationPickerScreen';
 
 const DAYS = [
   { key: 'monday', label: 'Luni' },
@@ -32,10 +34,13 @@ export default function ManageProviderScreen({ navigation, route }) {
   const isEdit = !!existingProvider;
 
   const [loading, setLoading] = useState(false);
+  const [category, setCategory] = useState(existingProvider?.category || 'food_drinks');
+  const [reservationType, setReservationType] = useState(existingProvider?.reservation_type || 'table_based');
   const [name, setName] = useState(existingProvider?.name || '');
   const [email, setEmail] = useState(existingProvider?.email || '');
   const [phone, setPhone] = useState(existingProvider?.phone || '');
   const [description, setDescription] = useState(existingProvider?.description || '');
+  const [images, setImages] = useState(existingProvider?.images || []);
   
   // Booking settings
   const [duration, setDuration] = useState(
@@ -75,12 +80,15 @@ export default function ManageProviderScreen({ navigation, route }) {
     setLoading(true);
 
     const providerData = {
+      category,
+      reservation_type: reservationType,
       name,
       email,
       phone,
       description: description || null,
+      images,
       booking_settings: {
-        type: 'table_based',
+        type: reservationType,
         default_duration_minutes: parseInt(duration),
         buffer_minutes: parseInt(buffer),
         advance_booking_hours: 2,
@@ -88,6 +96,9 @@ export default function ManageProviderScreen({ navigation, route }) {
         auto_confirm: autoConfirm,
       },
       working_hours: workingHours,
+      address,
+      latitude,
+      longitude,
     };
 
     try {
@@ -123,6 +134,11 @@ export default function ManageProviderScreen({ navigation, route }) {
     }
   };
 
+  // Adresă și coordonate pentru provider
+  const [address, setAddress] = useState(existingProvider?.address || '');
+  const [latitude, setLatitude] = useState(existingProvider?.latitude || null);
+  const [longitude, setLongitude] = useState(existingProvider?.longitude || null);
+
   return (
     <View style={styles.container}>
       <Appbar.Header>
@@ -134,6 +150,17 @@ export default function ManageProviderScreen({ navigation, route }) {
         <Card style={styles.card}>
           <Card.Content>
             <Title>Informații Generale</Title>
+            <Text style={{ marginBottom: 8 }}>Categorie</Text>
+            <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+              <Chip selected={category === 'food_drinks'} onPress={() => setCategory('food_drinks')} style={{ marginRight: 8 }}>Restaurante/Pub</Chip>
+              <Chip selected={category === 'entertainment'} onPress={() => setCategory('entertainment')} style={{ marginRight: 8 }}>Entertainment</Chip>
+              <Chip selected={category === 'shop'} onPress={() => setCategory('shop')}>Shop</Chip>
+            </View>
+            <Text style={{ marginBottom: 8 }}>Tip Rezervare</Text>
+            <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+              <Chip selected={reservationType === 'table_based'} onPress={() => setReservationType('table_based')} style={{ marginRight: 8 }}>Pe masă</Chip>
+              <Chip selected={reservationType === 'appointment_based'} onPress={() => setReservationType('appointment_based')}>Pe oră</Chip>
+            </View>
             <TextInput
               label="Nume Serviciu *"
               value={name}
@@ -170,6 +197,24 @@ export default function ManageProviderScreen({ navigation, route }) {
               numberOfLines={3}
               placeholder="Scurtă descriere a serviciului..."
             />
+            <Text style={{ marginTop: 12, marginBottom: 8 }}>Imagini</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row', marginBottom: 12 }}>
+              {images.map((img, idx) => (
+                <Card key={idx} style={{ marginRight: 8 }}>
+                  <Card.Cover source={{ uri: img }} style={{ width: 80, height: 80 }} />
+                </Card>
+              ))}
+              <Button icon="plus" mode="outlined" onPress={async () => {
+                // Use expo-image-picker for demo, replace with upload logic as needed
+                let result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.7 });
+                if (!result.canceled && result.assets && result.assets.length > 0) {
+                  // For demo, just use local uri; in production, upload and use remote URL
+                  setImages([...images, result.assets[0].uri]);
+                }
+              }} style={{ height: 80, justifyContent: 'center', alignItems: 'center' }}>
+                Adaugă
+              </Button>
+            </ScrollView>
           </Card.Content>
         </Card>
 
@@ -246,6 +291,40 @@ export default function ManageProviderScreen({ navigation, route }) {
                 </View>
               );
             })}
+          </Card.Content>
+        </Card>
+
+        <Card style={styles.card}>
+          <Card.Content>
+            <Title>Adresă și Locație pe Hartă</Title>
+            <TextInput
+              label="Adresă (opțional)"
+              value={address}
+              onChangeText={setAddress}
+              mode="outlined"
+              style={styles.input}
+              placeholder="ex: Piața Victoriei 2, Timișoara"
+            />
+            <Button
+              mode="outlined"
+              icon="map-marker"
+              onPress={() => navigation.navigate('LocationPicker', {
+                initialLocation: latitude && longitude ? { latitude, longitude, address } : undefined,
+                onLocationSelected: ({ latitude, longitude, address }) => {
+                  setLatitude(latitude);
+                  setLongitude(longitude);
+                  setAddress(address);
+                }
+              })}
+              style={{ marginTop: 8 }}
+            >
+              Selectează pe hartă
+            </Button>
+            {latitude && longitude && (
+              <Text style={{ marginTop: 8, color: '#666' }}>
+                📍 {address ? address : `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`}
+              </Text>
+            )}
           </Card.Content>
         </Card>
 

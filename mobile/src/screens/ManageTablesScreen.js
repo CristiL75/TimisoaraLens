@@ -30,6 +30,8 @@ export default function ManageTablesScreen({ navigation, route }) {
   // Form fields
   const [tableName, setTableName] = useState('');
   const [seats, setSeats] = useState('');
+  const [zone, setZone] = useState('interior');
+  const [specialOptions, setSpecialOptions] = useState([]);
   const [location, setLocation] = useState('interior');
 
   useEffect(() => {
@@ -68,6 +70,8 @@ export default function ManageTablesScreen({ navigation, route }) {
       provider_id: provider.id,
       name: tableName,
       seats: parseInt(seats),
+      zone,
+      special_options: specialOptions,
       location,
     };
 
@@ -180,7 +184,26 @@ export default function ManageTablesScreen({ navigation, route }) {
               keyboardType="numeric"
               placeholder="ex: 4"
             />
-            <Title style={styles.locationTitle}>Locație</Title>
+            <Title style={styles.locationTitle}>Zonă</Title>
+            <View style={styles.locationButtons}>
+              <Chip selected={zone === 'interior'} onPress={() => setZone('interior')} style={styles.locationChip}>Interior</Chip>
+              <Chip selected={zone === 'terasa'} onPress={() => setZone('terasa')} style={styles.locationChip}>Terasă</Chip>
+              <Chip selected={zone === 'bar'} onPress={() => setZone('bar')} style={styles.locationChip}>Bar</Chip>
+            </View>
+            <Title style={styles.locationTitle}>Opțiuni Speciale</Title>
+            <View style={styles.locationButtons}>
+              {['nefumători', 'lângă geam', 'VIP'].map(opt => (
+                <Chip
+                  key={opt}
+                  selected={specialOptions.includes(opt)}
+                  onPress={() => setSpecialOptions(specialOptions.includes(opt) ? specialOptions.filter(o => o !== opt) : [...specialOptions, opt])}
+                  style={styles.locationChip}
+                >
+                  {opt}
+                </Chip>
+              ))}
+            </View>
+            <Title style={styles.locationTitle}>Locație (compatibilitate veche)</Title>
             <View style={styles.locationButtons}>
               <Chip
                 selected={location === 'interior'}
