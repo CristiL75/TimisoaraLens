@@ -41,6 +41,7 @@ class ProviderCreateRequest(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     listing_id: Optional[str] = None
+    facilities: Optional[dict] = None
     booking_settings: BookingSettings
     working_hours: List[WorkingHours]
 
@@ -58,6 +59,7 @@ class ProviderResponse(BaseModel):
     address: Optional[str]
     latitude: Optional[float]
     longitude: Optional[float]
+    facilities: Optional[dict]
     booking_settings: BookingSettings
     working_hours: List[WorkingHours]
     status: str
@@ -135,44 +137,50 @@ class AvailabilityResponse(BaseModel):
 @router.post("/providers", response_model=ProviderResponse, status_code=status.HTTP_201_CREATED)
 async def create_provider(request: ProviderCreateRequest, current_user: dict = Depends(get_current_user)):
     """Create a new service provider"""
+    import logging
+    logging.warning("[DEBUG] create_provider called. Request: %s", request.json() if hasattr(request, 'json') else str(request))
     providers_col = get_providers_collection()
-    
-    provider = Provider(
-        user_id=PyObjectId(current_user["id"]),
-        listing_id=PyObjectId(request.listing_id) if request.listing_id else None,
-        category=request.category,
-        reservation_type=request.reservation_type,
-        name=request.name,
-        email=request.email,
-        phone=request.phone,
-        description=request.description,
-        images=request.images,
-        address=request.address,
-        latitude=request.latitude,
-        longitude=request.longitude,
-        booking_settings=request.booking_settings,
-        working_hours=request.working_hours,
-        status="active"
-    )
-    
-    result = await providers_col.insert_one(provider.model_dump(by_alias=True, exclude={"id"}))
-    
-    return ProviderResponse(
-        id=str(result.inserted_id),
-        category=provider.category,
-        reservation_type=provider.reservation_type,
-        name=provider.name,
-        email=provider.email,
-        phone=provider.phone,
-        description=provider.description,
-        images=provider.images,
-        address=provider.address,
-        latitude=provider.latitude,
-        longitude=provider.longitude,
-        booking_settings=provider.booking_settings,
-        working_hours=provider.working_hours,
-        status=provider.status
-    )
+    try:
+        provider = Provider(
+            user_id=PyObjectId(current_user["id"]),
+            listing_id=PyObjectId(request.listing_id) if request.listing_id else None,
+            category=request.category,
+            reservation_type=request.reservation_type,
+            name=request.name,
+            email=request.email,
+            phone=request.phone,
+            description=request.description,
+            images=request.images,
+            address=request.address,
+            latitude=request.latitude,
+            longitude=request.longitude,
+            facilities=request.facilities,
+            booking_settings=request.booking_settings,
+            working_hours=request.working_hours,
+            status="active"
+        )
+        result = await providers_col.insert_one(provider.model_dump(by_alias=True, exclude={"id"}))
+        logging.warning("[DEBUG] Provider created with id: %s", str(result.inserted_id))
+        return ProviderResponse(
+            id=str(result.inserted_id),
+            category=provider.category,
+            reservation_type=provider.reservation_type,
+            name=provider.name,
+            email=provider.email,
+            phone=provider.phone,
+            description=provider.description,
+            images=provider.images,
+            address=provider.address,
+            latitude=provider.latitude,
+            longitude=provider.longitude,
+            facilities=provider.facilities,
+            booking_settings=provider.booking_settings,
+            working_hours=provider.working_hours,
+            status=provider.status
+        )
+    except Exception as e:
+        logging.error("[DEBUG] Exception in create_provider: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 
 @router.get("/providers", response_model=List[ProviderResponse])

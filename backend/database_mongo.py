@@ -212,6 +212,8 @@ class Provider(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
+    facilities: Optional[dict] = None  # Facilități pentru restaurante/pub
+
     booking_settings: BookingSettings
     working_hours: list[WorkingHours]
 

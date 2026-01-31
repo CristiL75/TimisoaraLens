@@ -16,7 +16,7 @@ import {
   Divider,
 } from 'react-native-paper';
 import { bookingsAPI } from '../services/api';
-import ImagePicker from 'expo-image-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { LocationPickerScreen } from '../screens/LocationPickerScreen';
 
 const DAYS = [
@@ -30,7 +30,25 @@ const DAYS = [
 ];
 
 export default function ManageProviderScreen({ navigation, route }) {
-  const existingProvider = route.params?.provider;
+    // Facilități pentru restaurante/pub
+    const [facilities, setFacilities] = useState({
+      terasa: false,
+      nefumatori: false,
+      fumatori: false,
+      pet: false,
+      parcare: false,
+      card: false,
+      wifi: false,
+      acces: false,
+      live: false,
+      tv: false,
+    });
+
+    const handleFacilityChange = (key) => {
+      setFacilities((prev) => ({ ...prev, [key]: !prev[key] }));
+    };
+  const params = route && route.params ? route.params : {};
+  const existingProvider = params.provider || null;
   const isEdit = !!existingProvider;
 
   const [loading, setLoading] = useState(false);
@@ -87,6 +105,7 @@ export default function ManageProviderScreen({ navigation, route }) {
       phone,
       description: description || null,
       images,
+      tables,
       booking_settings: {
         type: reservationType,
         default_duration_minutes: parseInt(duration),
@@ -99,7 +118,94 @@ export default function ManageProviderScreen({ navigation, route }) {
       address,
       latitude,
       longitude,
+      ...(category === 'food_drinks' ? { facilities } : {}),
     };
+                        {category === 'food_drinks' && (
+                          <Card style={styles.card}>
+                            <Card.Content>
+                              <Title>Facilități</Title>
+                              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                                <Chip selected={facilities.terasa} onPress={() => handleFacilityChange('terasa')} style={{ margin: 4 }}>Terasă</Chip>
+                                <Chip selected={facilities.nefumatori} onPress={() => handleFacilityChange('nefumatori')} style={{ margin: 4 }}>Nefumători</Chip>
+                                <Chip selected={facilities.fumatori} onPress={() => handleFacilityChange('fumatori')} style={{ margin: 4 }}>Fumători</Chip>
+                                <Chip selected={facilities.pet} onPress={() => handleFacilityChange('pet')} style={{ margin: 4 }}>Pet-friendly</Chip>
+                                <Chip selected={facilities.parcare} onPress={() => handleFacilityChange('parcare')} style={{ margin: 4 }}>Parcare</Chip>
+                                <Chip selected={facilities.card} onPress={() => handleFacilityChange('card')} style={{ margin: 4 }}>Plată cu cardul</Chip>
+                                <Chip selected={facilities.wifi} onPress={() => handleFacilityChange('wifi')} style={{ margin: 4 }}>Wi-Fi</Chip>
+                                <Chip selected={facilities.acces} onPress={() => handleFacilityChange('acces')} style={{ margin: 4 }}>Acces dizabilități</Chip>
+                                <Chip selected={facilities.live} onPress={() => handleFacilityChange('live')} style={{ margin: 4 }}>Live music</Chip>
+                                <Chip selected={facilities.tv} onPress={() => handleFacilityChange('tv')} style={{ margin: 4 }}>TV sport</Chip>
+                              </View>
+                            </Card.Content>
+                          </Card>
+                        )}
+                {category === 'food_drinks' && (
+                  <Card style={styles.card}>
+                    <Card.Content>
+                      <Title>Facilități</Title>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                        <Chip selected={facilities.terasa} onPress={() => handleFacilityChange('terasa')} style={{ margin: 4 }}>Terasă</Chip>
+                        <Chip selected={facilities.nefumatori} onPress={() => handleFacilityChange('nefumatori')} style={{ margin: 4 }}>Nefumători</Chip>
+                        <Chip selected={facilities.fumatori} onPress={() => handleFacilityChange('fumatori')} style={{ margin: 4 }}>Fumători</Chip>
+                        <Chip selected={facilities.pet} onPress={() => handleFacilityChange('pet')} style={{ margin: 4 }}>Pet-friendly</Chip>
+                        <Chip selected={facilities.parcare} onPress={() => handleFacilityChange('parcare')} style={{ margin: 4 }}>Parcare</Chip>
+                        <Chip selected={facilities.card} onPress={() => handleFacilityChange('card')} style={{ margin: 4 }}>Plată cu cardul</Chip>
+                        <Chip selected={facilities.wifi} onPress={() => handleFacilityChange('wifi')} style={{ margin: 4 }}>Wi-Fi</Chip>
+                        <Chip selected={facilities.acces} onPress={() => handleFacilityChange('acces')} style={{ margin: 4 }}>Acces dizabilități</Chip>
+                        <Chip selected={facilities.live} onPress={() => handleFacilityChange('live')} style={{ margin: 4 }}>Live music</Chip>
+                        <Chip selected={facilities.tv} onPress={() => handleFacilityChange('tv')} style={{ margin: 4 }}>TV sport</Chip>
+                      </View>
+                    </Card.Content>
+                  </Card>
+                )}
+        <Card style={styles.card}>
+          <Card.Content>
+            <Title>Mese & Capacitate</Title>
+            <Text style={{ marginBottom: 8 }}>Adaugă masă nouă</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+              <TextInput
+                label="Nume masă"
+                value={newTableName}
+                onChangeText={setNewTableName}
+                style={{ flex: 1, marginRight: 8, minWidth: 100 }}
+                mode="outlined"
+                placeholder="ex: Masa 1"
+              />
+              <TextInput
+                label="Capacitate"
+                value={newTableSeats}
+                onChangeText={setNewTableSeats}
+                style={{ width: 80, marginRight: 8 }}
+                mode="outlined"
+                keyboardType="numeric"
+                placeholder="4"
+              />
+              <Chip
+                selected={newTableZone === 'interior'}
+                onPress={() => setNewTableZone('interior')}
+                style={{ marginRight: 4 }}
+              >Interior</Chip>
+              <Chip
+                selected={newTableZone === 'terasa'}
+                onPress={() => setNewTableZone('terasa')}
+              >Terasă</Chip>
+              <Button icon="plus" mode="contained" onPress={handleAddTable} style={{ marginLeft: 8, marginTop: 4 }}>
+                Adaugă
+              </Button>
+            </View>
+            <Divider style={{ marginVertical: 8 }} />
+            <Text style={{ marginBottom: 8 }}>Mese existente</Text>
+            {tables.length === 0 && <Text style={{ color: '#888' }}>Nicio masă adăugată.</Text>}
+            {tables.map((table, idx) => (
+              <View key={table.id || idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                <Text style={{ flex: 1 }}>{table.name} ({table.seats} locuri, {table.zone === 'interior' ? 'Interior' : 'Terasă'})</Text>
+                <Button icon="delete" mode="text" onPress={() => handleRemoveTable(table.id)}>
+                  Șterge
+                </Button>
+              </View>
+            ))}
+          </Card.Content>
+        </Card>
 
     try {
       if (isEdit) {
@@ -197,6 +303,32 @@ export default function ManageProviderScreen({ navigation, route }) {
               numberOfLines={3}
               placeholder="Scurtă descriere a serviciului..."
             />
+          </Card.Content>
+        </Card>
+
+        {/* Facilități pentru restaurante/pub */}
+        {category === 'food_drinks' && (
+          <Card style={styles.card}>
+            <Card.Content>
+              <Title>Facilități</Title>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                <Chip selected={facilities.terasa} onPress={() => handleFacilityChange('terasa')} style={{ margin: 4 }}>Terasă</Chip>
+                <Chip selected={facilities.nefumatori} onPress={() => handleFacilityChange('nefumatori')} style={{ margin: 4 }}>Nefumători</Chip>
+                <Chip selected={facilities.fumatori} onPress={() => handleFacilityChange('fumatori')} style={{ margin: 4 }}>Fumători</Chip>
+                <Chip selected={facilities.pet} onPress={() => handleFacilityChange('pet')} style={{ margin: 4 }}>Pet-friendly</Chip>
+                <Chip selected={facilities.parcare} onPress={() => handleFacilityChange('parcare')} style={{ margin: 4 }}>Parcare</Chip>
+                <Chip selected={facilities.card} onPress={() => handleFacilityChange('card')} style={{ margin: 4 }}>Plată cu cardul</Chip>
+                <Chip selected={facilities.wifi} onPress={() => handleFacilityChange('wifi')} style={{ margin: 4 }}>Wi-Fi</Chip>
+                <Chip selected={facilities.acces} onPress={() => handleFacilityChange('acces')} style={{ margin: 4 }}>Acces dizabilități</Chip>
+                <Chip selected={facilities.live} onPress={() => handleFacilityChange('live')} style={{ margin: 4 }}>Live music</Chip>
+                <Chip selected={facilities.tv} onPress={() => handleFacilityChange('tv')} style={{ margin: 4 }}>TV sport</Chip>
+              </View>
+            </Card.Content>
+          </Card>
+        )}
+
+        <Card style={styles.card}>
+          <Card.Content>
             <Text style={{ marginTop: 12, marginBottom: 8 }}>Imagini</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row', marginBottom: 12 }}>
               {images.map((img, idx) => (
@@ -205,7 +337,12 @@ export default function ManageProviderScreen({ navigation, route }) {
                 </Card>
               ))}
               <Button icon="plus" mode="outlined" onPress={async () => {
-                // Use expo-image-picker for demo, replace with upload logic as needed
+                // Cere permisiunea de acces la galerie
+                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (status !== 'granted') {
+                  Alert.alert('Permisiune necesară', 'Trebuie să permiți accesul la galerie pentru a adăuga imagini.');
+                  return;
+                }
                 let result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.7 });
                 if (!result.canceled && result.assets && result.assets.length > 0) {
                   // For demo, just use local uri; in production, upload and use remote URL
