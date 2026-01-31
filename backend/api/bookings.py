@@ -169,6 +169,7 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
         print("[DEBUG] Provider created with id:", str(result.inserted_id))
         return ProviderResponse(
             id=str(result.inserted_id),
+            user_id=str(user_id_val) if user_id_val else None,
             category=provider.category,
             reservation_type=provider.reservation_type,
             name=provider.name,
