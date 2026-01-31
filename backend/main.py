@@ -80,12 +80,9 @@ app.include_router(bookings.router, prefix="/api/bookings", tags=["Bookings"])
 # NOTE: Vision module (image recognition) will be added later in development
 
 if __name__ == "__main__":
-    port = int(os.getenv("API_PORT", 8000))
-    host = os.getenv("API_HOST", "0.0.0.0")
-    
-    print(f"🌐 Starting server on http://{host}:{port}")
-    print("📖 API Documentation: http://localhost:8000/docs")
-    
+    # Use the port provided by the environment (Render sets $PORT), fallback to 8000 for local dev
+    port = int(os.environ.get("PORT", 8000))
+    host = os.environ.get("API_HOST", "0.0.0.0")
     uvicorn.run(
         "main:app",
         host=host,
