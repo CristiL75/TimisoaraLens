@@ -195,27 +195,32 @@ async def list_providers():
     providers_col = get_providers_collection()
     
     providers = await providers_col.find({"status": "active"}).to_list(100)
-    
-    return [
-        ProviderResponse(
-            id=str(p["_id"]),
-            user_id=p.get("user_id", None),
-            category=p.get("category", "food_drinks"),
-            reservation_type=p.get("reservation_type", "table_based"),
-            name=p["name"],
-            email=p["email"],
-            phone=p["phone"],
-            description=p.get("description"),
-            images=p.get("images", []),
-            address=p.get("address"),
-            latitude=p.get("latitude"),
-            longitude=p.get("longitude"),
-            booking_settings=BookingSettings(**p["booking_settings"]),
-            working_hours=[WorkingHours(**wh) for wh in p["working_hours"]],
-            status=p["status"]
-        )
-        for p in providers
-    ]
+
+    result = []
+    for p in providers:
+        try:
+            provider = ProviderResponse(
+                id=str(p["_id"]),
+                user_id=p.get("user_id", None),
+                category=p.get("category", "food_drinks"),
+                reservation_type=p.get("reservation_type", "table_based"),
+                name=p["name"],
+                email=p["email"],
+                phone=p["phone"],
+                description=p.get("description"),
+                images=p.get("images", []),
+                address=p.get("address"),
+                latitude=p.get("latitude"),
+                longitude=p.get("longitude"),
+                facilities=p.get("facilities"),
+                booking_settings=BookingSettings(**p["booking_settings"]),
+                working_hours=[WorkingHours(**wh) for wh in p["working_hours"]],
+                status=p["status"]
+            )
+            result.append(provider)
+        except Exception as e:
+            print(f"[ERROR] Skipping provider with _id={p.get('_id')} due to error: {e}")
+    return result
 
 
 @router.get("/providers/{provider_id}", response_model=ProviderResponse)
