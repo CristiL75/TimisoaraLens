@@ -61,6 +61,30 @@ export default function HomeScreen({ navigation }) {
           </Card.Actions>
         </Card>
 
+        {/* Services/Bookings Button */}
+        <Card style={styles.card}>
+          <Card.Content>
+            <View style={styles.titleContainer}>
+              <MaterialCommunityIcons name="store" size={28} color="#4CAF50" />
+              <Title style={styles.titleText}>Servicii & Rezervări</Title>
+            </View>
+            <Paragraph style={styles.cardDescription}>
+              Rezervă masă la restaurante/pub-uri sau oferă propriul serviciu.
+              Gestionează rezervări și disponibilitate.
+            </Paragraph>
+          </Card.Content>
+          <Card.Actions>
+            <Button
+              mode="contained"
+              icon="calendar-check"
+              onPress={() => navigation.navigate('Services')}
+              style={styles.servicesButton}
+            >
+              Vezi Servicii
+            </Button>
+          </Card.Actions>
+        </Card>
+
         <Button
           mode="outlined"
           onPress={logout}
@@ -107,6 +131,10 @@ const styles = StyleSheet.create({
   listingsButton: {
     marginLeft: 'auto',
     backgroundColor: '#FF9800',
+  },
+  servicesButton: {
+    marginLeft: 'auto',
+    backgroundColor: '#4CAF50',
   },
   logoutButton: {
     marginTop: 10,

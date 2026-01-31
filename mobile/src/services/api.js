@@ -305,4 +305,159 @@ export const ragAPI = {
   },
 };
 
+// Bookings API
+export const bookingsAPI = {
+  /**
+   * Create a new service provider
+   */
+  createProvider: async (providerData) => {
+    try {
+      const response = await api.post('/bookings/providers', providerData);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] createProvider error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to create provider',
+      };
+    }
+  },
+
+  /**
+   * Get all active providers
+   */
+  getProviders: async () => {
+    try {
+      const response = await api.get('/bookings/providers');
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] getProviders error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to get providers',
+      };
+    }
+  },
+
+  /**
+   * Get provider details
+   */
+  getProvider: async (providerId) => {
+    try {
+      const response = await api.get(`/bookings/providers/${providerId}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] getProvider error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to get provider',
+      };
+    }
+  },
+
+  /**
+   * Update provider
+   */
+  updateProvider: async (providerId, providerData) => {
+    try {
+      const response = await api.put(`/bookings/providers/${providerId}`, providerData);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] updateProvider error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to update provider',
+      };
+    }
+  },
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to get provider',
+      };
+    }
+  },
+
+  /**
+   * Add a table to provider
+   */
+  createTable: async (tableData) => {
+    try {
+      const response = await api.post('/bookings/tables', tableData);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] createTable error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to create table',
+      };
+    }
+  },
+
+  /**
+   * Get tables for a provider
+   */
+  getTables: async (providerId) => {
+    try {
+      const response = await api.get(`/bookings/tables/${providerId}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] getTables error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to get tables',
+      };
+    }
+  },
+
+  /**
+   * Create a booking
+   */
+  createBooking: async (bookingData) => {
+    try {
+      const response = await api.post('/bookings/', bookingData);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] createBooking error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to create booking',
+      };
+    }
+  },
+
+  /**
+   * Check availability
+   */
+  checkAvailability: async (providerId, date, partySize) => {
+    try {
+      const response = await api.get(`/bookings/availability/${providerId}`, {
+        params: { date, party_size: partySize }
+      });
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] checkAvailability error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to check availability',
+      };
+    }
+  },
+
+  /**
+   * Cancel a booking
+   */
+  cancelBooking: async (bookingId) => {
+    try {
+      const response = await api.delete(`/bookings/${bookingId}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] cancelBooking error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to cancel booking',
+      };
+    }
+  },
+};
+
 export default api;

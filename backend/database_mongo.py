@@ -122,6 +122,14 @@ async def connect_to_mongo():
             await database.listings.create_index([("location.latitude", 1), ("location.longitude", 1)])
         await database.listings.create_index("created_at")
         
+        # Bookings indexes
+        await database.providers.create_index("user_id")
+        await database.providers.create_index("status")
+        await database.tables.create_index("provider_id")
+        await database.bookings.create_index("provider_id")
+        await database.bookings.create_index([("provider_id", 1), ("booking_date", 1)])
+        await database.bookings.create_index("status")
+        
         print("✅ MongoDB indexes created")
     except Exception as e:
         print(f"❌ Failed to connect to MongoDB: {e}")
@@ -151,3 +159,108 @@ def get_quiz_history_collection():
 def get_landmark_visits_collection():
     """Get landmark visits collection"""
     return database.landmark_visits
+
+def get_providers_collection():
+    """Get service providers collection"""
+    return database.providers
+
+def get_tables_collection():
+    """Get tables collection"""
+    return database.tables
+
+def get_bookings_collection():
+    """Get bookings collection"""
+    return database.bookings
+
+
+# ============================================================
+# BOOKING SYSTEM MODELS
+# ============================================================
+
+class WorkingHours(BaseModel):
+    """Working hours for a specific day"""
+    day: str  # "monday", "tuesday", etc.
+    open_time: str  # "10:00"
+    close_time: str  # "22:00"
+    is_closed: bool = False
+
+
+class BookingSettings(BaseModel):
+    """Booking configuration for a provider"""
+    type: str = "table_based"  # "table_based" or "appointment_based"
+    default_duration_minutes: int = 90
+    buffer_minutes: int = 15
+    advance_booking_hours: int = 2  # Minimum hours before booking
+    max_advance_days: int = 30  # Maximum days in advance
+    auto_confirm: bool = True  # Auto-confirm or require manual approval
+
+
+class Provider(BaseModel):
+    """Service provider (restaurant, pub, etc.)"""
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    user_id: PyObjectId  # Link to user account
+    listing_id: Optional[PyObjectId] = None  # Link to existing listing (optional)
+    
+    name: str
+    email: EmailStr
+    phone: str
+    description: Optional[str] = None
+    
+    booking_settings: BookingSettings
+    working_hours: list[WorkingHours]
+    
+    status: str = "active"  # "active", "pending", "suspended"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        populate_by_name = True
+        json_encoders = {ObjectId: str}
+
+
+class Table(BaseModel):
+    """Table resource for restaurant/pub"""
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    provider_id: PyObjectId
+    
+    name: str  # "Masa 1", "Table A", etc.
+    seats: int  # Number of seats
+    location: Optional[str] = None  # "interior", "exterior", "terasa"
+    
+    status: str = "active"  # "active", "inactive"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        populate_by_name = True
+        json_encoders = {ObjectId: str}
+
+
+class Booking(BaseModel):
+    """Customer booking/reservation"""
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    provider_id: PyObjectId
+    table_id: Optional[PyObjectId] = None  # Can be null (auto-assign)
+    
+    # Customer info
+    customer_name: str
+    customer_email: EmailStr
+    customer_phone: str
+    user_id: Optional[PyObjectId] = None  # If user is logged in
+    
+    # Booking details
+    booking_date: str  # "2026-02-01"
+    start_time: str  # "19:00"
+    end_time: str  # "20:30"
+    party_size: int  # Number of people
+    
+    notes: Optional[str] = None
+    
+    status: str = "pending"  # "pending", "confirmed", "canceled", "completed"
+    
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    canceled_at: Optional[datetime] = None
+    cancellation_reason: Optional[str] = None
+    
+    class Config:
+        populate_by_name = True
+        json_encoders = {ObjectId: str}

@@ -1,0 +1,259 @@
+/**
+ * Services Screen - List providers and manage own services
+ */
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import {
+  Appbar,
+  Card,
+  Title,
+  Paragraph,
+  Button,
+  FAB,
+  Chip,
+  ActivityIndicator,
+  Text,
+} from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { bookingsAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+
+export default function ServicesScreen({ navigation }) {
+  const { user } = useAuth();
+  const [providers, setProviders] = useState([]);
+  const [myProvider, setMyProvider] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    loadProviders();
+  }, []);
+
+  const loadProviders = async () => {
+    try {
+      const result = await bookingsAPI.getProviders();
+      if (result.success) {
+        setProviders(result.data);
+        
+        // Find provider belonging to current user
+        const userProvider = result.data.find(p => p.user_id === user?.id);
+        setMyProvider(userProvider);
+      }
+    } catch (error) {
+      console.error('Failed to load providers:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadProviders();
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Appbar.Header>
+          <Appbar.BackAction onPress={() => navigation.goBack()} />
+          <Appbar.Content title="Servicii & Rezervări" />
+        </Appbar.Header>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4CAF50" />
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <Appbar.Header>
+        <Appbar.BackAction onPress={() => navigation.goBack()} />
+        <Appbar.Content title="Servicii & Rezervări" />
+      </Appbar.Header>
+
+      <ScrollView
+        style={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {/* My Provider Section */}
+        {myProvider ? (
+          <Card style={[styles.card, styles.myProviderCard]}>
+            <Card.Content>
+              <View style={styles.titleContainer}>
+                <MaterialCommunityIcons name="store-check" size={24} color="#4CAF50" />
+                <Title style={styles.titleText}>Serviciul Meu</Title>
+              </View>
+              <Paragraph style={styles.providerName}>{myProvider.name}</Paragraph>
+              <Chip icon="email" style={styles.chip}>{myProvider.email}</Chip>
+              <Chip icon="phone" style={styles.chip}>{myProvider.phone}</Chip>
+            </Card.Content>
+            <Card.Actions>
+              <Button
+                mode="contained"
+                icon="pencil"
+                onPress={() => navigation.navigate('ManageProvider', { provider: myProvider })}
+              >
+                Gestionează
+              </Button>
+            </Card.Actions>
+          </Card>
+        ) : (
+          <Card style={styles.card}>
+            <Card.Content>
+              <View style={styles.titleContainer}>
+                <MaterialCommunityIcons name="store-plus" size={24} color="#6200ee" />
+                <Title style={styles.titleText}>Oferă Servicii</Title>
+              </View>
+              <Paragraph>
+                Ai un restaurant, pub sau alt serviciu? Creează-ți contul de provider
+                și permite clienților să facă rezervări online.
+              </Paragraph>
+            </Card.Content>
+            <Card.Actions>
+              <Button
+                mode="contained"
+                icon="plus"
+                onPress={() => navigation.navigate('CreateProvider')}
+              >
+                Adaugă Serviciu
+              </Button>
+            </Card.Actions>
+          </Card>
+        )}
+
+        {/* All Providers */}
+        <Title style={styles.sectionTitle}>Servicii Disponibile</Title>
+        
+        {providers.length === 0 ? (
+          <Card style={styles.card}>
+            <Card.Content>
+              <Text style={styles.emptyText}>
+                Nu există servicii disponibile momentan.
+              </Text>
+            </Card.Content>
+          </Card>
+        ) : (
+          providers.map((provider) => (
+            <Card key={provider.id} style={styles.card}>
+              <Card.Content>
+                <View style={styles.titleContainer}>
+                  <MaterialCommunityIcons
+                    name={provider.booking_settings.type === 'table_based' ? 'silverware-fork-knife' : 'scissors-cutting'}
+                    size={24}
+                    color="#FF9800"
+                  />
+                  <Title style={styles.titleText}>{provider.name}</Title>
+                </View>
+                {provider.description && (
+                  <Paragraph numberOfLines={2}>{provider.description}</Paragraph>
+                )}
+                <View style={styles.tagsContainer}>
+                  <Chip icon="clock" mode="outlined" style={styles.smallChip}>
+                    {provider.booking_settings.default_duration_minutes} min
+                  </Chip>
+                  <Chip
+                    icon={provider.booking_settings.auto_confirm ? 'check-circle' : 'timer-sand'}
+                    mode="outlined"
+                    style={styles.smallChip}
+                  >
+                    {provider.booking_settings.auto_confirm ? 'Auto-confirm' : 'Manual'}
+                  </Chip>
+                </View>
+              </Card.Content>
+              <Card.Actions>
+                <Button
+                  mode="outlined"
+                  icon="calendar-plus"
+                  onPress={() => navigation.navigate('BookService', { provider })}
+                >
+                  Rezervă
+                </Button>
+              </Card.Actions>
+            </Card>
+          ))
+        )}
+      </ScrollView>
+
+      {!myProvider && (
+        <FAB
+          icon="plus"
+          label="Adaugă Serviciu"
+          style={styles.fab}
+          onPress={() => navigation.navigate('CreateProvider')}
+        />
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  content: {
+    flex: 1,
+    padding: 15,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  card: {
+    marginBottom: 15,
+    elevation: 2,
+  },
+  myProviderCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  titleText: {
+    marginLeft: 8,
+    marginBottom: 0,
+  },
+  providerName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  chip: {
+    marginTop: 4,
+    marginRight: 8,
+    alignSelf: 'flex-start',
+  },
+  sectionTitle: {
+    marginTop: 10,
+    marginBottom: 10,
+    fontSize: 18,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    marginTop: 8,
+    flexWrap: 'wrap',
+  },
+  smallChip: {
+    marginRight: 8,
+    marginTop: 4,
+  },
+  fab: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+    backgroundColor: '#4CAF50',
+  },
+});

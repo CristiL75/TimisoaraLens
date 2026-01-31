@@ -20,6 +20,10 @@ import ListingDetailScreen from './src/screens/ListingDetailScreen';
 import EditListingScreen from './src/screens/EditListingScreen';
 import LocationPickerScreen from './src/screens/LocationPickerScreen';
 import RouteBuilderScreen from './src/screens/RouteBuilderScreen';
+import ServicesScreen from './src/screens/ServicesScreen';
+import ManageProviderScreen from './src/screens/ManageProviderScreen';
+import ManageTablesScreen from './src/screens/ManageTablesScreen';
+import BookServiceScreen from './src/screens/BookServiceScreen';
 
 const Stack = createStackNavigator();
 
@@ -51,6 +55,11 @@ function AppStack() {
       <Stack.Screen name="EditListing" component={EditListingScreen} />
       <Stack.Screen name="LocationPicker" component={LocationPickerScreen} />
       <Stack.Screen name="RouteBuilder" component={RouteBuilderScreen} />
+      <Stack.Screen name="Services" component={ServicesScreen} />
+      <Stack.Screen name="CreateProvider" component={ManageProviderScreen} />
+      <Stack.Screen name="ManageProvider" component={ManageProviderScreen} />
+      <Stack.Screen name="ManageTables" component={ManageTablesScreen} />
+      <Stack.Screen name="BookService" component={BookServiceScreen} />
     </Stack.Navigator>
   );
 }
