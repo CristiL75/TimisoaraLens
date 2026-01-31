@@ -21,7 +21,7 @@ from database_mongo import (
 )
 from auth_utils import get_current_user
 
-router = APIRouter(prefix="/bookings", tags=["Bookings"])
+router = APIRouter(tags=["Bookings"])
 
 
 # ============================================================

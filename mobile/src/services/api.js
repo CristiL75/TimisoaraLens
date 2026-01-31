@@ -1,3 +1,18 @@
+// DEBUG: Log API_BASE și override la finalul fișierului
+import { Platform } from 'react-native';
+setTimeout(async () => {
+  try {
+    const devOverride = await AsyncStorage.getItem('DEV_API_URL');
+    // eslint-disable-next-line no-console
+    console.log('[api] FINAL API_BASE ->', api.defaults.baseURL);
+    // eslint-disable-next-line no-console
+    console.log('[api] FINAL DEV_API_URL ->', devOverride);
+    // Extra: log platform
+    console.log('[api] Platform ->', Platform.OS);
+  } catch (e) {
+    // ignore
+  }
+}, 1000);
 /**
  * API Service - Communication with Backend
  */
@@ -18,9 +33,12 @@ export const API_URL =
 
 // Debug: print resolved API_URL at runtime so we can confirm the app is pointing
 // to the expected backend when running in Expo/Expo Go. This will appear in Metro logs.
+
 try {
   // eslint-disable-next-line no-console
   console.log('[api] Resolved API_URL ->', API_URL);
+  // eslint-disable-next-line no-console
+  console.log('[api] Resolved API_BASE ->', api.defaults.baseURL);
 } catch (e) {
   // ignore logging errors in environments where console isn't available
 }
