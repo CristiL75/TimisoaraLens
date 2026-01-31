@@ -94,6 +94,17 @@ export default function ChatWidget() {
     setInput(question);
   };
 
+  const handleClearConversation = () => {
+    setMessages([
+      {
+        id: 'welcome',
+        from: 'bot',
+        text: 'Salut! Eu sunt asistentul CityLens. Întreabă-mă orice despre Timișoara.',
+      },
+    ]);
+    setInput('');
+  };
+
   const renderMessageText = (text) => {
     const parts = text
       .split(/\n+/)
@@ -119,12 +130,20 @@ export default function ChatWidget() {
               title="Chat CityLens"
               subtitle="Asistent inteligent"
               right={(props) => (
-                <IconButton
-                  {...props}
-                  icon="close"
-                  onPress={toggleOpen}
-                  accessibilityLabel="Închide chat"
-                />
+                <View style={{ flexDirection: 'row' }}>
+                  <IconButton
+                    {...props}
+                    icon="delete-outline"
+                    onPress={handleClearConversation}
+                    accessibilityLabel="Șterge conversația"
+                  />
+                  <IconButton
+                    {...props}
+                    icon="close"
+                    onPress={toggleOpen}
+                    accessibilityLabel="Închide chat"
+                  />
+                </View>
               )}
             />
             <View style={styles.cardContentWrapper}>
