@@ -13,7 +13,7 @@ import os
 load_dotenv()
 
 # Import routers
-from api import auth, gps, quiz, listings, rag
+from api import auth, gps, quiz, listings, rag, bookings
 from database_mongo import connect_to_mongo, close_mongo_connection
 
 @asynccontextmanager
@@ -75,6 +75,7 @@ app.include_router(gps.router, prefix="/api/gps", tags=["GPS"])
 app.include_router(rag.router, prefix="/api/rag", tags=["RAG"])
 app.include_router(quiz.router, prefix="/api/quiz", tags=["Quiz"])
 app.include_router(listings.router, prefix="/api/listings", tags=["Listings"])
+app.include_router(bookings.router, prefix="/api/bookings", tags=["Bookings"])
 
 # NOTE: Vision module (image recognition) will be added later in development
 
