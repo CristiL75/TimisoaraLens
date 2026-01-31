@@ -86,12 +86,22 @@ from fastapi.security import OAuth2PasswordBearer
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login-json")
 
 def get_current_user(token: str = Depends(oauth2_scheme)):
-    token_data = verify_token(token)
-    if not token_data or not token_data.email:
+    from jose import jwt
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    # Poți returna direct token_data sau poți încărca userul din DB dacă vrei
-    return {"email": token_data.email, "username": token_data.username}
+    email = payload.get("email")
+    username = payload.get("username")
+    user_id = payload.get("sub") or payload.get("id")
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return {"email": email, "username": username, "id": user_id}
