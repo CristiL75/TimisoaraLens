@@ -150,6 +150,31 @@ export default function ManageProviderScreen({ navigation, route }) {
         // Extrage mesajul de eroare din răspunsul backend (Pydantic/FastAPI)
         let errorMsg = 'Nu s-a putut crea serviciul';
         if (data && data.detail) {
+  
+      const handleDelete = async () => {
+        Alert.alert(
+          'Confirmare ștergere',
+          'Ești sigur că vrei să ștergi acest serviciu? Această acțiune este ireversibilă.',
+          [
+            { text: 'Anulează', style: 'cancel' },
+            {
+              text: 'Șterge', style: 'destructive',
+              onPress: async () => {
+                setLoading(true);
+                const result = await bookingsAPI.deleteProvider(existingProvider.id);
+                setLoading(false);
+                if (result.success) {
+                  Alert.alert('Succes', 'Serviciul a fost șters!', [
+                    { text: 'OK', onPress: () => navigation.navigate('Services') }
+                  ]);
+                } else {
+                  Alert.alert('Eroare', result.error || 'Nu s-a putut șterge serviciul');
+                }
+              }
+            }
+          ]
+        );
+      };
           if (typeof data.detail === 'string') errorMsg = data.detail;
           else if (Array.isArray(data.detail) && data.detail[0]?.msg) errorMsg = data.detail[0].msg;
         }

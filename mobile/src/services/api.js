@@ -369,6 +369,28 @@ export const bookingsAPI = {
   },
 
   /**
+   * Delete provider by id
+   */
+  deleteProvider: async (providerId) => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      const response = await api.delete(`/bookings/providers/${providerId}`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : undefined,
+        },
+        timeout: 10000,
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('[api] deleteProvider error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to delete provider',
+      };
+    }
+  },
+
+  /**
    * Get provider details
    */
   getProvider: async (providerId) => {

@@ -2,7 +2,7 @@
 Bookings API Router
 Handles restaurant/pub table reservations
 """
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Response
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime, timedelta
@@ -318,6 +318,26 @@ async def update_provider(
         working_hours=[WorkingHours(**wh) for wh in updated_provider["working_hours"]],
         status=updated_provider["status"]
     )
+
+# =========================
+# DELETE PROVIDER ENDPOINT
+# =========================
+@router.delete("/providers/{provider_id}")
+async def delete_provider(provider_id: str, user=Depends(get_current_user)):
+    """Delete a provider (only owner can delete)"""
+    providers_col = get_providers_collection()
+    if not ObjectId.is_valid(provider_id):
+        raise HTTPException(status_code=400, detail="Invalid provider ID")
+    provider = await providers_col.find_one({"_id": ObjectId(provider_id)})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    # Verifică dacă user-ul curent este owner
+    if str(provider.get("user_id")) != str(user["id"]):
+        raise HTTPException(status_code=403, detail="Nu ai dreptul să ștergi acest serviciu")
+    result = await providers_col.delete_one({"_id": ObjectId(provider_id)})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    return Response(status_code=204)
 
 
 # ============================================================
