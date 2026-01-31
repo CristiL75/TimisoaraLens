@@ -87,6 +87,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login-json")
 
 def get_current_user(token: str = Depends(oauth2_scheme)):
     from jose import jwt
+    from database_mongo import get_users_collection
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except Exception:
@@ -97,11 +98,15 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         )
     email = payload.get("email")
     username = payload.get("username")
-    user_id = payload.get("sub") or payload.get("id")
     if not email:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    # Caută userul în MongoDB după email și returnează _id-ul real
+    import asyncio
+    users_col = get_users_collection()
+    user_doc = asyncio.get_event_loop().run_until_complete(users_col.find_one({"email": email}))
+    user_id = str(user_doc["_id"]) if user_doc and "_id" in user_doc else None
     return {"email": email, "username": username, "id": user_id}
