@@ -1,3 +1,7 @@
+## ...existing code...
+# Mută endpointurile după definirea router
+# ...existing code...
+
 # =========================
 # USER PROFILE ENDPOINTS
 # =========================
