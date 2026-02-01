@@ -1,55 +1,10 @@
-  /**
-   * Get providers created by current user
-   */
-  getMyProviders: async () => {
-    try {
-      const response = await api.get('/bookings/my-providers');
-      return { success: true, data: response.data };
-    } catch (error) {
-      console.error('[api] getMyProviders error:', formatAxiosError(error));
-      return {
-        success: false,
-        error: error.response?.data?.detail || error.message || 'Failed to get my providers',
-      };
-    }
-  },
-
-  /**
-   * Get bookings made by current user
-   */
-  getMyBookings: async () => {
-    try {
-      const response = await api.get('/bookings/my-bookings');
-      return { success: true, data: response.data };
-    } catch (error) {
-      console.error('[api] getMyBookings error:', formatAxiosError(error));
-      return {
-        success: false,
-        error: error.response?.data?.detail || error.message || 'Failed to get my bookings',
-      };
-    }
-  },
-// DEBUG: Log API_BASE și override la finalul fișierului
-import { Platform } from 'react-native';
-setTimeout(async () => {
-  try {
-    const devOverride = await AsyncStorage.getItem('DEV_API_URL');
-    // eslint-disable-next-line no-console
-    console.log('[api] FINAL API_BASE ->', api.defaults.baseURL);
-    // eslint-disable-next-line no-console
-    console.log('[api] FINAL DEV_API_URL ->', devOverride);
-    // Extra: log platform
-    console.log('[api] Platform ->', Platform.OS);
-  } catch (e) {
-    // ignore
-  }
-}, 1000);
 /**
  * API Service - Communication with Backend
  */
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 // Backend URL configuration
 // Priority (first available):
@@ -537,3 +492,55 @@ export const bookingsAPI = {
 };
 
 export default api;
+
+// DEBUG: Log API_BASE and override at end of file
+setTimeout(async () => {
+  try {
+    const devOverride = await AsyncStorage.getItem('DEV_API_URL');
+    // eslint-disable-next-line no-console
+    console.log('[api] FINAL API_BASE ->', api.defaults.baseURL);
+    // eslint-disable-next-line no-console
+    console.log('[api] FINAL DEV_API_URL ->', devOverride);
+    // Extra: log platform
+    console.log('[api] Platform ->', Platform.OS);
+  } catch (e) {
+    // ignore
+  }
+}, 1000);
+
+// Bookings API - getMyProviders and getMyBookings
+const bookingsAPIExtended = {
+  /**
+   * Get providers created by current user
+   */
+  getMyProviders: async () => {
+    try {
+      const response = await api.get('/bookings/my-providers');
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] getMyProviders error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to get my providers',
+      };
+    }
+  },
+
+  /**
+   * Get bookings made by current user
+   */
+  getMyBookings: async () => {
+    try {
+      const response = await api.get('/bookings/my-bookings');
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] getMyBookings error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to get my bookings',
+      };
+    }
+  },
+};
+
+Object.assign(bookingsAPI, bookingsAPIExtended);
