@@ -79,34 +79,35 @@ from database_mongo import (
     get_providers_collection,
     get_tables_collection,
     get_bookings_collection,
-    Provider,
-    Table,
-    Booking,
-    BookingSettings,
-    WorkingHours,
-    PyObjectId
-)
-from auth_utils import get_current_user
+    """
+    Bookings API Router
+    Handles restaurant/pub table reservations
+    """
+    from fastapi import APIRouter, HTTPException, Depends, status, Response
+    from pydantic import BaseModel, EmailStr
+    from typing import Optional, List
+    from datetime import datetime, timedelta
+    from bson import ObjectId
 
-router = APIRouter(tags=["Bookings"])
+    from database_mongo import (
+        get_providers_collection,
+        get_tables_collection,
+        get_bookings_collection,
+        Provider,
+        Table,
+        Booking,
+        BookingSettings,
+        WorkingHours,
+        PyObjectId
+    )
+    from auth_utils import get_current_user
 
+    # Router trebuie definit imediat după importuri
+    router = APIRouter(tags=["Bookings"])
 
-# ============================================================
-# REQUEST/RESPONSE MODELS
-# ============================================================
-
-class ProviderCreateRequest(BaseModel):
-    """Request to create a new provider"""
-    category: str = "food_drinks"
-    reservation_type: str = "table_based"
-    name: str
-    email: EmailStr
-    phone: str
-    description: Optional[str] = None
-    images: List[str] = []
-    address: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
+    # ============================================================
+    # REQUEST/RESPONSE MODELS
+    # ============================================================
     listing_id: Optional[str] = None
     facilities: Optional[dict] = None
     booking_settings: BookingSettings
@@ -607,10 +608,16 @@ async def check_availability(
                     slot_start = current_time
                     slot_end = current_time + timedelta(minutes=settings["default_duration_minutes"])
                     
-                    # Overlap check: startA < endB and startB < endA
-                    if booking_start < slot_end.time() and datetime.strptime(booking["start_time"], "%H:%M").time() < slot_end.time():
-                        is_free = False
-                        break
+                        # Overlap check: startA < endB and startB < endA (all as datetime)
+                        # Convert booking times to datetime on the same date
+                        booking_date_obj = datetime.strptime(booking["booking_date"], "%Y-%m-%d")
+                        booking_start_dt = datetime.combine(booking_date_obj.date(), booking_start.time())
+                        booking_end_dt = datetime.combine(booking_date_obj.date(), booking_end.time())
+                        slot_start_dt = datetime.combine(booking_date_obj.date(), slot_start.time())
+                        slot_end_dt = datetime.combine(booking_date_obj.date(), slot_end.time())
+                        if booking_start_dt < slot_end_dt and slot_start_dt < booking_end_dt:
+                            is_free = False
+                            break
             
             if is_free:
                 available_count += 1
