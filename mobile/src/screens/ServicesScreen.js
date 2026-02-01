@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   Text,
 } from 'react-native-paper';
+import { Image, ScrollView as RNScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { bookingsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -96,8 +97,30 @@ export default function ServicesScreen({ navigation }) {
                 mode="contained"
                 icon="pencil"
                 onPress={() => navigation.navigate('ManageProvider', { provider: myProvider })}
+                style={{ marginRight: 8 }}
               >
-                Gestionează
+                Editează
+              </Button>
+              <Button
+                mode="contained"
+                icon="delete"
+                style={{ backgroundColor: '#d32f2f' }}
+                onPress={async () => {
+                  // Confirmare rapidă pentru ștergere
+                  if (window.confirm) {
+                    if (!window.confirm('Ești sigur că vrei să ștergi acest serviciu?')) return;
+                  }
+                  const result = await bookingsAPI.deleteProvider(myProvider.id);
+                  if (result.success) {
+                    alert('Serviciul a fost șters!');
+                    setMyProvider(null);
+                    loadProviders();
+                  } else {
+                    alert(result.error || 'Nu s-a putut șterge serviciul');
+                  }
+                }}
+              >
+                Șterge
               </Button>
             </Card.Actions>
           </Card>
@@ -137,44 +160,74 @@ export default function ServicesScreen({ navigation }) {
             </Card.Content>
           </Card>
         ) : (
-          providers.map((provider) => (
-            <Card key={provider.id} style={styles.card}>
-              <Card.Content>
-                <View style={styles.titleContainer}>
-                  <MaterialCommunityIcons
-                    name={provider.booking_settings.type === 'table_based' ? 'silverware-fork-knife' : 'scissors-cutting'}
-                    size={24}
-                    color="#FF9800"
-                  />
-                  <Title style={styles.titleText}>{provider.name}</Title>
-                </View>
-                {provider.description && (
-                  <Paragraph numberOfLines={2}>{provider.description}</Paragraph>
+          providers.map((provider) => {
+            if (user?.id && provider.user_id) {
+              console.log('[DEBUG] user.id:', user.id, '| provider.user_id:', provider.user_id);
+            }
+            const isOwner = user?.id && provider.user_id && String(user.id).trim() === String(provider.user_id).trim();
+            return (
+              <Card key={provider.id} style={styles.card} onPress={() => navigation.navigate('ProviderDetail', { provider, isOwner })}>
+                {provider.images && provider.images.length > 0 && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 8 }}>
+                    {provider.images.map((img, idx) => (
+                      <Image key={idx} source={{ uri: img }} style={{ width: 120, height: 80, borderRadius: 8, marginRight: 8 }} />
+                    ))}
+                  </ScrollView>
                 )}
-                <View style={styles.tagsContainer}>
-                  <Chip icon="clock" mode="outlined" style={styles.smallChip}>
-                    {provider.booking_settings.default_duration_minutes} min
-                  </Chip>
-                  <Chip
-                    icon={provider.booking_settings.auto_confirm ? 'check-circle' : 'timer-sand'}
+                <Card.Content>
+                  <View style={styles.titleContainer}>
+                    <MaterialCommunityIcons
+                      name={provider.booking_settings.type === 'table_based' ? 'silverware-fork-knife' : 'scissors-cutting'}
+                      size={24}
+                      color="#FF9800"
+                    />
+                    <Title style={styles.titleText}>{provider.name}</Title>
+                  </View>
+                  {provider.description && (
+                    <Paragraph numberOfLines={2}>{provider.description}</Paragraph>
+                  )}
+                  <View style={styles.tagsContainer}>
+                    <Chip icon="clock" mode="outlined" style={styles.smallChip}>
+                      {provider.booking_settings.default_duration_minutes} min
+                    </Chip>
+                    <Chip
+                      icon={provider.booking_settings.auto_confirm ? 'check-circle' : 'timer-sand'}
+                      mode="outlined"
+                      style={styles.smallChip}
+                    >
+                      {provider.booking_settings.auto_confirm ? 'Auto-confirm' : 'Manual'}
+                    </Chip>
+                  </View>
+                  {provider.facilities && (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
+                      {Object.entries(provider.facilities).filter(([k, v]) => v).map(([k]) => (
+                        <Chip key={k} style={styles.smallChip}>{k}</Chip>
+                      ))}
+                    </View>
+                  )}
+                </Card.Content>
+                <Card.Actions>
+                  <Button
                     mode="outlined"
-                    style={styles.smallChip}
+                    icon="calendar-plus"
+                    onPress={() => navigation.navigate('BookService', { provider })}
                   >
-                    {provider.booking_settings.auto_confirm ? 'Auto-confirm' : 'Manual'}
-                  </Chip>
-                </View>
-              </Card.Content>
-              <Card.Actions>
-                <Button
-                  mode="outlined"
-                  icon="calendar-plus"
-                  onPress={() => navigation.navigate('BookService', { provider })}
-                >
-                  Rezervă
-                </Button>
-              </Card.Actions>
-            </Card>
-          ))
+                    Rezervă
+                  </Button>
+                  {isOwner && (
+                    <Button
+                      mode="contained"
+                      icon="pencil"
+                      style={{ marginLeft: 8 }}
+                      onPress={() => navigation.navigate('ManageProvider', { provider })}
+                    >
+                      Editează
+                    </Button>
+                  )}
+                </Card.Actions>
+              </Card>
+            );
+          })
         )}
       </ScrollView>
 

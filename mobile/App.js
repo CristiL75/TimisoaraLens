@@ -24,6 +24,8 @@ import ServicesScreen from './src/screens/ServicesScreen';
 import ManageProviderScreen from './src/screens/ManageProviderScreen';
 import ManageTablesScreen from './src/screens/ManageTablesScreen';
 import BookServiceScreen from './src/screens/BookServiceScreen';
+import ProviderDetailScreen from './src/screens/ProviderDetailScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
 
 const Stack = createStackNavigator();
 
@@ -58,6 +60,8 @@ function AppStack() {
       <Stack.Screen name="Services" component={ServicesScreen} />
       <Stack.Screen name="CreateProvider" component={ManageProviderScreen} />
       <Stack.Screen name="ManageProvider" component={ManageProviderScreen} />
+      <Stack.Screen name="ProviderDetail" component={ProviderDetailScreen} />
+      <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="ManageTables" component={ManageTablesScreen} />
       <Stack.Screen name="BookService" component={BookServiceScreen} />
     </Stack.Navigator>

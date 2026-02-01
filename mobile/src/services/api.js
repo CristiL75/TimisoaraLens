@@ -1,3 +1,34 @@
+  /**
+   * Get providers created by current user
+   */
+  getMyProviders: async () => {
+    try {
+      const response = await api.get('/bookings/my-providers');
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] getMyProviders error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to get my providers',
+      };
+    }
+  },
+
+  /**
+   * Get bookings made by current user
+   */
+  getMyBookings: async () => {
+    try {
+      const response = await api.get('/bookings/my-bookings');
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] getMyBookings error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to get my bookings',
+      };
+    }
+  },
 // DEBUG: Log API_BASE și override la finalul fișierului
 import { Platform } from 'react-native';
 setTimeout(async () => {

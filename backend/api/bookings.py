@@ -1,3 +1,66 @@
+# =========================
+# USER PROFILE ENDPOINTS
+# =========================
+from fastapi import Depends
+
+@router.get("/my-providers", response_model=List[ProviderResponse])
+async def get_my_providers(current_user=Depends(get_current_user)):
+    """Return all providers created by current user"""
+    providers_col = get_providers_collection()
+    providers = await providers_col.find({"user_id": current_user["id"]}).to_list(100)
+    result = []
+    for p in providers:
+        try:
+            provider = ProviderResponse(
+                id=str(p["_id"]),
+                user_id=p.get("user_id", None),
+                category=p.get("category", "food_drinks"),
+                reservation_type=p.get("reservation_type", "table_based"),
+                name=p["name"],
+                email=p["email"],
+                phone=p["phone"],
+                description=p.get("description"),
+                images=p.get("images", []),
+                address=p.get("address"),
+                latitude=p.get("latitude"),
+                longitude=p.get("longitude"),
+                facilities=p.get("facilities"),
+                booking_settings=BookingSettings(**p["booking_settings"]),
+                working_hours=[WorkingHours(**wh) for wh in p["working_hours"]],
+                status=p["status"]
+            )
+            result.append(provider)
+        except Exception as e:
+            print(f"[ERROR] Skipping provider with _id={p.get('_id')} due to error: {e}")
+    return result
+
+@router.get("/my-bookings", response_model=List[BookingResponse])
+async def get_my_bookings(current_user=Depends(get_current_user)):
+    """Return all bookings made by current user"""
+    bookings_col = get_bookings_collection()
+    bookings = await bookings_col.find({"customer_email": current_user["email"]}).to_list(100)
+    result = []
+    for b in bookings:
+        try:
+            booking = BookingResponse(
+                id=str(b["_id"]),
+                provider_id=str(b["provider_id"]),
+                table_id=str(b["table_id"]) if b.get("table_id") else None,
+                customer_name=b["customer_name"],
+                customer_email=b["customer_email"],
+                customer_phone=b["customer_phone"],
+                booking_date=b["booking_date"],
+                start_time=b["start_time"],
+                end_time=b["end_time"],
+                party_size=b["party_size"],
+                notes=b.get("notes"),
+                status=b["status"],
+                created_at=b["created_at"].isoformat()
+            )
+            result.append(booking)
+        except Exception as e:
+            print(f"[ERROR] Skipping booking with _id={b.get('_id')} due to error: {e}")
+    return result
 """
 Bookings API Router
 Handles restaurant/pub table reservations
