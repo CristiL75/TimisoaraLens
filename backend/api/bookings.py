@@ -4,7 +4,7 @@ Bookings API Router
 Handles restaurant/pub table reservations
 """
 from fastapi import APIRouter, HTTPException, Depends, status, Response, Body
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime, timedelta
 from bson import ObjectId
@@ -41,7 +41,7 @@ class ProviderCreateRequest(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     listing_id: Optional[str] = None
-    facilities: Optional[dict] = None
+    facilities: Optional[dict] = Field(default_factory=dict)  # Ensure facilities field is initialized
     booking_settings: BookingSettings
     working_hours: List[WorkingHours]
 
