@@ -19,6 +19,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { bookingsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
+export default function ServicesScreen({ navigation }) {
   const { user } = useAuth();
   const [providers, setProviders] = useState([]);
   const [myProvider, setMyProvider] = useState(null);

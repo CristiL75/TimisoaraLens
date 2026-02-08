@@ -662,8 +662,9 @@ async def check_availability(
         raise HTTPException(status_code=404, detail="Provider not found")
     
     # Get all tables that can accommodate party size
+    # Accept both ObjectId and string-stored provider_id values to be robust
     tables = await tables_col.find({
-        "provider_id": ObjectId(provider_id),
+        "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
         "seats": {"$gte": party_size},
         "status": "active"
     }).to_list(100)
@@ -672,8 +673,9 @@ async def check_availability(
         return AvailabilityResponse(date=date, slots=[])
     
     # Get existing bookings for that date
+    # Fetch bookings for that provider/date (support both ObjectId and string ids)
     existing_bookings = await bookings_col.find({
-        "provider_id": ObjectId(provider_id),
+        "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
         "booking_date": date,
         "status": {"$in": ["pending", "confirmed"]}
     }).to_list(1000)
@@ -705,13 +707,14 @@ async def check_availability(
             # Check if table is free
             is_free = True
             for booking in existing_bookings:
-                if booking.get("table_id") == table["_id"]:
+                # Normalize comparison by using string form of IDs so both ObjectId and str match
+                if str(booking.get("table_id")) == str(table["_id"]):
                     # Check time overlap
                     booking_start = datetime.strptime(booking["start_time"], "%H:%M")
                     booking_end = datetime.strptime(booking["end_time"], "%H:%M")
                     slot_start = current_time
                     slot_end = current_time + timedelta(minutes=settings["default_duration_minutes"])
-                    
+
                     # Overlap check: startA < endB and startB < endA (all as datetime)
                     # Convert booking times to datetime on the same date
                     booking_date_obj = datetime.strptime(booking["booking_date"], "%Y-%m-%d")
