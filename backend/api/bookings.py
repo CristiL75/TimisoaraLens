@@ -126,7 +126,7 @@ class BookingResponse(BaseModel):
 
 
 # Confirm/Reject booking endpoint
-@router.patch("/bookings/{booking_id}/status")
+@router.patch("/{booking_id}/status")
 async def update_booking_status(booking_id: str, status: str = Body(...), current_user=Depends(get_current_user)):
     """Confirm or reject a booking (owner only)"""
     bookings_col = get_bookings_collection()
