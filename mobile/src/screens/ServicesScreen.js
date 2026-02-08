@@ -53,8 +53,10 @@ export default function ServicesScreen({ navigation }) {
       if (result.success) {
         setProviders(result.data);
         
-        // Find provider belonging to current user
-        const userProvider = result.data.find(p => p.user_id === user?.id);
+        // Find provider belonging to current user (normalize IDs to strings)
+        const userProvider = result.data.find(
+          (p) => String(p?.user_id || '').trim() === String(user?.id || '').trim()
+        );
         setMyProvider(userProvider);
       }
     } catch (error) {
@@ -160,6 +162,30 @@ export default function ServicesScreen({ navigation }) {
                 onPress={() => navigation.navigate('CreateProvider')}
               >
                 Adaugă Serviciu
+              </Button>
+            </Card.Actions>
+          </Card>
+        )}
+
+        {/* Mese pentru restaurante */}
+        {myProvider && myProvider.category === 'food_drinks' && (
+          <Card style={styles.card}>
+            <Card.Content>
+              <View style={styles.titleContainer}>
+                <MaterialCommunityIcons name="table-furniture" size={24} color="#4CAF50" />
+                <Title style={styles.titleText}>Mese</Title>
+              </View>
+              <Paragraph>
+                Adaugă și gestionează mesele pentru rezervări.
+              </Paragraph>
+            </Card.Content>
+            <Card.Actions>
+              <Button
+                mode="contained"
+                icon="table-furniture"
+                onPress={() => navigation.navigate('ManageTables', { provider: myProvider })}
+              >
+                Gestionează Mese
               </Button>
             </Card.Actions>
           </Card>

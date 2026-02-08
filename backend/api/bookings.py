@@ -367,7 +367,6 @@ async def get_provider(provider_id: str):
         id=str(provider["_id"]),
         user_id=provider.get("user_id", None),
         category=provider.get("category", "food_drinks"),
-        reservation_type=provider.get("reservation_type", "table_based"),
         name=provider["name"],
         email=provider["email"],
         phone=provider["phone"],
@@ -405,7 +404,6 @@ async def update_provider(
     # Update provider
     update_data = {
         "category": request.category,
-        "reservation_type": request.reservation_type,
         "name": request.name,
         "email": request.email,
         "phone": request.phone,
@@ -432,7 +430,6 @@ async def update_provider(
     return ProviderResponse(
         id=str(updated_provider["_id"]),
         category=updated_provider.get("category", "food_drinks"),
-        reservation_type=updated_provider.get("reservation_type", "table_based"),
         name=updated_provider["name"],
         email=updated_provider["email"],
         phone=updated_provider["phone"],
