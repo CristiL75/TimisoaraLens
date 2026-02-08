@@ -41,7 +41,7 @@ class ProviderCreateRequest(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     listing_id: Optional[str] = None
-    facilities: Optional[dict] = Field(default_factory=dict)  # Ensure facilities field is initialized
+    facilities: Optional[dict] = None
     booking_settings: BookingSettings
     working_hours: List[WorkingHours]
 
@@ -59,7 +59,7 @@ class ProviderResponse(BaseModel):
     address: Optional[str]
     latitude: Optional[float]
     longitude: Optional[float]
-    facilities: Optional[dict]
+    facilities: Optional[dict] = None
     booking_settings: BookingSettings
     working_hours: List[WorkingHours]
     status: str
@@ -81,9 +81,9 @@ class TableResponse(BaseModel):
     provider_id: str
     name: str
     seats: int
-    zone: Optional[str]
-    special_options: List[str]
-    location: Optional[str]
+    zone: Optional[str] = None
+    special_options: List[str] = []
+    location: Optional[str] = None
     status: str
 
 
@@ -448,6 +448,7 @@ async def update_provider(
         address=updated_provider.get("address"),
         latitude=updated_provider.get("latitude"),
         longitude=updated_provider.get("longitude"),
+        facilities=updated_provider.get("facilities"),
         booking_settings=BookingSettings(**updated_provider["booking_settings"]),
         working_hours=[WorkingHours(**wh) for wh in updated_provider["working_hours"]],
         status=updated_provider["status"]
@@ -535,6 +536,8 @@ async def list_tables(provider_id: str):
             provider_id=str(t["provider_id"]),
             name=t["name"],
             seats=t["seats"],
+            zone=t.get("zone"),
+            special_options=t.get("special_options", []),
             location=t.get("location"),
             status=t["status"]
         )

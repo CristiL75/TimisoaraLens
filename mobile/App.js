@@ -26,6 +26,7 @@ import ManageTablesScreen from './src/screens/ManageTablesScreen';
 import BookServiceScreen from './src/screens/BookServiceScreen';
 import ProviderDetailScreen from './src/screens/ProviderDetailScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import BookingCalendarScreen from './src/screens/BookingCalendarScreen';
 
 const Stack = createStackNavigator();
 
@@ -64,6 +65,7 @@ function AppStack() {
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="ManageTables" component={ManageTablesScreen} />
       <Stack.Screen name="BookService" component={BookServiceScreen} />
+      <Stack.Screen name="BookingCalendar" component={BookingCalendarScreen} />
     </Stack.Navigator>
   );
 }
