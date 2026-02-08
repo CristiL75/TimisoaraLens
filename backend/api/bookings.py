@@ -131,6 +131,7 @@ async def update_booking_status(booking_id: str, status: str = Body(...), curren
     """Confirm or reject a booking (owner only)"""
     bookings_col = get_bookings_collection()
     providers_col = get_providers_collection()
+    tables_col = get_tables_collection()
     booking = await bookings_col.find_one({"_id": ObjectId(booking_id)})
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
@@ -139,6 +140,47 @@ async def update_booking_status(booking_id: str, status: str = Body(...), curren
         raise HTTPException(status_code=403, detail="Not authorized")
     if status not in ["confirmed", "rejected"]:
         raise HTTPException(status_code=400, detail="Invalid status")
+
+    if status == "confirmed":
+        if provider.get("booking_settings", {}).get("type") == "table_based" and not booking.get("table_id"):
+            raise HTTPException(status_code=400, detail="Table selection required")
+
+        if booking.get("table_id"):
+            table_id = str(booking.get("table_id"))
+            if not ObjectId.is_valid(table_id):
+                raise HTTPException(status_code=400, detail="Invalid table ID")
+
+            table = await tables_col.find_one({
+                "_id": ObjectId(table_id),
+                "provider_id": {"$in": [ObjectId(str(booking["provider_id"])), str(booking["provider_id"])]},
+                "status": "active"
+            })
+            if not table:
+                raise HTTPException(status_code=404, detail="Table not found")
+
+            # Ensure no overlapping confirmed booking exists for the same table
+            existing_table_bookings = await bookings_col.find({
+                "_id": {"$ne": ObjectId(booking_id)},
+                "provider_id": {"$in": [ObjectId(str(booking["provider_id"])), str(booking["provider_id"])]},
+                "table_id": {"$in": [ObjectId(table_id), table_id]},
+                "booking_date": booking["booking_date"],
+                "status": "confirmed"
+            }).to_list(1000)
+
+            start_dt = datetime.strptime(f"{booking['booking_date']} {booking['start_time']}", "%Y-%m-%d %H:%M")
+            end_dt = datetime.strptime(f"{booking['booking_date']} {booking['end_time']}", "%Y-%m-%d %H:%M")
+
+            for existing in existing_table_bookings:
+                existing_start = datetime.strptime(
+                    f"{existing['booking_date']} {existing['start_time']}",
+                    "%Y-%m-%d %H:%M"
+                )
+                existing_end = datetime.strptime(
+                    f"{existing['booking_date']} {existing['end_time']}",
+                    "%Y-%m-%d %H:%M"
+                )
+                if existing_start < end_dt and start_dt < existing_end:
+                    raise HTTPException(status_code=409, detail="Table already booked for this time")
     await bookings_col.update_one({"_id": ObjectId(booking_id)}, {"$set": {"status": status}})
     return {"success": True, "status": status}
 
@@ -191,6 +233,18 @@ class AvailabilityResponse(BaseModel):
     """Availability check response"""
     date: str
     slots: List[AvailabilitySlot]
+    tables: List["TableAvailability"] = []
+
+
+class TableAvailability(BaseModel):
+    """Per-table availability with time slots"""
+    id: str
+    name: str
+    seats: int
+    zone: Optional[str] = None
+    special_options: List[str] = []
+    location: Optional[str] = None
+    available_slots: List[str]
 
 
 # =========================
@@ -595,6 +649,7 @@ async def get_provider_calendar(provider_id: str):
 async def create_booking(request: BookingCreateRequest):
     """Create a new booking"""
     providers_col = get_providers_collection()
+    tables_col = get_tables_collection()
     bookings_col = get_bookings_collection()
     
     # Validate provider
@@ -610,6 +665,42 @@ async def create_booking(request: BookingCreateRequest):
     start_dt = datetime.strptime(f"{request.booking_date} {request.start_time}", "%Y-%m-%d %H:%M")
     end_dt = start_dt + timedelta(minutes=duration)
     end_time = end_dt.strftime("%H:%M")
+
+    # Validate selected table if provided
+    if request.table_id:
+        if not ObjectId.is_valid(request.table_id):
+            raise HTTPException(status_code=400, detail="Invalid table ID")
+
+        table = await tables_col.find_one({
+            "_id": ObjectId(request.table_id),
+            "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
+            "status": "active"
+        })
+        if not table:
+            raise HTTPException(status_code=404, detail="Table not found")
+
+        if table.get("seats", 0) < request.party_size:
+            raise HTTPException(status_code=400, detail="Table does not fit party size")
+
+        # Check table availability for the selected time
+        existing_table_bookings = await bookings_col.find({
+            "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
+            "table_id": {"$in": [ObjectId(request.table_id), request.table_id]},
+            "booking_date": request.booking_date,
+            "status": {"$in": ["pending", "confirmed"]}
+        }).to_list(1000)
+
+        for booking in existing_table_bookings:
+            existing_start = datetime.strptime(
+                f"{booking['booking_date']} {booking['start_time']}",
+                "%Y-%m-%d %H:%M"
+            )
+            existing_end = datetime.strptime(
+                f"{booking['booking_date']} {booking['end_time']}",
+                "%Y-%m-%d %H:%M"
+            )
+            if start_dt < existing_end and end_dt > existing_start:
+                raise HTTPException(status_code=409, detail="Table already booked for this time")
     
     # TODO: Check availability before confirming
     

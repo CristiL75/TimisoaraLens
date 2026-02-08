@@ -25,6 +25,9 @@ export default function BookServiceScreen({ navigation, route }) {
   const [loading, setLoading] = useState(false);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [availability, setAvailability] = useState(null);
+  const [tables, setTables] = useState([]);
+  const [loadingTables, setLoadingTables] = useState(false);
+  const [selectedTableId, setSelectedTableId] = useState(null);
 
   // Form fields
   const [customerName, setCustomerName] = useState(user?.username || '');
@@ -46,6 +49,35 @@ export default function BookServiceScreen({ navigation, route }) {
     setBookingDate(tomorrow.toISOString().split('T')[0]);
   }, []);
 
+  useEffect(() => {
+    const loadTables = async () => {
+      setLoadingTables(true);
+      try {
+        const result = await bookingsAPI.getTables(provider.id);
+        if (result.success) {
+          setTables(result.data);
+        }
+      } catch (error) {
+        // ignore
+      } finally {
+        setLoadingTables(false);
+      }
+    };
+
+    if (provider?.booking_settings?.type === 'table_based') {
+      loadTables();
+    }
+  }, [provider]);
+
+  useEffect(() => {
+    const partySizeValue = parseInt(partySize || '0', 10);
+    if (!selectedTableId || !partySizeValue) return;
+    const selected = tables.find((t) => t.id === selectedTableId);
+    if (selected && selected.seats < partySizeValue) {
+      setSelectedTableId(null);
+    }
+  }, [partySize, selectedTableId, tables]);
+
   const handleCheckAvailability = async () => {
     if (!bookingDate || !partySize) {
       Alert.alert('Eroare', 'Selectează data și numărul de persoane');
@@ -54,6 +86,7 @@ export default function BookServiceScreen({ navigation, route }) {
 
     setCheckingAvailability(true);
     setSelectedTime('');
+    setSelectedTableId(null);
 
     try {
       const result = await bookingsAPI.checkAvailability(
@@ -78,8 +111,14 @@ export default function BookServiceScreen({ navigation, route }) {
   };
 
   const handleBooking = async () => {
+    const requiresTable = provider?.booking_settings?.type === 'table_based';
     if (!customerName || !customerEmail || !customerPhone || !selectedTime) {
       Alert.alert('Eroare', 'Completează toate câmpurile și alege un slot orar');
+      return;
+    }
+
+    if (requiresTable && !selectedTableId) {
+      Alert.alert('Eroare', 'Selectează o masă pentru rezervare');
       return;
     }
 
@@ -87,6 +126,7 @@ export default function BookServiceScreen({ navigation, route }) {
 
     const bookingData = {
       provider_id: provider.id,
+      table_id: selectedTableId || null,
       customer_name: customerName,
       customer_email: customerEmail,
       customer_phone: customerPhone,
@@ -284,8 +324,8 @@ export default function BookServiceScreen({ navigation, route }) {
               Verifică Disponibilitate
             </Button>
 
-            {/* Available Time Slots */}
-            {availability && (
+            {/* Available Time Slots for non-table providers */}
+            {availability && provider?.booking_settings?.type !== 'table_based' && (
               <View style={styles.slotsContainer}>
                 <Text style={styles.slotsTitle}>Sloturi Disponibile:</Text>
                 {availability.slots.filter(s => s.available).length === 0 ? (
@@ -320,6 +360,93 @@ export default function BookServiceScreen({ navigation, route }) {
               </View>
             )}
 
+            {provider?.booking_settings?.type === 'table_based' && (
+              <View style={styles.tablesSection}>
+                <Text style={styles.slotsTitle}>Alege Masa:</Text>
+                {loadingTables ? (
+                  <ActivityIndicator size="small" color="#4CAF50" />
+                ) : (() => {
+                  const partySizeValue = parseInt(partySize || '0', 10);
+                  const availabilityTables = availability?.tables || [];
+                  const baseTables = availabilityTables.length > 0 ? availabilityTables : tables;
+                  const eligibleTables = partySizeValue
+                    ? baseTables.filter((t) => t.seats >= partySizeValue)
+                    : baseTables;
+
+                  if (eligibleTables.length === 0) {
+                    return (
+                      <Text style={styles.emptyText}>Nu exista mese disponibile pentru acest numar de persoane.</Text>
+                    );
+                  }
+
+                  if (!availability || availabilityTables.length === 0) {
+                    return (
+                      <Text style={styles.emptyText}>Verifica disponibilitatea pentru a vedea orele libere.</Text>
+                    );
+                  }
+
+                  return (
+                    <View style={styles.tablesGrid}>
+                      {eligibleTables.map((table) => (
+                        <Card
+                          key={table.id}
+                          style={styles.tableCard}
+                          onPress={() => setSelectedTableId(table.id)}
+                        >
+                          <Card.Content>
+                            <View style={styles.tableHeader}>
+                              <Title style={styles.tableTitle}>{table.name}</Title>
+                              <Chip mode={selectedTableId === table.id ? 'flat' : 'outlined'}>
+                                {table.seats} locuri
+                              </Chip>
+                            </View>
+                            <Text style={styles.tableMeta}>
+                              Zona: {table.zone || 'interior'}
+                            </Text>
+                            {table.location && (
+                              <Text style={styles.tableMeta}>
+                                Locație: {table.location}
+                              </Text>
+                            )}
+                            {table.special_options && table.special_options.length > 0 && (
+                              <View style={styles.tableOptions}>
+                                {table.special_options.map((opt) => (
+                                  <Chip key={opt} style={styles.tableOptionChip}>
+                                    {opt}
+                                  </Chip>
+                                ))}
+                              </View>
+                            )}
+                            {table.available_slots && table.available_slots.length > 0 ? (
+                              <View style={styles.tableSlots}>
+                                {table.available_slots.map((slot) => (
+                                  <Chip
+                                    key={`${table.id}-${slot}`}
+                                    selected={selectedTime === slot && selectedTableId === table.id}
+                                    onPress={() => {
+                                      setSelectedTableId(table.id);
+                                      setSelectedTime(slot);
+                                    }}
+                                    mode="outlined"
+                                    style={styles.slotChip}
+                                    icon={selectedTime === slot && selectedTableId === table.id ? 'check' : 'clock-outline'}
+                                  >
+                                    {slot}
+                                  </Chip>
+                                ))}
+                              </View>
+                            ) : (
+                              <Text style={styles.emptyText}>Nu sunt ore libere pentru aceasta masa.</Text>
+                            )}
+                          </Card.Content>
+                        </Card>
+                      ))}
+                    </View>
+                  );
+                })()}
+              </View>
+            )}
+
             <TextInput
               label="Notițe (opțional)"
               value={notes}
@@ -337,7 +464,11 @@ export default function BookServiceScreen({ navigation, route }) {
           mode="contained"
           onPress={handleBooking}
           loading={loading}
-          disabled={loading || !selectedTime}
+          disabled={
+            loading ||
+            !selectedTime ||
+            (provider?.booking_settings?.type === 'table_based' && !selectedTableId)
+          }
           style={styles.bookButton}
           icon="calendar-check"
         >
@@ -428,6 +559,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#2E7D32',
+  },
+  tablesSection: {
+    marginTop: 16,
+  },
+  tablesGrid: {
+    gap: 10,
+  },
+  tableCard: {
+    marginBottom: 8,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  tableTitle: {
+    fontSize: 16,
+    flex: 1,
+    marginRight: 8,
+  },
+  tableMeta: {
+    color: '#666',
+    marginTop: 2,
+  },
+  tableOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 6,
+  },
+  tableSlots: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  tableOptionChip: {
+    marginRight: 6,
+    marginTop: 4,
   },
   bookButton: {
     marginVertical: 20,
