@@ -28,6 +28,7 @@ export default function BookServiceScreen({ navigation, route }) {
   const [tables, setTables] = useState([]);
   const [loadingTables, setLoadingTables] = useState(false);
   const [selectedTableId, setSelectedTableId] = useState(null);
+  const selectedTable = (availability?.tables || tables).find((t) => t.id === selectedTableId) || null;
 
   // Form fields
   const [customerName, setCustomerName] = useState(user?.username || '');
@@ -360,6 +361,29 @@ export default function BookServiceScreen({ navigation, route }) {
               </View>
             )}
 
+            {selectedTable && (
+              <Card style={styles.selectedTableCard}>
+                <Card.Content>
+                  <Title style={styles.selectedTableTitle}>Masa selectata</Title>
+                  <Text style={styles.tableMeta}>Nume: {selectedTable.name}</Text>
+                  <Text style={styles.tableMeta}>Locuri: {selectedTable.seats}</Text>
+                  <Text style={styles.tableMeta}>Zona: {selectedTable.zone || 'interior'}</Text>
+                  {selectedTable.location && (
+                    <Text style={styles.tableMeta}>Locatie: {selectedTable.location}</Text>
+                  )}
+                  {selectedTable.special_options && selectedTable.special_options.length > 0 && (
+                    <View style={styles.tableOptions}>
+                      {selectedTable.special_options.map((opt) => (
+                        <Chip key={opt} style={styles.tableOptionChip}>
+                          {opt}
+                        </Chip>
+                      ))}
+                    </View>
+                  )}
+                </Card.Content>
+              </Card>
+            )}
+
             {provider?.booking_settings?.type === 'table_based' && (
               <View style={styles.tablesSection}>
                 <Text style={styles.slotsTitle}>Alege Masa:</Text>
@@ -559,6 +583,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#2E7D32',
+  },
+  selectedTableCard: {
+    marginTop: 12,
+    backgroundColor: '#FFFDE7',
+  },
+  selectedTableTitle: {
+    marginBottom: 6,
   },
   tablesSection: {
     marginTop: 16,
