@@ -415,6 +415,7 @@ async def update_provider(
         "address": request.address,
         "latitude": request.latitude,
         "longitude": request.longitude,
+        "facilities": request.facilities or {},  # Default to empty dict if missing
         "booking_settings": request.booking_settings.model_dump(),
         "working_hours": [wh.model_dump() for wh in request.working_hours],
         "updated_at": datetime.utcnow()
