@@ -1,62 +1,9 @@
-from fastapi import Body
-# Confirm/Reject booking endpoint
-@router.patch("/bookings/{booking_id}/status")
-async def update_booking_status(booking_id: str, status: str = Body(...), current_user=Depends(get_current_user)):
-    """Confirm or reject a booking (owner only)"""
-    bookings_col = get_bookings_collection()
-    providers_col = get_providers_collection()
-    booking = await bookings_col.find_one({"_id": ObjectId(booking_id)})
-    if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found")
-    provider = await providers_col.find_one({"_id": ObjectId(booking["provider_id"])})
-    if not provider or provider.get("user_id") != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Not authorized")
-    if status not in ["confirmed", "rejected"]:
-        raise HTTPException(status_code=400, detail="Invalid status")
-    await bookings_col.update_one({"_id": ObjectId(booking_id)}, {"$set": {"status": status}})
-    return {"success": True, "status": status}
-@router.get("/provider-bookings", response_model=List[BookingResponse])
-async def get_provider_bookings(current_user=Depends(get_current_user)):
-    """Return all bookings for services owned by current user"""
-    providers_col = get_providers_collection()
-    bookings_col = get_bookings_collection()
-    # Găsește toate serviciile deținute de user
-    providers = await providers_col.find({"user_id": current_user["id"]}).to_list(100)
-    provider_ids = [str(p["_id"]) for p in providers]
-    # Găsește rezervările pentru aceste servicii
-    bookings = await bookings_col.find({"provider_id": {"$in": provider_ids}}).to_list(200)
-    result = []
-    for b in bookings:
-        try:
-            booking = BookingResponse(
-                id=str(b["_id"]),
-                provider_id=str(b["provider_id"]),
-                table_id=str(b["table_id"]) if b.get("table_id") else None,
-                customer_name=b["customer_name"],
-                customer_email=b["customer_email"],
-                customer_phone=b["customer_phone"],
-                booking_date=b["booking_date"],
-                start_time=b["start_time"],
-                end_time=b["end_time"],
-                party_size=b["party_size"],
-                party_adults=b.get("party_adults", 0),
-                party_children=b.get("party_children", 0),
-                table_preference=b.get("table_preference", "fara_preferinta"),
-                special_occasion=b.get("special_occasion", "nicio_ocazie"),
-                notes=b.get("notes"),
-                status=b["status"],
-                created_at=b["created_at"].isoformat() if hasattr(b["created_at"], 'isoformat') else str(b["created_at"])
-            )
-            result.append(booking)
-        except Exception as e:
-            print(f"[ERROR] Skipping booking with _id={b.get('_id')} due to error: {e}")
-    return result
 from calendar_block import get_calendar_blocks_collection, CalendarBlock
 """
 Bookings API Router
 Handles restaurant/pub table reservations
 """
-from fastapi import APIRouter, HTTPException, Depends, status, Response
+from fastapi import APIRouter, HTTPException, Depends, status, Response, Body
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime, timedelta
@@ -177,6 +124,61 @@ class BookingResponse(BaseModel):
     status: str
     created_at: str
 
+
+# Confirm/Reject booking endpoint
+@router.patch("/bookings/{booking_id}/status")
+async def update_booking_status(booking_id: str, status: str = Body(...), current_user=Depends(get_current_user)):
+    """Confirm or reject a booking (owner only)"""
+    bookings_col = get_bookings_collection()
+    providers_col = get_providers_collection()
+    booking = await bookings_col.find_one({"_id": ObjectId(booking_id)})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    provider = await providers_col.find_one({"_id": ObjectId(booking["provider_id"])})
+    if not provider or provider.get("user_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if status not in ["confirmed", "rejected"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    await bookings_col.update_one({"_id": ObjectId(booking_id)}, {"$set": {"status": status}})
+    return {"success": True, "status": status}
+
+
+@router.get("/provider-bookings", response_model=List[BookingResponse])
+async def get_provider_bookings(current_user=Depends(get_current_user)):
+    """Return all bookings for services owned by current user"""
+    providers_col = get_providers_collection()
+    bookings_col = get_bookings_collection()
+    # Găsește toate serviciile deținute de user
+    providers = await providers_col.find({"user_id": current_user["id"]}).to_list(100)
+    provider_ids = [str(p["_id"]) for p in providers]
+    # Găsește rezervările pentru aceste servicii
+    bookings = await bookings_col.find({"provider_id": {"$in": provider_ids}}).to_list(200)
+    result = []
+    for b in bookings:
+        try:
+            booking = BookingResponse(
+                id=str(b["_id"]),
+                provider_id=str(b["provider_id"]),
+                table_id=str(b["table_id"]) if b.get("table_id") else None,
+                customer_name=b["customer_name"],
+                customer_email=b["customer_email"],
+                customer_phone=b["customer_phone"],
+                booking_date=b["booking_date"],
+                start_time=b["start_time"],
+                end_time=b["end_time"],
+                party_size=b["party_size"],
+                party_adults=b.get("party_adults", 0),
+                party_children=b.get("party_children", 0),
+                table_preference=b.get("table_preference", "fara_preferinta"),
+                special_occasion=b.get("special_occasion", "nicio_ocazie"),
+                notes=b.get("notes"),
+                status=b["status"],
+                created_at=b["created_at"].isoformat() if hasattr(b["created_at"], 'isoformat') else str(b["created_at"])
+            )
+            result.append(booking)
+        except Exception as e:
+            print(f"[ERROR] Skipping booking with _id={b.get('_id')} due to error: {e}")
+    return result
 
 class AvailabilitySlot(BaseModel):
     """Available time slot"""
