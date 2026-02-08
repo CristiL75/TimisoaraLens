@@ -32,6 +32,10 @@ export default function BookServiceScreen({ navigation, route }) {
   const [customerPhone, setCustomerPhone] = useState('');
   const [bookingDate, setBookingDate] = useState('');
   const [partySize, setPartySize] = useState('2');
+  const [partyAdults, setPartyAdults] = useState('2');
+  const [partyChildren, setPartyChildren] = useState('0');
+  const [tablePreference, setTablePreference] = useState('fara_preferinta');
+  const [specialOccasion, setSpecialOccasion] = useState('nicio_ocazie');
   const [selectedTime, setSelectedTime] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -89,6 +93,10 @@ export default function BookServiceScreen({ navigation, route }) {
       booking_date: bookingDate,
       start_time: selectedTime,
       party_size: parseInt(partySize),
+      party_adults: parseInt(partyAdults),
+      party_children: parseInt(partyChildren),
+      table_preference: tablePreference,
+      special_occasion: specialOccasion,
       notes: notes || null,
     };
 
@@ -201,6 +209,70 @@ export default function BookServiceScreen({ navigation, route }) {
               style={styles.input}
               keyboardType="numeric"
             />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TextInput
+                label="Adulți"
+                value={partyAdults}
+                onChangeText={setPartyAdults}
+                mode="outlined"
+                style={[styles.input, { flex: 1 }]}
+                keyboardType="numeric"
+              />
+              <TextInput
+                label="Copii"
+                value={partyChildren}
+                onChangeText={setPartyChildren}
+                mode="outlined"
+                style={[styles.input, { flex: 1 }]}
+                keyboardType="numeric"
+              />
+            </View>
+            <List.Section title="Preferință masă">
+              <List.Item
+                title="Interior"
+                left={() => <MaterialCommunityIcons name="table-chair" size={24} color="#4CAF50" />}
+                onPress={() => setTablePreference('interior')}
+                style={tablePreference === 'interior' ? { backgroundColor: '#E8F5E9' } : {}}
+              />
+              <List.Item
+                title="Terasă"
+                left={() => <MaterialCommunityIcons name="table" size={24} color="#2196F3" />}
+                onPress={() => setTablePreference('terasa')}
+                style={tablePreference === 'terasa' ? { backgroundColor: '#E3F2FD' } : {}}
+              />
+              <List.Item
+                title="Fără preferință"
+                left={() => <MaterialCommunityIcons name="table" size={24} color="#BDBDBD" />}
+                onPress={() => setTablePreference('fara_preferinta')}
+                style={tablePreference === 'fara_preferinta' ? { backgroundColor: '#F5F5F5' } : {}}
+              />
+            </List.Section>
+            <List.Section title="Ocazie specială">
+              <List.Item
+                title="Nicio ocazie"
+                left={() => <MaterialCommunityIcons name="calendar-blank" size={24} color="#BDBDBD" />}
+                onPress={() => setSpecialOccasion('nicio_ocazie')}
+                style={specialOccasion === 'nicio_ocazie' ? { backgroundColor: '#F5F5F5' } : {}}
+              />
+              <List.Item
+                title="Zi de naștere"
+                left={() => <MaterialCommunityIcons name="cake-variant" size={24} color="#FFB300" />}
+                onPress={() => setSpecialOccasion('zi_de_nastere')}
+                style={specialOccasion === 'zi_de_nastere' ? { backgroundColor: '#FFF8E1' } : {}}
+              />
+              <List.Item
+                title="Aniversare"
+                left={() => <MaterialCommunityIcons name="heart" size={24} color="#E57373" />}
+                onPress={() => setSpecialOccasion('aniversare')}
+                style={specialOccasion === 'aniversare' ? { backgroundColor: '#FFEBEE' } : {}}
+              />
+              <List.Item
+                title="Business"
+                left={() => <MaterialCommunityIcons name="briefcase" size={24} color="#64B5F6" />}
+                onPress={() => setSpecialOccasion('business')}
+                style={specialOccasion === 'business' ? { backgroundColor: '#E3F2FD' } : {}}
+              />
+            </List.Section>
             <Button
               mode="contained"
               onPress={handleCheckAvailability}

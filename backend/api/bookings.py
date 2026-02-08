@@ -97,6 +97,10 @@ class BookingCreateRequest(BaseModel):
     booking_date: str  # "2026-02-01"
     start_time: str  # "19:00"
     party_size: int
+    party_adults: Optional[int] = 0
+    party_children: Optional[int] = 0
+    table_preference: Optional[str] = "fara_preferinta"  # "interior", "terasa", "fara_preferinta"
+    special_occasion: Optional[str] = "nicio_ocazie"  # "nicio_ocazie", "zi_de_nastere", "aniversare", "business"
     notes: Optional[str] = None
     table_id: Optional[str] = None
 
@@ -113,6 +117,10 @@ class BookingResponse(BaseModel):
     start_time: str
     end_time: str
     party_size: int
+    party_adults: Optional[int] = 0
+    party_children: Optional[int] = 0
+    table_preference: Optional[str] = "fara_preferinta"
+    special_occasion: Optional[str] = "nicio_ocazie"
     notes: Optional[str]
     status: str
     created_at: str
@@ -511,6 +519,10 @@ async def create_booking(request: BookingCreateRequest):
         start_time=request.start_time,
         end_time=end_time,
         party_size=request.party_size,
+        party_adults=request.party_adults or 0,
+        party_children=request.party_children or 0,
+        table_preference=request.table_preference or "fara_preferinta",
+        special_occasion=request.special_occasion or "nicio_ocazie",
         notes=request.notes,
         status="confirmed" if provider["booking_settings"]["auto_confirm"] else "pending"
     )
@@ -530,6 +542,10 @@ async def create_booking(request: BookingCreateRequest):
         start_time=booking.start_time,
         end_time=booking.end_time,
         party_size=booking.party_size,
+        party_adults=booking.party_adults,
+        party_children=booking.party_children,
+        table_preference=booking.table_preference,
+        special_occasion=booking.special_occasion,
         notes=booking.notes,
         status=booking.status,
         created_at=booking.created_at.isoformat()

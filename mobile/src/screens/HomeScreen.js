@@ -25,6 +25,16 @@ export default function HomeScreen({ navigation }) {
       </Appbar.Header>
 
       <ScrollView style={styles.content}>
+        <View style={styles.profileCorner}>
+          <Button
+            mode="text"
+            compact
+            onPress={() => navigation.navigate('Profile')}
+            style={styles.profileButton}
+          >
+            {user?.username || 'Profilul meu'}
+          </Button>
+        </View>
         <Card style={styles.card}>
           <Card.Content>
             <View style={styles.titleContainer}>
@@ -36,6 +46,7 @@ export default function HomeScreen({ navigation }) {
             </Paragraph>
           </Card.Content>
         </Card>
+
 
         {/* Listings Button */}
         <Card style={styles.card}>
@@ -109,6 +120,10 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 15,
   },
+  profileCorner: {
+    alignItems: 'flex-end',
+    marginBottom: 6,
+  },
   card: {
     marginBottom: 15,
     elevation: 2,
@@ -135,6 +150,9 @@ const styles = StyleSheet.create({
   servicesButton: {
     marginLeft: 'auto',
     backgroundColor: '#4CAF50',
+  },
+  profileButton: {
+    paddingHorizontal: 0,
   },
   logoutButton: {
     marginTop: 10,

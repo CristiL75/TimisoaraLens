@@ -262,6 +262,12 @@ class Booking(BaseModel):
     start_time: str  # "19:00"
     end_time: str  # "20:30"
     party_size: int  # Number of people
+    party_adults: Optional[int] = 0  # Număr adulți
+    party_children: Optional[int] = 0  # Număr copii
+    
+    # Detalii suplimentare
+    table_preference: Optional[str] = "fara_preferinta"  # "interior", "terasa", "fara_preferinta"
+    special_occasion: Optional[str] = "nicio_ocazie"  # "nicio_ocazie", "zi_de_nastere", "aniversare", "business"
     
     notes: Optional[str] = None
     
