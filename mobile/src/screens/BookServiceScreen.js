@@ -30,6 +30,12 @@ export default function BookServiceScreen({ navigation, route }) {
   const [selectedTableId, setSelectedTableId] = useState(null);
   const selectedTable = (availability?.tables || tables).find((t) => t.id === selectedTableId) || null;
 
+  const formatTableLabel = (value) => {
+    if (!value) return '';
+    const label = value.replace(/_/g, ' ');
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  };
+
   // Form fields
   const [customerName, setCustomerName] = useState(user?.username || '');
   const [customerEmail, setCustomerEmail] = useState(user?.email || '');
@@ -40,6 +46,9 @@ export default function BookServiceScreen({ navigation, route }) {
   const [partyChildren, setPartyChildren] = useState('0');
   const [specialOccasion, setSpecialOccasion] = useState('nicio_ocazie');
   const [selectedTime, setSelectedTime] = useState('');
+  const [durationMinutes, setDurationMinutes] = useState(
+    String(provider?.booking_settings?.default_duration_minutes || 90)
+  );
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
@@ -79,8 +88,14 @@ export default function BookServiceScreen({ navigation, route }) {
   }, [partySize, selectedTableId, tables]);
 
   const handleCheckAvailability = async () => {
-    if (!bookingDate || !partySize) {
-      Alert.alert('Eroare', 'Selectează data și numărul de persoane');
+    if (!bookingDate || !partySize || !selectedTime || !durationMinutes) {
+      Alert.alert('Eroare', 'Selectează data, ora și durata');
+      return;
+    }
+
+    const durationValue = parseInt(durationMinutes, 10);
+    if (!durationValue || durationValue <= 0 || durationValue > 180) {
+      Alert.alert('Eroare', 'Durata trebuie sa fie intre 1 si 180 minute');
       return;
     }
 
@@ -92,7 +107,9 @@ export default function BookServiceScreen({ navigation, route }) {
       const result = await bookingsAPI.checkAvailability(
         provider.id,
         bookingDate,
-        parseInt(partySize)
+        parseInt(partySize),
+        selectedTime,
+        durationValue
       );
 
       if (result.success) {
@@ -112,8 +129,14 @@ export default function BookServiceScreen({ navigation, route }) {
 
   const handleBooking = async () => {
     const requiresTable = provider?.booking_settings?.type === 'table_based';
-    if (!customerName || !customerEmail || !customerPhone || !selectedTime) {
+    if (!customerName || !customerEmail || !customerPhone || !selectedTime || !durationMinutes) {
       Alert.alert('Eroare', 'Completează toate câmpurile și alege un slot orar');
+      return;
+    }
+
+    const durationValue = parseInt(durationMinutes, 10);
+    if (!durationValue || durationValue <= 0 || durationValue > 180) {
+      Alert.alert('Eroare', 'Durata trebuie sa fie intre 1 si 180 minute');
       return;
     }
 
@@ -132,6 +155,7 @@ export default function BookServiceScreen({ navigation, route }) {
       customer_phone: customerPhone,
       booking_date: bookingDate,
       start_time: selectedTime,
+      duration_minutes: durationValue,
       party_size: parseInt(partySize),
       party_adults: parseInt(partyAdults),
       party_children: parseInt(partyChildren),
@@ -240,6 +264,25 @@ export default function BookServiceScreen({ navigation, route }) {
               style={styles.input}
               placeholder="YYYY-MM-DD"
             />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TextInput
+                label="Ora inceput *"
+                value={selectedTime}
+                onChangeText={setSelectedTime}
+                mode="outlined"
+                style={[styles.input, { flex: 1 }]}
+                placeholder="HH:MM"
+              />
+              <TextInput
+                label="Durata (min) *"
+                value={durationMinutes}
+                onChangeText={setDurationMinutes}
+                mode="outlined"
+                style={[styles.input, { flex: 1 }]}
+                keyboardType="numeric"
+                placeholder="ex: 90"
+              />
+            </View>
             <TextInput
               label="Număr Persoane *"
               value={partySize}
@@ -306,26 +349,11 @@ export default function BookServiceScreen({ navigation, route }) {
             {/* Available Time Slots for non-table providers */}
             {availability && provider?.booking_settings?.type !== 'table_based' && (
               <View style={styles.slotsContainer}>
-                <Text style={styles.slotsTitle}>Sloturi Disponibile:</Text>
+                <Text style={styles.slotsTitle}>Disponibilitate:</Text>
                 {availability.slots.filter(s => s.available).length === 0 ? (
-                  <Text style={styles.emptyText}>Nu există sloturi disponibile</Text>
+                  <Text style={styles.emptyText}>Nu există disponibilitate pentru intervalul ales</Text>
                 ) : (
-                  <View style={styles.slotsGrid}>
-                    {availability.slots
-                      .filter(s => s.available)
-                      .map((slot) => (
-                        <Chip
-                          key={slot.time}
-                          selected={selectedTime === slot.time}
-                          onPress={() => setSelectedTime(slot.time)}
-                          mode="outlined"
-                          style={styles.slotChip}
-                          icon={selectedTime === slot.time ? 'check' : 'clock-outline'}
-                        >
-                          {slot.time} ({slot.tables_available} mese)
-                        </Chip>
-                      ))}
-                  </View>
+                  <Text style={styles.tableHint}>Interval disponibil. Alege masa.</Text>
                 )}
               </View>
             )}
@@ -345,15 +373,14 @@ export default function BookServiceScreen({ navigation, route }) {
                   <Title style={styles.selectedTableTitle}>Masa selectata</Title>
                   <Text style={styles.tableMeta}>Nume: {selectedTable.name}</Text>
                   <Text style={styles.tableMeta}>Locuri: {selectedTable.seats}</Text>
-                  <Text style={styles.tableMeta}>Zona: {selectedTable.zone || 'interior'}</Text>
-                  {selectedTable.location && (
-                    <Text style={styles.tableMeta}>Locatie: {selectedTable.location}</Text>
-                  )}
+                  <Text style={styles.tableMeta}>
+                    Zona: {formatTableLabel(selectedTable.zone || selectedTable.location || 'interior')}
+                  </Text>
                   {selectedTable.special_options && selectedTable.special_options.length > 0 && (
                     <View style={styles.tableOptions}>
                       {selectedTable.special_options.map((opt) => (
                         <Chip key={opt} style={styles.tableOptionChip}>
-                          {opt}
+                          {formatTableLabel(opt)}
                         </Chip>
                       ))}
                     </View>

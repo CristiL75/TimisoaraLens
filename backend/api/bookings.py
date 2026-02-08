@@ -95,6 +95,7 @@ class BookingCreateRequest(BaseModel):
     customer_phone: str
     booking_date: str  # "2026-02-01"
     start_time: str  # "19:00"
+    duration_minutes: Optional[int] = None
     party_size: int
     party_adults: Optional[int] = 0
     party_children: Optional[int] = 0
@@ -693,8 +694,10 @@ async def create_booking(request: BookingCreateRequest):
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
     
-    # Calculate end time based on provider settings
-    duration = provider["booking_settings"]["default_duration_minutes"]
+    # Calculate end time based on selected duration or provider settings
+    duration = request.duration_minutes or provider["booking_settings"]["default_duration_minutes"]
+    if duration <= 0 or duration > 180:
+        raise HTTPException(status_code=400, detail="Invalid duration")
     start_dt = datetime.strptime(f"{request.booking_date} {request.start_time}", "%Y-%m-%d %H:%M")
     end_dt = start_dt + timedelta(minutes=duration)
     end_time = end_dt.strftime("%H:%M")
@@ -720,7 +723,7 @@ async def create_booking(request: BookingCreateRequest):
             "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
             "table_id": {"$in": [ObjectId(request.table_id), request.table_id]},
             "booking_date": request.booking_date,
-            "status": {"$in": ["pending", "confirmed"]}
+            "status": "confirmed"
         }).to_list(1000)
 
         for booking in existing_table_bookings:
@@ -784,7 +787,9 @@ async def create_booking(request: BookingCreateRequest):
 async def check_availability(
     provider_id: str,
     date: str,
-    party_size: int
+    party_size: int,
+    start_time: Optional[str] = None,
+    duration_minutes: Optional[int] = None
 ):
     """Check availability for a specific date and party size"""
     providers_col = get_providers_collection()
@@ -814,12 +819,16 @@ async def check_availability(
     existing_bookings = await bookings_col.find({
         "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
         "booking_date": date,
-        "status": {"$in": ["pending", "confirmed"]}
+        "status": "confirmed"
     }).to_list(1000)
     
     # Generate time slots (simplified - every 30 minutes)
     slots = []
+    table_availability = []
     settings = provider["booking_settings"]
+    slot_duration = duration_minutes or settings["default_duration_minutes"]
+    if slot_duration <= 0 or slot_duration > 180:
+        raise HTTPException(status_code=400, detail="Invalid duration")
     
     # Get working hours for the day
     date_obj = datetime.strptime(date, "%Y-%m-%d")
@@ -834,47 +843,104 @@ async def check_availability(
     open_time = datetime.strptime(working_day["open_time"], "%H:%M")
     close_time = datetime.strptime(working_day["close_time"], "%H:%M")
     
+    def is_table_free(table_id: str, slot_start_dt: datetime, slot_end_dt: datetime) -> bool:
+        for booking in existing_bookings:
+            if str(booking.get("table_id")) != str(table_id):
+                continue
+            booking_start = datetime.strptime(booking["start_time"], "%H:%M")
+            booking_end = datetime.strptime(booking["end_time"], "%H:%M")
+            booking_date_obj = datetime.strptime(booking["booking_date"], "%Y-%m-%d")
+            booking_start_dt = datetime.combine(booking_date_obj.date(), booking_start.time())
+            booking_end_dt = datetime.combine(booking_date_obj.date(), booking_end.time())
+            if booking_start_dt < slot_end_dt and slot_start_dt < booking_end_dt:
+                return False
+        return True
+
+    if start_time:
+        try:
+            start_time_dt = datetime.strptime(start_time, "%H:%M")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start_time format")
+
+        slot_start_dt = datetime.combine(date_obj.date(), start_time_dt.time())
+        slot_end_dt = slot_start_dt + timedelta(minutes=slot_duration)
+        if slot_start_dt < datetime.combine(date_obj.date(), open_time.time()) or slot_end_dt > datetime.combine(date_obj.date(), close_time.time()):
+            return AvailabilityResponse(date=date, slots=[], tables=[])
+
+        available_count = 0
+        for table in tables:
+            if is_table_free(str(table["_id"]), slot_start_dt, slot_end_dt):
+                available_count += 1
+
+        slots.append(AvailabilitySlot(
+            time=start_time,
+            available=available_count > 0,
+            tables_available=available_count
+        ))
+
+        for table in tables:
+            available_slots = []
+            if is_table_free(str(table["_id"]), slot_start_dt, slot_end_dt):
+                available_slots.append(start_time)
+
+            table_availability.append(TableAvailability(
+                id=str(table["_id"]),
+                name=table["name"],
+                seats=table["seats"],
+                zone=table.get("zone"),
+                special_options=table.get("special_options", []),
+                location=table.get("location"),
+                available_slots=available_slots
+            ))
+
+        return AvailabilityResponse(date=date, slots=slots, tables=table_availability)
+
     current_time = open_time
     while current_time < close_time:
         time_str = current_time.strftime("%H:%M")
-        
+        slot_start = current_time
+        slot_end = current_time + timedelta(minutes=slot_duration)
+
         # Check how many tables are available at this time
         available_count = 0
         for table in tables:
-            # Check if table is free
-            is_free = True
-            for booking in existing_bookings:
-                # Normalize comparison by using string form of IDs so both ObjectId and str match
-                if str(booking.get("table_id")) == str(table["_id"]):
-                    # Check time overlap
-                    booking_start = datetime.strptime(booking["start_time"], "%H:%M")
-                    booking_end = datetime.strptime(booking["end_time"], "%H:%M")
-                    slot_start = current_time
-                    slot_end = current_time + timedelta(minutes=settings["default_duration_minutes"])
-
-                    # Overlap check: startA < endB and startB < endA (all as datetime)
-                    # Convert booking times to datetime on the same date
-                    booking_date_obj = datetime.strptime(booking["booking_date"], "%Y-%m-%d")
-                    booking_start_dt = datetime.combine(booking_date_obj.date(), booking_start.time())
-                    booking_end_dt = datetime.combine(booking_date_obj.date(), booking_end.time())
-                    slot_start_dt = datetime.combine(booking_date_obj.date(), slot_start.time())
-                    slot_end_dt = datetime.combine(booking_date_obj.date(), slot_end.time())
-                    if booking_start_dt < slot_end_dt and slot_start_dt < booking_end_dt:
-                        is_free = False
-                        break
-            
-            if is_free:
+            slot_start_dt = datetime.combine(date_obj.date(), slot_start.time())
+            slot_end_dt = datetime.combine(date_obj.date(), slot_end.time())
+            if is_table_free(str(table["_id"]), slot_start_dt, slot_end_dt):
                 available_count += 1
-        
+
         slots.append(AvailabilitySlot(
             time=time_str,
             available=available_count > 0,
             tables_available=available_count
         ))
-        
+
         current_time += timedelta(minutes=30)
-    
-    return AvailabilityResponse(date=date, slots=slots)
+
+    # Build per-table availability
+    for table in tables:
+        available_slots = []
+        current_time = open_time
+        while current_time < close_time:
+            slot_start = current_time
+            slot_end = current_time + timedelta(minutes=slot_duration)
+            slot_start_dt = datetime.combine(date_obj.date(), slot_start.time())
+            slot_end_dt = datetime.combine(date_obj.date(), slot_end.time())
+            if is_table_free(str(table["_id"]), slot_start_dt, slot_end_dt):
+                available_slots.append(current_time.strftime("%H:%M"))
+            current_time += timedelta(minutes=30)
+
+        table_availability.append(TableAvailability(
+            id=str(table["_id"]),
+            name=table["name"],
+            seats=table["seats"],
+            zone=table.get("zone"),
+            special_options=table.get("special_options", []),
+            location=table.get("location"),
+            available_slots=available_slots
+        ))
+
+    return AvailabilityResponse(date=date, slots=slots, tables=table_availability)
 
 
 @router.get("/{booking_id}", response_model=BookingResponse)

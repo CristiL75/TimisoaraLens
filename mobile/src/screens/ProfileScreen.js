@@ -9,7 +9,28 @@ export default function ProfileScreen({ navigation }) {
   const [providers, setProviders] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [providerMap, setProviderMap] = useState({});
+  const [tableMap, setTableMap] = useState({});
   const [loading, setLoading] = useState(true);
+
+  const formatTableLabel = (value) => {
+    if (!value) return '';
+    const label = value.replace(/_/g, ' ');
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  };
+
+  const formatTableDetails = (table) => {
+    if (!table) return '';
+    const parts = [`${table.name} • ${table.seats} locuri`];
+    const zoneLabel = formatTableLabel(table.zone || table.location || '');
+    if (zoneLabel) {
+      parts.push(zoneLabel);
+    }
+    const options = (table.special_options || []).filter(Boolean);
+    if (options.length > 0) {
+      parts.push(options.map(formatTableLabel).join(', '));
+    }
+    return parts.join(' • ');
+  };
 
   useEffect(() => {
     loadProfileData();
@@ -30,6 +51,23 @@ export default function ProfileScreen({ navigation }) {
         return acc;
       }, {});
       setProviderMap(map);
+    }
+    if (bookRes.success && bookRes.data.length > 0) {
+      const providerIds = Array.from(
+        new Set(bookRes.data.map((booking) => String(booking.provider_id)))
+      );
+      const tablesResults = await Promise.all(
+        providerIds.map((providerId) => bookingsAPI.getTables(providerId))
+      );
+      const nextTableMap = {};
+      tablesResults.forEach((res) => {
+        if (res.success && Array.isArray(res.data)) {
+          res.data.forEach((table) => {
+            nextTableMap[String(table.id)] = table;
+          });
+        }
+      });
+      setTableMap(nextTableMap);
     }
     setLoading(false);
   };
@@ -84,6 +122,9 @@ export default function ProfileScreen({ navigation }) {
                 <Paragraph>
                   Serviciu: {providerMap[String(booking.provider_id)] || 'Serviciu'}
                 </Paragraph>
+                {booking.table_id && tableMap[String(booking.table_id)] && (
+                  <Paragraph>Masa: {formatTableDetails(tableMap[String(booking.table_id)])}</Paragraph>
+                )}
                 <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
                 <Chip style={styles.chip}>{booking.status}</Chip>
               </Card.Content>

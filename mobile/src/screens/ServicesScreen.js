@@ -96,6 +96,26 @@ export default function ServicesScreen({ navigation }) {
     return label.charAt(0).toUpperCase() + label.slice(1);
   };
 
+  const formatTableLabel = (value) => {
+    if (!value) return '';
+    const label = value.replace(/_/g, ' ');
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  };
+
+  const formatTableDetails = (table) => {
+    if (!table) return '';
+    const parts = [`${table.name} • ${table.seats} locuri`];
+    const zoneLabel = formatTableLabel(table.zone || table.location || '');
+    if (zoneLabel) {
+      parts.push(zoneLabel);
+    }
+    const options = (table.special_options || []).filter(Boolean);
+    if (options.length > 0) {
+      parts.push(options.map(formatTableLabel).join(', '));
+    }
+    return parts.join(' • ');
+  };
+
   const onRefresh = () => {
     setRefreshing(true);
     loadProviders();
@@ -237,14 +257,7 @@ export default function ServicesScreen({ navigation }) {
                     <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
                     <Paragraph>Email: {booking.customer_email}</Paragraph>
                     {booking.table_id && tableById[String(booking.table_id)] && (
-                      <Paragraph>
-                        Masa: {tableById[String(booking.table_id)].name} • {tableById[String(booking.table_id)].seats} locuri
-                        {tableById[String(booking.table_id)].zone ? ` • ${tableById[String(booking.table_id)].zone}` : ''}
-                        {tableById[String(booking.table_id)].location ? ` • ${tableById[String(booking.table_id)].location}` : ''}
-                        {tableById[String(booking.table_id)].special_options?.length
-                          ? ` • ${tableById[String(booking.table_id)].special_options.join(', ')}`
-                          : ''}
-                      </Paragraph>
+                      <Paragraph>Masa: {formatTableDetails(tableById[String(booking.table_id)])}</Paragraph>
                     )}
                     {booking.special_occasion && (
                       <Paragraph>Ocazie specială: {formatOccasion(booking.special_occasion)}</Paragraph>

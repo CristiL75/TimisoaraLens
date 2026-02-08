@@ -32,7 +32,6 @@ export default function ManageTablesScreen({ navigation, route }) {
   const [seats, setSeats] = useState('');
   const [zone, setZone] = useState('interior');
   const [specialOptions, setSpecialOptions] = useState([]);
-  const [location, setLocation] = useState('interior');
 
   useEffect(() => {
     loadTables();
@@ -54,7 +53,6 @@ export default function ManageTablesScreen({ navigation, route }) {
   const handleAddTable = () => {
     setTableName('');
     setSeats('');
-    setLocation('interior');
     setDialogVisible(true);
   };
 
@@ -72,7 +70,6 @@ export default function ManageTablesScreen({ navigation, route }) {
       seats: parseInt(seats),
       zone,
       special_options: specialOptions,
-      location,
     };
 
     try {
@@ -239,30 +236,6 @@ export default function ManageTablesScreen({ navigation, route }) {
                   {opt}
                 </Chip>
               ))}
-            </View>
-            <Title style={styles.locationTitle}>Locație (compatibilitate veche)</Title>
-            <View style={styles.locationButtons}>
-              <Chip
-                selected={location === 'interior'}
-                onPress={() => setLocation('interior')}
-                style={styles.locationChip}
-              >
-                Interior
-              </Chip>
-              <Chip
-                selected={location === 'exterior'}
-                onPress={() => setLocation('exterior')}
-                style={styles.locationChip}
-              >
-                Exterior
-              </Chip>
-              <Chip
-                selected={location === 'terasa'}
-                onPress={() => setLocation('terasa')}
-                style={styles.locationChip}
-              >
-                Terasă
-              </Chip>
             </View>
           </Dialog.Content>
           <Dialog.Actions>

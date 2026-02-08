@@ -475,10 +475,15 @@ export const bookingsAPI = {
   /**
    * Check availability
    */
-  checkAvailability: async (providerId, date, partySize) => {
+  checkAvailability: async (providerId, date, partySize, startTime, durationMinutes) => {
     try {
       const response = await api.get(`/bookings/availability/${providerId}`, {
-        params: { date, party_size: partySize }
+        params: {
+          date,
+          party_size: partySize,
+          start_time: startTime || undefined,
+          duration_minutes: durationMinutes || undefined,
+        }
       });
       return { success: true, data: response.data };
     } catch (error) {
