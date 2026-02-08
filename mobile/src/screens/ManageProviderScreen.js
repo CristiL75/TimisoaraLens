@@ -70,6 +70,10 @@ export default function ManageProviderScreen({ navigation, route }) {
     }
   );
 
+  const [tables, setTables] = useState(
+    existingProvider?.tables || []
+  );
+
   const [workingHours] = useState(
     existingProvider?.working_hours || DEFAULT_WORKING_HOURS
   );
@@ -100,6 +104,7 @@ export default function ManageProviderScreen({ navigation, route }) {
       images: existingProvider?.images || [],
       address: address || null,
       facilities: category === 'food_drinks' ? facilities : null,
+      tables: category === 'food_drinks' ? tables : null, // Add tables field for food_drinks category
       booking_settings: {
         type: 'table_based',
         default_duration_minutes: parseInt(duration, 10),

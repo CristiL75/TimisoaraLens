@@ -401,6 +401,9 @@ async def update_provider(
     if str(provider["user_id"]) != current_user["id"]:
         raise HTTPException(status_code=403, detail="Not authorized to update this provider")
     
+    # Log incoming request data for debugging
+    print("[DEBUG] Incoming update request:", request.dict())
+    
     # Update provider
     update_data = {
         "category": request.category,
@@ -419,6 +422,9 @@ async def update_provider(
     if request.listing_id:
         update_data["listing_id"] = ObjectId(request.listing_id)
     
+    # Log update data for debugging
+    print("[DEBUG] Update data:", update_data)
+    
     await providers_col.update_one(
         {"_id": ObjectId(provider_id)},
         {"$set": update_data}
@@ -426,6 +432,9 @@ async def update_provider(
     
     # Return updated provider
     updated_provider = await providers_col.find_one({"_id": ObjectId(provider_id)})
+    
+    # Log updated provider for debugging
+    print("[DEBUG] Updated provider:", updated_provider)
     
     return ProviderResponse(
         id=str(updated_provider["_id"]),
