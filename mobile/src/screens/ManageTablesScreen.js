@@ -79,7 +79,11 @@ export default function ManageTablesScreen({ navigation, route }) {
       const result = await bookingsAPI.createTable(tableData);
       if (result.success) {
         setDialogVisible(false);
-        loadTables();
+        if (result.data) {
+          setTables((prevTables) => [result.data, ...prevTables]);
+        } else {
+          loadTables();
+        }
         Alert.alert('Succes', 'Masa a fost adăugată');
       } else {
         Alert.alert('Eroare', result.error);

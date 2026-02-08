@@ -528,7 +528,10 @@ async def list_tables(provider_id: str):
     if not ObjectId.is_valid(provider_id):
         raise HTTPException(status_code=400, detail="Invalid provider ID")
     
-    tables = await tables_col.find({"provider_id": ObjectId(provider_id), "status": "active"}).to_list(100)
+    provider_oid = ObjectId(provider_id)
+    tables = await tables_col.find(
+        {"provider_id": {"$in": [provider_oid, provider_id]}, "status": "active"}
+    ).to_list(100)
     
     return [
         TableResponse(
