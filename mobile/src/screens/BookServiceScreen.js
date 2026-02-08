@@ -38,7 +38,6 @@ export default function BookServiceScreen({ navigation, route }) {
   const [partySize, setPartySize] = useState('2');
   const [partyAdults, setPartyAdults] = useState('2');
   const [partyChildren, setPartyChildren] = useState('0');
-  const [tablePreference, setTablePreference] = useState('fara_preferinta');
   const [specialOccasion, setSpecialOccasion] = useState('nicio_ocazie');
   const [selectedTime, setSelectedTime] = useState('');
   const [notes, setNotes] = useState('');
@@ -136,7 +135,6 @@ export default function BookServiceScreen({ navigation, route }) {
       party_size: parseInt(partySize),
       party_adults: parseInt(partyAdults),
       party_children: parseInt(partyChildren),
-      table_preference: tablePreference,
       special_occasion: specialOccasion,
       notes: notes || null,
     };
@@ -268,26 +266,6 @@ export default function BookServiceScreen({ navigation, route }) {
                 keyboardType="numeric"
               />
             </View>
-            <List.Section title="Preferință masă">
-              <List.Item
-                title="Interior"
-                left={() => <MaterialCommunityIcons name="table-chair" size={24} color="#4CAF50" />}
-                onPress={() => setTablePreference('interior')}
-                style={tablePreference === 'interior' ? { backgroundColor: '#E8F5E9' } : {}}
-              />
-              <List.Item
-                title="Terasă"
-                left={() => <MaterialCommunityIcons name="table" size={24} color="#2196F3" />}
-                onPress={() => setTablePreference('terasa')}
-                style={tablePreference === 'terasa' ? { backgroundColor: '#E3F2FD' } : {}}
-              />
-              <List.Item
-                title="Fără preferință"
-                left={() => <MaterialCommunityIcons name="table" size={24} color="#BDBDBD" />}
-                onPress={() => setTablePreference('fara_preferinta')}
-                style={tablePreference === 'fara_preferinta' ? { backgroundColor: '#F5F5F5' } : {}}
-              />
-            </List.Section>
             <List.Section title="Ocazie specială">
               <List.Item
                 title="Nicio ocazie"
@@ -403,9 +381,75 @@ export default function BookServiceScreen({ navigation, route }) {
                     );
                   }
 
-                  if (!availability || availabilityTables.length === 0) {
+                  if (!availability) {
                     return (
                       <Text style={styles.emptyText}>Verifica disponibilitatea pentru a vedea orele libere.</Text>
+                    );
+                  }
+
+                  if (availabilityTables.length === 0) {
+                    return (
+                      <View>
+                        <Text style={styles.tableHint}>Selecteaza masa, apoi ora.</Text>
+                        <View style={styles.tablesGrid}>
+                          {eligibleTables.map((table) => (
+                            <Card
+                              key={table.id}
+                              style={styles.tableCard}
+                              onPress={() => setSelectedTableId(table.id)}
+                            >
+                              <Card.Content>
+                                <View style={styles.tableHeader}>
+                                  <Title style={styles.tableTitle}>{table.name}</Title>
+                                  <Chip mode={selectedTableId === table.id ? 'flat' : 'outlined'}>
+                                    {table.seats} locuri
+                                  </Chip>
+                                </View>
+                                <Text style={styles.tableMeta}>
+                                  Zona: {table.zone || 'interior'}
+                                </Text>
+                                {table.location && (
+                                  <Text style={styles.tableMeta}>
+                                    Locație: {table.location}
+                                  </Text>
+                                )}
+                                {table.special_options && table.special_options.length > 0 && (
+                                  <View style={styles.tableOptions}>
+                                    {table.special_options.map((opt) => (
+                                      <Chip key={opt} style={styles.tableOptionChip}>
+                                        {opt}
+                                      </Chip>
+                                    ))}
+                                  </View>
+                                )}
+                              </Card.Content>
+                            </Card>
+                          ))}
+                        </View>
+                        <View style={styles.slotsContainer}>
+                          <Text style={styles.slotsTitle}>Sloturi Disponibile:</Text>
+                          {availability.slots.filter((s) => s.available).length === 0 ? (
+                            <Text style={styles.emptyText}>Nu exista sloturi disponibile.</Text>
+                          ) : (
+                            <View style={styles.slotsGrid}>
+                              {availability.slots
+                                .filter((s) => s.available)
+                                .map((slot) => (
+                                  <Chip
+                                    key={slot.time}
+                                    selected={selectedTime === slot.time}
+                                    onPress={() => setSelectedTime(slot.time)}
+                                    mode="outlined"
+                                    style={styles.slotChip}
+                                    icon={selectedTime === slot.time ? 'check' : 'clock-outline'}
+                                  >
+                                    {slot.time} ({slot.tables_available} mese)
+                                  </Chip>
+                                ))}
+                            </View>
+                          )}
+                        </View>
+                      </View>
                     );
                   }
 
@@ -619,6 +663,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginTop: 6,
+  },
+  tableHint: {
+    color: '#666',
+    marginBottom: 8,
   },
   tableSlots: {
     flexDirection: 'row',

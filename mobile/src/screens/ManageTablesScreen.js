@@ -95,6 +95,29 @@ export default function ManageTablesScreen({ navigation, route }) {
     }
   };
 
+  const handleDeleteTable = (table) => {
+    Alert.alert(
+      'Sterge masa',
+      `Sigur vrei sa stergi masa "${table.name}"?`,
+      [
+        { text: 'Renunta', style: 'cancel' },
+        {
+          text: 'Sterge',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await bookingsAPI.deleteTable(table.id);
+            if (result.success) {
+              setTables((prevTables) => prevTables.filter((t) => t.id !== table.id));
+              Alert.alert('Succes', 'Masa a fost stearsa');
+            } else {
+              Alert.alert('Eroare', result.error || 'Nu s-a putut sterge masa');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -154,6 +177,16 @@ export default function ManageTablesScreen({ navigation, route }) {
                   </Chip>
                 )}
               />
+              <Card.Actions>
+                <Button
+                  mode="contained"
+                  icon="delete"
+                  style={styles.deleteButton}
+                  onPress={() => handleDeleteTable(table)}
+                >
+                  Sterge
+                </Button>
+              </Card.Actions>
             </Card>
           ))
         )}
@@ -276,6 +309,9 @@ const styles = StyleSheet.create({
     right: 16,
     bottom: 16,
     backgroundColor: '#4CAF50',
+  },
+  deleteButton: {
+    backgroundColor: '#d32f2f',
   },
   input: {
     marginBottom: 12,

@@ -441,6 +441,22 @@ export const bookingsAPI = {
   },
 
   /**
+   * Delete (deactivate) a table
+   */
+  deleteTable: async (tableId) => {
+    try {
+      const response = await api.delete(`/bookings/tables/${tableId}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] deleteTable error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to delete table',
+      };
+    }
+  },
+
+  /**
    * Create a booking
    */
   createBooking: async (bookingData) => {

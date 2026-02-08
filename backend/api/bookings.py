@@ -602,6 +602,38 @@ async def list_tables(provider_id: str):
     ]
 
 
+@router.delete("/tables/{table_id}")
+async def delete_table(table_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete (deactivate) a table for a provider"""
+    providers_col = get_providers_collection()
+    tables_col = get_tables_collection()
+
+    if not ObjectId.is_valid(table_id):
+        raise HTTPException(status_code=400, detail="Invalid table ID")
+
+    table = await tables_col.find_one({"_id": ObjectId(table_id)})
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+
+    provider_id = table.get("provider_id")
+    provider_oid = None
+    if isinstance(provider_id, ObjectId):
+        provider_oid = provider_id
+    elif isinstance(provider_id, str) and ObjectId.is_valid(provider_id):
+        provider_oid = ObjectId(provider_id)
+
+    provider = await providers_col.find_one({"_id": provider_oid}) if provider_oid else None
+    if not provider or str(provider.get("user_id")) != str(current_user.get("id")):
+        raise HTTPException(status_code=403, detail="Not authorized to manage this provider")
+
+    await tables_col.update_one(
+        {"_id": ObjectId(table_id)},
+        {"$set": {"status": "inactive"}}
+    )
+
+    return Response(status_code=204)
+
+
 # ============================================================
 # BOOKING ENDPOINTS
 @router.post("/calendar/block", status_code=201)
