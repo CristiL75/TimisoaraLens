@@ -29,6 +29,12 @@ export default function BookServiceScreen({ navigation, route }) {
   const [loadingTables, setLoadingTables] = useState(false);
   const [selectedTableId, setSelectedTableId] = useState(null);
   const selectedTable = (availability?.tables || tables).find((t) => t.id === selectedTableId) || null;
+  const hasAnyAvailability = availability
+    ? (availability.slots || []).some((slot) => slot.available) ||
+      (availability.tables || []).some(
+        (table) => table.available_slots && table.available_slots.length > 0
+      )
+    : false;
 
   const formatTableLabel = (value) => {
     if (!value) return '';
@@ -100,7 +106,6 @@ export default function BookServiceScreen({ navigation, route }) {
     }
 
     setCheckingAvailability(true);
-    setSelectedTime('');
     setSelectedTableId(null);
 
     try {
@@ -401,6 +406,12 @@ export default function BookServiceScreen({ navigation, route }) {
                   const eligibleTables = partySizeValue
                     ? baseTables.filter((t) => t.seats >= partySizeValue)
                     : baseTables;
+
+                  if (availability && !hasAnyAvailability) {
+                    return (
+                      <Text style={styles.emptyText}>Nu exista disponibilitate pentru intervalul ales.</Text>
+                    );
+                  }
 
                   if (eligibleTables.length === 0) {
                     return (

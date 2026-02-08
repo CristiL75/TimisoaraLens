@@ -974,13 +974,31 @@ async def get_booking(booking_id: str):
 
 
 @router.delete("/{booking_id}")
-async def cancel_booking(booking_id: str):
-    """Cancel a booking"""
+async def cancel_booking(booking_id: str, current_user=Depends(get_current_user)):
+    """Cancel a booking (customer only, not on the same day)"""
     bookings_col = get_bookings_collection()
-    
+
     if not ObjectId.is_valid(booking_id):
         raise HTTPException(status_code=400, detail="Invalid booking ID")
-    
+
+    booking = await bookings_col.find_one({"_id": ObjectId(booking_id)})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    if booking.get("customer_email") != current_user.get("email"):
+        raise HTTPException(status_code=403, detail="Not authorized to cancel this booking")
+
+    try:
+        booking_date = datetime.strptime(booking["booking_date"], "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid booking date")
+
+    if booking_date == datetime.utcnow().date():
+        raise HTTPException(status_code=400, detail="Cannot cancel booking on the same day")
+
+    if booking.get("status") == "canceled":
+        return {"message": "Booking already canceled"}
+
     result = await bookings_col.update_one(
         {"_id": ObjectId(booking_id)},
         {
@@ -990,10 +1008,10 @@ async def cancel_booking(booking_id: str):
             }
         }
     )
-    
+
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Booking not found")
-    
+
     # TODO: Send cancellation email
-    
+
     return {"message": "Booking canceled successfully"}

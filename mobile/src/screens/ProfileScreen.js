@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { Appbar, Title, Paragraph, Card, Chip, Button, ActivityIndicator, Text } from 'react-native-paper';
 import { useAuth } from '../context/AuthContext';
 import { bookingsAPI } from '../services/api';
@@ -11,6 +11,7 @@ export default function ProfileScreen({ navigation }) {
   const [providerMap, setProviderMap] = useState({});
   const [tableMap, setTableMap] = useState({});
   const [loading, setLoading] = useState(true);
+  const [cancelingBookingId, setCancelingBookingId] = useState(null);
 
   const formatTableLabel = (value) => {
     if (!value) return '';
@@ -72,6 +73,42 @@ export default function ProfileScreen({ navigation }) {
     setLoading(false);
   };
 
+  const isSameDay = (bookingDate) => {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    return bookingDate === todayStr;
+  };
+
+  const handleCancelBooking = async (booking) => {
+    if (isSameDay(booking.booking_date)) {
+      Alert.alert('Nu se poate', 'Rezervarea nu poate fi anulata in aceeasi zi.');
+      return;
+    }
+
+    Alert.alert(
+      'Anulare rezervare',
+      'Sigur vrei sa anulezi aceasta rezervare?',
+      [
+        { text: 'Renunta', style: 'cancel' },
+        {
+          text: 'Anuleaza',
+          style: 'destructive',
+          onPress: async () => {
+            setCancelingBookingId(booking.id);
+            const result = await bookingsAPI.cancelBooking(booking.id);
+            setCancelingBookingId(null);
+            if (result.success) {
+              Alert.alert('Succes', 'Rezervarea a fost anulata.');
+              loadProfileData();
+            } else {
+              Alert.alert('Eroare', result.error || 'Nu am putut anula rezervarea.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -128,6 +165,21 @@ export default function ProfileScreen({ navigation }) {
                 <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
                 <Chip style={styles.chip}>{booking.status}</Chip>
               </Card.Content>
+              <Card.Actions>
+                <Button
+                  mode="outlined"
+                  onPress={() => handleCancelBooking(booking)}
+                  disabled={
+                    cancelingBookingId === booking.id ||
+                    booking.status === 'canceled' ||
+                    booking.status === 'rejected' ||
+                    isSameDay(booking.booking_date)
+                  }
+                  loading={cancelingBookingId === booking.id}
+                >
+                  Anuleaza rezervarea
+                </Button>
+              </Card.Actions>
             </Card>
           ))
         )}

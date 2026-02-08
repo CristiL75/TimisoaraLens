@@ -288,6 +288,28 @@ export default function ServicesScreen({ navigation }) {
                 </Card>
               ))
             )}
+
+            <Title style={styles.sectionTitle}>Rezervări anulate</Title>
+            {loadingBookings ? (
+              <ActivityIndicator size="small" color="#4CAF50" />
+            ) : myBookings.filter(b => b.status === 'canceled').length === 0 ? (
+              <Text style={styles.emptyText}>Nu există rezervări anulate.</Text>
+            ) : (
+              myBookings.filter(b => b.status === 'canceled').map((booking) => (
+                <Card key={booking.id} style={styles.card}>
+                  <Card.Content>
+                    <Title>{booking.customer_name} ({booking.party_size} pers.)</Title>
+                    <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
+                    <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
+                    <Paragraph>Email: {booking.customer_email}</Paragraph>
+                    {booking.table_id && tableById[String(booking.table_id)] && (
+                      <Paragraph>Masa: {formatTableDetails(tableById[String(booking.table_id)])}</Paragraph>
+                    )}
+                    <Paragraph>Status: Anulata de client</Paragraph>
+                  </Card.Content>
+                </Card>
+              ))
+            )}
           </>
         )}
 
