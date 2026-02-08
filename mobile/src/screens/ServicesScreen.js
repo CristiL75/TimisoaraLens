@@ -27,11 +27,18 @@ export default function ServicesScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [myBookings, setMyBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
+  const [providerTables, setProviderTables] = useState([]);
 
   useEffect(() => {
     loadProviders();
     loadProviderBookings();
   }, []);
+
+  useEffect(() => {
+    if (myProvider?.id) {
+      loadProviderTables(myProvider.id);
+    }
+  }, [myProvider?.id]);
 
   const loadProviderBookings = async () => {
     setLoadingBookings(true);
@@ -44,6 +51,17 @@ export default function ServicesScreen({ navigation }) {
       // ignore
     } finally {
       setLoadingBookings(false);
+    }
+  };
+
+  const loadProviderTables = async (providerId) => {
+    try {
+      const result = await bookingsAPI.getTables(providerId);
+      if (result.success) {
+        setProviderTables(result.data || []);
+      }
+    } catch (e) {
+      // ignore
     }
   };
 
@@ -65,6 +83,17 @@ export default function ServicesScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const tableById = providerTables.reduce((acc, table) => {
+    acc[String(table.id)] = table;
+    return acc;
+  }, {});
+
+  const formatOccasion = (value) => {
+    if (!value) return '';
+    const label = value.replace(/_/g, ' ');
+    return label.charAt(0).toUpperCase() + label.slice(1);
   };
 
   const onRefresh = () => {
@@ -207,13 +236,23 @@ export default function ServicesScreen({ navigation }) {
                     <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
                     <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
                     <Paragraph>Email: {booking.customer_email}</Paragraph>
-                    <Paragraph>Preferință masă: {booking.table_preference}</Paragraph>
-                    <Paragraph>Ocazie specială: {booking.special_occasion}</Paragraph>
+                    {booking.table_id && tableById[String(booking.table_id)] && (
+                      <Paragraph>
+                        Masa: {tableById[String(booking.table_id)].name} • {tableById[String(booking.table_id)].seats} locuri
+                        {tableById[String(booking.table_id)].zone ? ` • ${tableById[String(booking.table_id)].zone}` : ''}
+                        {tableById[String(booking.table_id)].location ? ` • ${tableById[String(booking.table_id)].location}` : ''}
+                        {tableById[String(booking.table_id)].special_options?.length
+                          ? ` • ${tableById[String(booking.table_id)].special_options.join(', ')}`
+                          : ''}
+                      </Paragraph>
+                    )}
+                    {booking.special_occasion && (
+                      <Paragraph>Ocazie specială: {formatOccasion(booking.special_occasion)}</Paragraph>
+                    )}
                     <Paragraph>Adulți: {booking.party_adults} | Copii: {booking.party_children}</Paragraph>
                     {booking.notes && <Paragraph>Notițe: {booking.notes}</Paragraph>}
                   </Card.Content>
                   <Card.Actions>
-                    <Chip style={{ marginRight: 8 }}>{booking.status}</Chip>
                     <Button mode="contained" icon="check" style={{ backgroundColor: '#388e3c', marginRight: 8 }} onPress={async () => {
                       const result = await bookingsAPI.updateBookingStatus(booking.id, 'confirmed');
                       if (result.success) {
