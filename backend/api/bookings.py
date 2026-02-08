@@ -1,3 +1,4 @@
+from calendar_block import get_calendar_blocks_collection, CalendarBlock
 """
 Bookings API Router
 Handles restaurant/pub table reservations
@@ -485,6 +486,45 @@ async def list_tables(provider_id: str):
 
 # ============================================================
 # BOOKING ENDPOINTS
+@router.post("/calendar/block", status_code=201)
+async def block_provider_day(provider_id: str, date: str, reason: Optional[str] = None, current_user=Depends(get_current_user)):
+    """Block a day for a provider (fully booked/closed)"""
+    providers_col = get_providers_collection()
+    provider = await providers_col.find_one({"_id": ObjectId(provider_id)})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    # Only owner can block
+    if provider.get("user_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    calendar_blocks_col = get_calendar_blocks_collection()
+    block = CalendarBlock(provider_id=provider_id, date=date, reason=reason)
+    await calendar_blocks_col.insert_one(block.dict())
+    return {"success": True, "blocked": date}
+@router.get("/calendar/{provider_id}")
+async def get_provider_calendar(provider_id: str):
+    """Get blocked/full days for provider calendar"""
+    calendar_blocks_col = get_calendar_blocks_collection()
+    bookings_col = get_bookings_collection()
+    blocks = await calendar_blocks_col.find({"provider_id": provider_id}).to_list(100)
+    # Zile blocate explicit
+    result = {block["date"]: {"blocked": True, "reason": block.get("reason") or ""} for block in blocks}
+
+    # Zile complet ocupate (full)
+    # Pentru simplitate: dacă numărul de rezervări >= numărul de mese, ziua e full
+    # (poate fi ajustat pentru sloturi)
+    # Obține toate rezervările pentru provider
+    bookings = await bookings_col.find({"provider_id": provider_id}).to_list(1000)
+    # Grupare pe date
+    from collections import Counter
+    date_counts = Counter([b["booking_date"] for b in bookings])
+    # Obține numărul de mese
+    tables_col = get_tables_collection()
+    tables = await tables_col.find({"provider_id": ObjectId(provider_id), "status": "active"}).to_list(100)
+    num_tables = len(tables)
+    for date, count in date_counts.items():
+        if count >= num_tables and date not in result:
+            result[date] = {"full": True}
+    return result
 # ============================================================
 
 @router.post("/", response_model=BookingResponse, status_code=status.HTTP_201_CREATED)
