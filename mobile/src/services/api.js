@@ -1,33 +1,3 @@
-    /**
-     * Confirm or reject a booking (owner only)
-     */
-    updateBookingStatus: async (bookingId, status) => {
-      try {
-        const response = await api.patch(`/bookings/${bookingId}/status`, { status });
-        return { success: true, data: response.data };
-      } catch (error) {
-        console.error('[api] updateBookingStatus error:', formatAxiosError(error));
-        return {
-          success: false,
-          error: error.response?.data?.detail || error.message || 'Failed to update booking status',
-        };
-      }
-    },
-  /**
-   * Get bookings for all providers owned by current user
-   */
-  getProviderBookings: async () => {
-    try {
-      const response = await api.get('/bookings/provider-bookings');
-      return { success: true, data: response.data };
-    } catch (error) {
-      console.error('[api] getProviderBookings error:', formatAxiosError(error));
-      return {
-        success: false,
-        error: error.response?.data?.detail || error.message || 'Failed to get provider bookings',
-      };
-    }
-  },
 /**
  * API Service - Communication with Backend
  */
@@ -516,6 +486,38 @@ export const bookingsAPI = {
       return {
         success: false,
         error: error.response?.data?.detail || error.message || 'Failed to cancel booking',
+      };
+    }
+  },
+
+  /**
+   * Get bookings for all providers owned by current user
+   */
+  getProviderBookings: async () => {
+    try {
+      const response = await api.get('/bookings/provider-bookings');
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] getProviderBookings error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to get provider bookings',
+      };
+    }
+  },
+
+  /**
+   * Confirm or reject a booking (owner only)
+   */
+  updateBookingStatus: async (bookingId, status) => {
+    try {
+      const response = await api.patch(`/bookings/${bookingId}/status`, { status });
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] updateBookingStatus error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to update booking status',
       };
     }
   },
