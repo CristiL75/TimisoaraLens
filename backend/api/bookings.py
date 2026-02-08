@@ -127,7 +127,7 @@ class BookingResponse(BaseModel):
 
 # Confirm/Reject booking endpoint
 @router.patch("/{booking_id}/status")
-async def update_booking_status(booking_id: str, status: str = Body(...), current_user=Depends(get_current_user)):
+async def update_booking_status(booking_id: str, payload: dict = Body(...), current_user=Depends(get_current_user)):
     """Confirm or reject a booking (owner only)"""
     bookings_col = get_bookings_collection()
     providers_col = get_providers_collection()
@@ -138,6 +138,7 @@ async def update_booking_status(booking_id: str, status: str = Body(...), curren
     provider = await providers_col.find_one({"_id": ObjectId(booking["provider_id"])})
     if not provider or provider.get("user_id") != current_user["id"]:
         raise HTTPException(status_code=403, detail="Not authorized")
+    status = payload.get("status")
     if status not in ["confirmed", "rejected"]:
         raise HTTPException(status_code=400, detail="Invalid status")
 
