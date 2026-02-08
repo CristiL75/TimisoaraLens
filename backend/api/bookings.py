@@ -229,13 +229,6 @@ class AvailabilitySlot(BaseModel):
     tables_available: int
 
 
-class AvailabilityResponse(BaseModel):
-    """Availability check response"""
-    date: str
-    slots: List[AvailabilitySlot]
-    tables: List["TableAvailability"] = []
-
-
 class TableAvailability(BaseModel):
     """Per-table availability with time slots"""
     id: str
@@ -245,6 +238,13 @@ class TableAvailability(BaseModel):
     special_options: List[str] = []
     location: Optional[str] = None
     available_slots: List[str]
+
+
+class AvailabilityResponse(BaseModel):
+    """Availability check response"""
+    date: str
+    slots: List[AvailabilitySlot]
+    tables: List[TableAvailability] = []
 
 
 # =========================
