@@ -19,16 +19,32 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { bookingsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
-export default function ServicesScreen({ navigation }) {
   const { user } = useAuth();
   const [providers, setProviders] = useState([]);
   const [myProvider, setMyProvider] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [myBookings, setMyBookings] = useState([]);
+  const [loadingBookings, setLoadingBookings] = useState(false);
 
   useEffect(() => {
     loadProviders();
+    loadProviderBookings();
   }, []);
+
+  const loadProviderBookings = async () => {
+    setLoadingBookings(true);
+    try {
+      const result = await bookingsAPI.getProviderBookings();
+      if (result.success) {
+        setMyBookings(result.data);
+      }
+    } catch (e) {
+      // ignore
+    } finally {
+      setLoadingBookings(false);
+    }
+  };
 
   const loadProviders = async () => {
     try {
@@ -146,6 +162,54 @@ export default function ServicesScreen({ navigation }) {
               </Button>
             </Card.Actions>
           </Card>
+        )}
+
+        {/* Rezervări în curs pentru serviciile mele */}
+        {myProvider && (
+          <>
+            <Title style={styles.sectionTitle}>Rezervări în curs</Title>
+            {loadingBookings ? (
+              <ActivityIndicator size="small" color="#4CAF50" />
+            ) : myBookings.length === 0 ? (
+              <Text style={styles.emptyText}>Nu există rezervări în curs pentru serviciul tău.</Text>
+            ) : (
+              myBookings.filter(b => b.status === 'pending').map((booking) => (
+                <Card key={booking.id} style={styles.card}>
+                  <Card.Content>
+                    <Title>{booking.customer_name} ({booking.party_size} pers.)</Title>
+                    <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
+                    <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
+                    <Paragraph>Email: {booking.customer_email}</Paragraph>
+                    <Paragraph>Preferință masă: {booking.table_preference}</Paragraph>
+                    <Paragraph>Ocazie specială: {booking.special_occasion}</Paragraph>
+                    <Paragraph>Adulți: {booking.party_adults} | Copii: {booking.party_children}</Paragraph>
+                    {booking.notes && <Paragraph>Notițe: {booking.notes}</Paragraph>}
+                  </Card.Content>
+                  <Card.Actions>
+                    <Chip style={{ marginRight: 8 }}>{booking.status}</Chip>
+                    <Button mode="contained" icon="check" style={{ backgroundColor: '#388e3c', marginRight: 8 }} onPress={async () => {
+                      const result = await bookingsAPI.updateBookingStatus(booking.id, 'confirmed');
+                      if (result.success) {
+                        alert('Rezervarea a fost confirmată!');
+                        loadProviderBookings();
+                      } else {
+                        alert(result.error || 'Eroare la confirmare');
+                      }
+                    }}>Confirmă</Button>
+                    <Button mode="contained" icon="close" style={{ backgroundColor: '#d32f2f' }} onPress={async () => {
+                      const result = await bookingsAPI.updateBookingStatus(booking.id, 'rejected');
+                      if (result.success) {
+                        alert('Rezervarea a fost respinsă!');
+                        loadProviderBookings();
+                      } else {
+                        alert(result.error || 'Eroare la respingere');
+                      }
+                    }}>Respinge</Button>
+                  </Card.Actions>
+                </Card>
+              ))
+            )}
+          </>
         )}
 
         {/* All Providers */}

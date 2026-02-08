@@ -1,3 +1,56 @@
+from fastapi import Body
+# Confirm/Reject booking endpoint
+@router.patch("/bookings/{booking_id}/status")
+async def update_booking_status(booking_id: str, status: str = Body(...), current_user=Depends(get_current_user)):
+    """Confirm or reject a booking (owner only)"""
+    bookings_col = get_bookings_collection()
+    providers_col = get_providers_collection()
+    booking = await bookings_col.find_one({"_id": ObjectId(booking_id)})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    provider = await providers_col.find_one({"_id": ObjectId(booking["provider_id"])})
+    if not provider or provider.get("user_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if status not in ["confirmed", "rejected"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    await bookings_col.update_one({"_id": ObjectId(booking_id)}, {"$set": {"status": status}})
+    return {"success": True, "status": status}
+@router.get("/provider-bookings", response_model=List[BookingResponse])
+async def get_provider_bookings(current_user=Depends(get_current_user)):
+    """Return all bookings for services owned by current user"""
+    providers_col = get_providers_collection()
+    bookings_col = get_bookings_collection()
+    # Găsește toate serviciile deținute de user
+    providers = await providers_col.find({"user_id": current_user["id"]}).to_list(100)
+    provider_ids = [str(p["_id"]) for p in providers]
+    # Găsește rezervările pentru aceste servicii
+    bookings = await bookings_col.find({"provider_id": {"$in": provider_ids}}).to_list(200)
+    result = []
+    for b in bookings:
+        try:
+            booking = BookingResponse(
+                id=str(b["_id"]),
+                provider_id=str(b["provider_id"]),
+                table_id=str(b["table_id"]) if b.get("table_id") else None,
+                customer_name=b["customer_name"],
+                customer_email=b["customer_email"],
+                customer_phone=b["customer_phone"],
+                booking_date=b["booking_date"],
+                start_time=b["start_time"],
+                end_time=b["end_time"],
+                party_size=b["party_size"],
+                party_adults=b.get("party_adults", 0),
+                party_children=b.get("party_children", 0),
+                table_preference=b.get("table_preference", "fara_preferinta"),
+                special_occasion=b.get("special_occasion", "nicio_ocazie"),
+                notes=b.get("notes"),
+                status=b["status"],
+                created_at=b["created_at"].isoformat() if hasattr(b["created_at"], 'isoformat') else str(b["created_at"])
+            )
+            result.append(booking)
+        except Exception as e:
+            print(f"[ERROR] Skipping booking with _id={b.get('_id')} due to error: {e}")
+    return result
 from calendar_block import get_calendar_blocks_collection, CalendarBlock
 """
 Bookings API Router
@@ -32,7 +85,6 @@ router = APIRouter(tags=["Bookings"])
 class ProviderCreateRequest(BaseModel):
     """Request to create/update a provider"""
     category: str = "food_drinks"
-    reservation_type: str = "table_based"
     name: str
     email: EmailStr
     phone: str
@@ -52,7 +104,6 @@ class ProviderResponse(BaseModel):
     id: str
     user_id: Optional[str] = None
     category: str
-    reservation_type: str
     name: str
     email: str
     phone: str
@@ -226,7 +277,6 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
                 user_id=str(user_id_val) if user_id_val else "",
             listing_id=PyObjectId(request.listing_id) if request.listing_id else None,
             category=request.category,
-            reservation_type=request.reservation_type,
             name=request.name,
             email=request.email,
             phone=request.phone,
@@ -246,7 +296,6 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
             id=str(result.inserted_id),
             user_id=str(user_id_val) if user_id_val else None,
             category=provider.category,
-            reservation_type=provider.reservation_type,
             name=provider.name,
             email=provider.email,
             phone=provider.phone,
@@ -564,7 +613,7 @@ async def create_booking(request: BookingCreateRequest):
         table_preference=request.table_preference or "fara_preferinta",
         special_occasion=request.special_occasion or "nicio_ocazie",
         notes=request.notes,
-        status="confirmed" if provider["booking_settings"]["auto_confirm"] else "pending"
+        status="pending"
     )
     
     result = await bookings_col.insert_one(booking.model_dump(by_alias=True, exclude={"id"}))

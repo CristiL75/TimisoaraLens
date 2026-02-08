@@ -192,7 +192,6 @@ class BookingSettings(BaseModel):
     buffer_minutes: int = 15
     advance_booking_hours: int = 2  # Minimum hours before booking
     max_advance_days: int = 30  # Maximum days in advance
-    auto_confirm: bool = True  # Auto-confirm or require manual approval
 
 
 class Provider(BaseModel):
@@ -202,7 +201,6 @@ class Provider(BaseModel):
     listing_id: Optional[PyObjectId] = None  # Link to existing listing (optional)
     
     category: str = "food_drinks"  # ex: "food_drinks"
-    reservation_type: str = "table_based"  # ex: "table_based"
     name: str
     email: EmailStr
     phone: str

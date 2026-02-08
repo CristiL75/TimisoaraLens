@@ -41,6 +41,9 @@ export default function ProviderDetailScreen({ route, navigation }) {
         </Card>
         {isOwner && (
           <View style={styles.ownerActions}>
+            <Button mode="contained" icon="calendar" onPress={() => navigation.navigate('BookingCalendar', { provider })} style={styles.actionBtn}>
+              Calendar rezervări
+            </Button>
             <Button mode="contained" icon="pencil" onPress={() => navigation.navigate('ManageProvider', { provider })} style={styles.actionBtn}>
               Editează
             </Button>
