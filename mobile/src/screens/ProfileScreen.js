@@ -8,6 +8,7 @@ export default function ProfileScreen({ navigation }) {
   const { user } = useAuth();
   const [providers, setProviders] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [providerMap, setProviderMap] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,12 +17,20 @@ export default function ProfileScreen({ navigation }) {
 
   const loadProfileData = async () => {
     setLoading(true);
-    const [provRes, bookRes] = await Promise.all([
+    const [provRes, bookRes, allProvRes] = await Promise.all([
       bookingsAPI.getMyProviders(),
       bookingsAPI.getMyBookings(),
+      bookingsAPI.getProviders(),
     ]);
     setProviders(provRes.success ? provRes.data : []);
     setBookings(bookRes.success ? bookRes.data : []);
+    if (allProvRes.success) {
+      const map = allProvRes.data.reduce((acc, provider) => {
+        acc[String(provider.id)] = provider.name;
+        return acc;
+      }, {});
+      setProviderMap(map);
+    }
     setLoading(false);
   };
 
@@ -72,7 +81,9 @@ export default function ProfileScreen({ navigation }) {
             <Card key={booking.id} style={styles.card}>
               <Card.Content>
                 <Title>{booking.customer_name}</Title>
-                <Paragraph>Serviciu: {booking.provider_id}</Paragraph>
+                <Paragraph>
+                  Serviciu: {providerMap[String(booking.provider_id)] || 'Serviciu'}
+                </Paragraph>
                 <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
                 <Chip style={styles.chip}>{booking.status}</Chip>
               </Card.Content>
