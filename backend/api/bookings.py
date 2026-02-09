@@ -397,6 +397,8 @@ async def get_my_bookings(current_user=Depends(get_current_user)):
                 id=str(b["_id"]),
                 provider_id=str(b["provider_id"]),
                 table_id=str(b["table_id"]) if b.get("table_id") else None,
+                service_id=str(b.get("service_id")) if b.get("service_id") else None,
+                employee_id=str(b.get("employee_id")) if b.get("employee_id") else None,
                 customer_name=b["customer_name"],
                 customer_email=b["customer_email"],
                 customer_phone=b["customer_phone"],
@@ -404,9 +406,13 @@ async def get_my_bookings(current_user=Depends(get_current_user)):
                 start_time=b["start_time"],
                 end_time=b["end_time"],
                 party_size=b["party_size"],
+                party_adults=b.get("party_adults", 0),
+                party_children=b.get("party_children", 0),
+                table_preference=b.get("table_preference", "fara_preferinta"),
+                special_occasion=b.get("special_occasion", "nicio_ocazie"),
                 notes=b.get("notes"),
                 status=b["status"],
-                created_at=b["created_at"].isoformat()
+                created_at=b["created_at"].isoformat() if hasattr(b["created_at"], "isoformat") else str(b["created_at"])
             )
             result.append(booking)
         except Exception as e:
