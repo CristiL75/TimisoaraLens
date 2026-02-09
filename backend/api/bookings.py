@@ -13,9 +13,13 @@ from database_mongo import (
     get_providers_collection,
     get_tables_collection,
     get_bookings_collection,
+    get_services_collection,
+    get_employees_collection,
     Provider,
     Table,
     Booking,
+    Service,
+    Employee,
     BookingSettings,
     WorkingHours,
     PyObjectId,
@@ -87,6 +91,48 @@ class TableResponse(BaseModel):
     status: str
 
 
+class ServiceCreateRequest(BaseModel):
+    """Request to create a service"""
+    provider_id: str
+    name: str
+    duration_minutes: int
+    price: float
+    buffer_minutes: Optional[int] = None
+    category: Optional[str] = None
+
+
+class ServiceResponse(BaseModel):
+    """Service response"""
+    id: str
+    provider_id: str
+    name: str
+    duration_minutes: int
+    price: float
+    buffer_minutes: Optional[int] = None
+    category: Optional[str] = None
+    status: str
+
+
+class EmployeeCreateRequest(BaseModel):
+    """Request to create an employee"""
+    provider_id: str
+    name: str
+    role: Optional[str] = None
+    service_ids: List[str] = []
+    working_hours: List[WorkingHours] = []
+
+
+class EmployeeResponse(BaseModel):
+    """Employee response"""
+    id: str
+    provider_id: str
+    name: str
+    role: Optional[str] = None
+    service_ids: List[str] = []
+    working_hours: List[WorkingHours] = []
+    status: str
+
+
 class BookingCreateRequest(BaseModel):
     """Request to create a booking"""
     provider_id: str
@@ -103,6 +149,8 @@ class BookingCreateRequest(BaseModel):
     special_occasion: Optional[str] = "nicio_ocazie"  # "nicio_ocazie", "zi_de_nastere", "aniversare", "business"
     notes: Optional[str] = None
     table_id: Optional[str] = None
+    service_id: Optional[str] = None
+    employee_id: Optional[str] = None
 
 
 class BookingResponse(BaseModel):
@@ -110,6 +158,8 @@ class BookingResponse(BaseModel):
     id: str
     provider_id: str
     table_id: Optional[str]
+    service_id: Optional[str]
+    employee_id: Optional[str]
     customer_name: str
     customer_email: str
     customer_phone: str
@@ -204,6 +254,8 @@ async def get_provider_bookings(current_user=Depends(get_current_user)):
                 id=str(b["_id"]),
                 provider_id=str(b["provider_id"]),
                 table_id=str(b["table_id"]) if b.get("table_id") else None,
+                service_id=str(b.get("service_id")) if b.get("service_id") else None,
+                employee_id=str(b.get("employee_id")) if b.get("employee_id") else None,
                 customer_name=b["customer_name"],
                 customer_email=b["customer_email"],
                 customer_phone=b["customer_phone"],
@@ -637,6 +689,307 @@ async def delete_table(table_id: str, current_user: dict = Depends(get_current_u
 
 
 # ============================================================
+# SERVICES & EMPLOYEES ENDPOINTS (appointment-based)
+
+@router.post("/services", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED)
+async def create_service(request: ServiceCreateRequest, current_user: dict = Depends(get_current_user)):
+    """Create a new service for a provider"""
+    providers_col = get_providers_collection()
+    services_col = get_services_collection()
+
+    if not ObjectId.is_valid(request.provider_id):
+        raise HTTPException(status_code=400, detail="Invalid provider ID")
+
+    provider = await providers_col.find_one({"_id": ObjectId(request.provider_id)})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    if str(provider.get("user_id")) != str(current_user.get("id")):
+        raise HTTPException(status_code=403, detail="Not authorized to manage this provider")
+
+    if request.duration_minutes <= 0 or request.duration_minutes > 240:
+        raise HTTPException(status_code=400, detail="Invalid duration")
+
+    service = Service(
+        provider_id=PyObjectId(request.provider_id),
+        name=request.name,
+        duration_minutes=request.duration_minutes,
+        price=request.price,
+        buffer_minutes=request.buffer_minutes,
+        category=request.category,
+        status="active"
+    )
+
+    result = await services_col.insert_one(service.model_dump(by_alias=True, exclude={"id"}))
+
+    return ServiceResponse(
+        id=str(result.inserted_id),
+        provider_id=request.provider_id,
+        name=service.name,
+        duration_minutes=service.duration_minutes,
+        price=service.price,
+        buffer_minutes=service.buffer_minutes,
+        category=service.category,
+        status=service.status
+    )
+
+
+@router.get("/services/{provider_id}", response_model=List[ServiceResponse])
+async def list_services(provider_id: str):
+    """List all services for a provider"""
+    services_col = get_services_collection()
+
+    if not ObjectId.is_valid(provider_id):
+        raise HTTPException(status_code=400, detail="Invalid provider ID")
+
+    provider_oid = ObjectId(provider_id)
+    services = await services_col.find(
+        {"provider_id": {"$in": [provider_oid, provider_id]}, "status": "active"}
+    ).to_list(200)
+
+    return [
+        ServiceResponse(
+            id=str(s["_id"]),
+            provider_id=str(s["provider_id"]),
+            name=s["name"],
+            duration_minutes=s["duration_minutes"],
+            price=s["price"],
+            buffer_minutes=s.get("buffer_minutes"),
+            category=s.get("category"),
+            status=s.get("status", "active")
+        )
+        for s in services
+    ]
+
+
+@router.put("/services/{service_id}", response_model=ServiceResponse)
+async def update_service(service_id: str, request: ServiceCreateRequest, current_user: dict = Depends(get_current_user)):
+    """Update a service"""
+    providers_col = get_providers_collection()
+    services_col = get_services_collection()
+
+    if not ObjectId.is_valid(service_id) or not ObjectId.is_valid(request.provider_id):
+        raise HTTPException(status_code=400, detail="Invalid ID")
+
+    provider = await providers_col.find_one({"_id": ObjectId(request.provider_id)})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    if str(provider.get("user_id")) != str(current_user.get("id")):
+        raise HTTPException(status_code=403, detail="Not authorized to manage this provider")
+
+    await services_col.update_one(
+        {"_id": ObjectId(service_id)},
+        {"$set": {
+            "name": request.name,
+            "duration_minutes": request.duration_minutes,
+            "price": request.price,
+            "buffer_minutes": request.buffer_minutes,
+            "category": request.category,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+
+    updated = await services_col.find_one({"_id": ObjectId(service_id)})
+    if not updated:
+        raise HTTPException(status_code=404, detail="Service not found")
+
+    return ServiceResponse(
+        id=str(updated["_id"]),
+        provider_id=str(updated["provider_id"]),
+        name=updated["name"],
+        duration_minutes=updated["duration_minutes"],
+        price=updated["price"],
+        buffer_minutes=updated.get("buffer_minutes"),
+        category=updated.get("category"),
+        status=updated.get("status", "active")
+    )
+
+
+@router.delete("/services/{service_id}")
+async def delete_service(service_id: str, current_user: dict = Depends(get_current_user)):
+    """Deactivate a service"""
+    providers_col = get_providers_collection()
+    services_col = get_services_collection()
+
+    if not ObjectId.is_valid(service_id):
+        raise HTTPException(status_code=400, detail="Invalid service ID")
+
+    service = await services_col.find_one({"_id": ObjectId(service_id)})
+    if not service:
+        raise HTTPException(status_code=404, detail="Service not found")
+
+    provider_id = service.get("provider_id")
+    provider_oid = provider_id if isinstance(provider_id, ObjectId) else ObjectId(str(provider_id))
+    provider = await providers_col.find_one({"_id": provider_oid})
+    if not provider or str(provider.get("user_id")) != str(current_user.get("id")):
+        raise HTTPException(status_code=403, detail="Not authorized to manage this provider")
+
+    await services_col.update_one(
+        {"_id": ObjectId(service_id)},
+        {"$set": {"status": "inactive"}}
+    )
+
+    return Response(status_code=204)
+
+
+@router.post("/employees", response_model=EmployeeResponse, status_code=status.HTTP_201_CREATED)
+async def create_employee(request: EmployeeCreateRequest, current_user: dict = Depends(get_current_user)):
+    """Create a new employee for a provider"""
+    providers_col = get_providers_collection()
+    services_col = get_services_collection()
+    employees_col = get_employees_collection()
+
+    if not ObjectId.is_valid(request.provider_id):
+        raise HTTPException(status_code=400, detail="Invalid provider ID")
+
+    provider = await providers_col.find_one({"_id": ObjectId(request.provider_id)})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    if str(provider.get("user_id")) != str(current_user.get("id")):
+        raise HTTPException(status_code=403, detail="Not authorized to manage this provider")
+
+    valid_service_ids = []
+    for service_id in request.service_ids:
+        if ObjectId.is_valid(service_id):
+            service = await services_col.find_one({
+                "_id": ObjectId(service_id),
+                "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
+                "status": "active"
+            })
+            if service:
+                valid_service_ids.append(PyObjectId(service_id))
+
+    working_hours = request.working_hours or provider.get("working_hours", [])
+
+    employee = Employee(
+        provider_id=PyObjectId(request.provider_id),
+        name=request.name,
+        role=request.role,
+        service_ids=valid_service_ids,
+        working_hours=working_hours,
+        status="active"
+    )
+
+    result = await employees_col.insert_one(employee.model_dump(by_alias=True, exclude={"id"}))
+
+    return EmployeeResponse(
+        id=str(result.inserted_id),
+        provider_id=request.provider_id,
+        name=employee.name,
+        role=employee.role,
+        service_ids=[str(sid) for sid in employee.service_ids],
+        working_hours=employee.working_hours,
+        status=employee.status
+    )
+
+
+@router.get("/employees/{provider_id}", response_model=List[EmployeeResponse])
+async def list_employees(provider_id: str):
+    """List all employees for a provider"""
+    employees_col = get_employees_collection()
+
+    if not ObjectId.is_valid(provider_id):
+        raise HTTPException(status_code=400, detail="Invalid provider ID")
+
+    provider_oid = ObjectId(provider_id)
+    employees = await employees_col.find(
+        {"provider_id": {"$in": [provider_oid, provider_id]}, "status": "active"}
+    ).to_list(200)
+
+    return [
+        EmployeeResponse(
+            id=str(e["_id"]),
+            provider_id=str(e["provider_id"]),
+            name=e["name"],
+            role=e.get("role"),
+            service_ids=[str(sid) for sid in e.get("service_ids", [])],
+            working_hours=[WorkingHours(**wh) if isinstance(wh, dict) else wh for wh in e.get("working_hours", [])],
+            status=e.get("status", "active")
+        )
+        for e in employees
+    ]
+
+
+@router.put("/employees/{employee_id}", response_model=EmployeeResponse)
+async def update_employee(employee_id: str, request: EmployeeCreateRequest, current_user: dict = Depends(get_current_user)):
+    """Update an employee"""
+    providers_col = get_providers_collection()
+    services_col = get_services_collection()
+    employees_col = get_employees_collection()
+
+    if not ObjectId.is_valid(employee_id) or not ObjectId.is_valid(request.provider_id):
+        raise HTTPException(status_code=400, detail="Invalid ID")
+
+    provider = await providers_col.find_one({"_id": ObjectId(request.provider_id)})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    if str(provider.get("user_id")) != str(current_user.get("id")):
+        raise HTTPException(status_code=403, detail="Not authorized to manage this provider")
+
+    valid_service_ids = []
+    for service_id in request.service_ids:
+        if ObjectId.is_valid(service_id):
+            service = await services_col.find_one({
+                "_id": ObjectId(service_id),
+                "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
+                "status": "active"
+            })
+            if service:
+                valid_service_ids.append(PyObjectId(service_id))
+
+    await employees_col.update_one(
+        {"_id": ObjectId(employee_id)},
+        {"$set": {
+            "name": request.name,
+            "role": request.role,
+            "service_ids": valid_service_ids,
+            "working_hours": [wh.model_dump() if hasattr(wh, "model_dump") else wh for wh in request.working_hours],
+            "updated_at": datetime.utcnow()
+        }}
+    )
+
+    updated = await employees_col.find_one({"_id": ObjectId(employee_id)})
+    if not updated:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    return EmployeeResponse(
+        id=str(updated["_id"]),
+        provider_id=str(updated["provider_id"]),
+        name=updated["name"],
+        role=updated.get("role"),
+        service_ids=[str(sid) for sid in updated.get("service_ids", [])],
+        working_hours=[WorkingHours(**wh) if isinstance(wh, dict) else wh for wh in updated.get("working_hours", [])],
+        status=updated.get("status", "active")
+    )
+
+
+@router.delete("/employees/{employee_id}")
+async def delete_employee(employee_id: str, current_user: dict = Depends(get_current_user)):
+    """Deactivate an employee"""
+    providers_col = get_providers_collection()
+    employees_col = get_employees_collection()
+
+    if not ObjectId.is_valid(employee_id):
+        raise HTTPException(status_code=400, detail="Invalid employee ID")
+
+    employee = await employees_col.find_one({"_id": ObjectId(employee_id)})
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    provider_id = employee.get("provider_id")
+    provider_oid = provider_id if isinstance(provider_id, ObjectId) else ObjectId(str(provider_id))
+    provider = await providers_col.find_one({"_id": provider_oid})
+    if not provider or str(provider.get("user_id")) != str(current_user.get("id")):
+        raise HTTPException(status_code=403, detail="Not authorized to manage this provider")
+
+    await employees_col.update_one(
+        {"_id": ObjectId(employee_id)},
+        {"$set": {"status": "inactive"}}
+    )
+
+    return Response(status_code=204)
+
+
+# ============================================================
 # BOOKING ENDPOINTS
 @router.post("/calendar/block", status_code=201)
 async def block_provider_day(provider_id: str, date: str, reason: Optional[str] = None, current_user=Depends(get_current_user)):
@@ -694,39 +1047,78 @@ async def create_booking(request: BookingCreateRequest):
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
     
-    # Calculate end time based on selected duration or provider settings
-    duration = request.duration_minutes or provider["booking_settings"]["default_duration_minutes"]
-    if duration <= 0 or duration > 180:
-        raise HTTPException(status_code=400, detail="Invalid duration")
-    start_dt = datetime.strptime(f"{request.booking_date} {request.start_time}", "%Y-%m-%d %H:%M")
-    end_dt = start_dt + timedelta(minutes=duration)
-    end_time = end_dt.strftime("%H:%M")
+    booking_type = provider.get("booking_settings", {}).get("type", "table_based")
 
-    # Validate selected table if provided
-    if request.table_id:
-        if not ObjectId.is_valid(request.table_id):
-            raise HTTPException(status_code=400, detail="Invalid table ID")
+    if booking_type == "appointment_based":
+        services_col = get_services_collection()
+        employees_col = get_employees_collection()
 
-        table = await tables_col.find_one({
-            "_id": ObjectId(request.table_id),
+        if not request.service_id or not request.employee_id:
+            raise HTTPException(status_code=400, detail="Service and employee are required")
+
+        if not ObjectId.is_valid(request.service_id) or not ObjectId.is_valid(request.employee_id):
+            raise HTTPException(status_code=400, detail="Invalid service or employee ID")
+
+        service = await services_col.find_one({
+            "_id": ObjectId(request.service_id),
             "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
             "status": "active"
         })
-        if not table:
-            raise HTTPException(status_code=404, detail="Table not found")
+        if not service:
+            raise HTTPException(status_code=404, detail="Service not found")
 
-        if table.get("seats", 0) < request.party_size:
-            raise HTTPException(status_code=400, detail="Table does not fit party size")
-
-        # Check table availability for the selected time
-        existing_table_bookings = await bookings_col.find({
+        employee = await employees_col.find_one({
+            "_id": ObjectId(request.employee_id),
             "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
-            "table_id": {"$in": [ObjectId(request.table_id), request.table_id]},
+            "status": "active"
+        })
+        if not employee:
+            raise HTTPException(status_code=404, detail="Employee not found")
+
+        service_id_str = str(service["_id"])
+        employee_services = [str(sid) for sid in employee.get("service_ids", [])]
+        if service_id_str not in employee_services:
+            raise HTTPException(status_code=400, detail="Employee does not offer this service")
+
+        duration = int(service.get("duration_minutes", 0))
+        buffer_minutes = service.get("buffer_minutes")
+        if buffer_minutes is None:
+            buffer_minutes = provider.get("booking_settings", {}).get("buffer_minutes", 0)
+
+        if duration <= 0 or duration > 240:
+            raise HTTPException(status_code=400, detail="Invalid service duration")
+
+        start_dt = datetime.strptime(f"{request.booking_date} {request.start_time}", "%Y-%m-%d %H:%M")
+        end_dt = start_dt + timedelta(minutes=duration)
+        end_with_buffer = end_dt + timedelta(minutes=int(buffer_minutes or 0))
+        end_time = end_dt.strftime("%H:%M")
+
+        day_name = start_dt.strftime("%A").lower()
+        working_day = next((wh for wh in employee.get("working_hours", []) if wh.get("day") == day_name), None)
+        if not working_day or working_day.get("is_closed"):
+            raise HTTPException(status_code=400, detail="Employee is not available on this day")
+
+        open_time = datetime.strptime(working_day["open_time"], "%H:%M").time()
+        close_time = datetime.strptime(working_day["close_time"], "%H:%M").time()
+        if not (open_time <= start_dt.time() and end_dt.time() <= close_time):
+            raise HTTPException(status_code=400, detail="Time is outside working hours")
+
+        break_start = working_day.get("break_start")
+        break_end = working_day.get("break_end")
+        if break_start and break_end:
+            break_start_dt = datetime.combine(start_dt.date(), datetime.strptime(break_start, "%H:%M").time())
+            break_end_dt = datetime.combine(start_dt.date(), datetime.strptime(break_end, "%H:%M").time())
+            if break_start_dt < end_dt and start_dt < break_end_dt:
+                raise HTTPException(status_code=400, detail="Time overlaps employee break")
+
+        existing_employee_bookings = await bookings_col.find({
+            "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
+            "employee_id": {"$in": [ObjectId(request.employee_id), request.employee_id]},
             "booking_date": request.booking_date,
             "status": "confirmed"
         }).to_list(1000)
 
-        for booking in existing_table_bookings:
+        for booking in existing_employee_bookings:
             existing_start = datetime.strptime(
                 f"{booking['booking_date']} {booking['start_time']}",
                 "%Y-%m-%d %H:%M"
@@ -735,14 +1127,61 @@ async def create_booking(request: BookingCreateRequest):
                 f"{booking['booking_date']} {booking['end_time']}",
                 "%Y-%m-%d %H:%M"
             )
-            if start_dt < existing_end and end_dt > existing_start:
-                raise HTTPException(status_code=409, detail="Table already booked for this time")
+            existing_end_with_buffer = existing_end + timedelta(minutes=int(buffer_minutes or 0))
+            if existing_start < end_with_buffer and start_dt < existing_end_with_buffer:
+                raise HTTPException(status_code=409, detail="Employee already booked for this time")
+    else:
+        # Calculate end time based on selected duration or provider settings
+        duration = request.duration_minutes or provider["booking_settings"]["default_duration_minutes"]
+        if duration <= 0 or duration > 180:
+            raise HTTPException(status_code=400, detail="Invalid duration")
+        start_dt = datetime.strptime(f"{request.booking_date} {request.start_time}", "%Y-%m-%d %H:%M")
+        end_dt = start_dt + timedelta(minutes=duration)
+        end_time = end_dt.strftime("%H:%M")
+
+        # Validate selected table if provided
+        if request.table_id:
+            if not ObjectId.is_valid(request.table_id):
+                raise HTTPException(status_code=400, detail="Invalid table ID")
+
+            table = await tables_col.find_one({
+                "_id": ObjectId(request.table_id),
+                "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
+                "status": "active"
+            })
+            if not table:
+                raise HTTPException(status_code=404, detail="Table not found")
+
+            if table.get("seats", 0) < request.party_size:
+                raise HTTPException(status_code=400, detail="Table does not fit party size")
+
+            # Check table availability for the selected time
+            existing_table_bookings = await bookings_col.find({
+                "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
+                "table_id": {"$in": [ObjectId(request.table_id), request.table_id]},
+                "booking_date": request.booking_date,
+                "status": "confirmed"
+            }).to_list(1000)
+
+            for booking in existing_table_bookings:
+                existing_start = datetime.strptime(
+                    f"{booking['booking_date']} {booking['start_time']}",
+                    "%Y-%m-%d %H:%M"
+                )
+                existing_end = datetime.strptime(
+                    f"{booking['booking_date']} {booking['end_time']}",
+                    "%Y-%m-%d %H:%M"
+                )
+                if start_dt < existing_end and end_dt > existing_start:
+                    raise HTTPException(status_code=409, detail="Table already booked for this time")
     
     # TODO: Check availability before confirming
     
     booking = Booking(
         provider_id=PyObjectId(request.provider_id),
         table_id=PyObjectId(request.table_id) if request.table_id else None,
+        service_id=PyObjectId(request.service_id) if request.service_id else None,
+        employee_id=PyObjectId(request.employee_id) if request.employee_id else None,
         customer_name=request.customer_name,
         customer_email=request.customer_email,
         customer_phone=request.customer_phone,
@@ -766,6 +1205,8 @@ async def create_booking(request: BookingCreateRequest):
         id=str(result.inserted_id),
         provider_id=str(booking.provider_id),
         table_id=str(booking.table_id) if booking.table_id else None,
+        service_id=str(booking.service_id) if booking.service_id else None,
+        employee_id=str(booking.employee_id) if booking.employee_id else None,
         customer_name=booking.customer_name,
         customer_email=booking.customer_email,
         customer_phone=booking.customer_phone,
@@ -789,12 +1230,16 @@ async def check_availability(
     date: str,
     party_size: int,
     start_time: Optional[str] = None,
-    duration_minutes: Optional[int] = None
+    duration_minutes: Optional[int] = None,
+    service_id: Optional[str] = None,
+    employee_id: Optional[str] = None
 ):
     """Check availability for a specific date and party size"""
     providers_col = get_providers_collection()
     tables_col = get_tables_collection()
     bookings_col = get_bookings_collection()
+    services_col = get_services_collection()
+    employees_col = get_employees_collection()
     
     if not ObjectId.is_valid(provider_id):
         raise HTTPException(status_code=400, detail="Invalid provider ID")
@@ -802,6 +1247,106 @@ async def check_availability(
     provider = await providers_col.find_one({"_id": ObjectId(provider_id)})
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
+
+    booking_type = provider.get("booking_settings", {}).get("type", "table_based")
+
+    if booking_type == "appointment_based":
+        if not service_id or not employee_id:
+            raise HTTPException(status_code=400, detail="Service and employee are required")
+
+        if not ObjectId.is_valid(service_id) or not ObjectId.is_valid(employee_id):
+            raise HTTPException(status_code=400, detail="Invalid service or employee ID")
+
+        service = await services_col.find_one({
+            "_id": ObjectId(service_id),
+            "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
+            "status": "active"
+        })
+        if not service:
+            raise HTTPException(status_code=404, detail="Service not found")
+
+        employee = await employees_col.find_one({
+            "_id": ObjectId(employee_id),
+            "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
+            "status": "active"
+        })
+        if not employee:
+            raise HTTPException(status_code=404, detail="Employee not found")
+
+        employee_services = [str(sid) for sid in employee.get("service_ids", [])]
+        if str(service["_id"]) not in employee_services:
+            raise HTTPException(status_code=400, detail="Employee does not offer this service")
+
+        duration = int(service.get("duration_minutes", 0))
+        buffer_minutes = service.get("buffer_minutes")
+        if buffer_minutes is None:
+            buffer_minutes = provider.get("booking_settings", {}).get("buffer_minutes", 0)
+
+        if duration <= 0 or duration > 240:
+            raise HTTPException(status_code=400, detail="Invalid duration")
+
+        date_obj = datetime.strptime(date, "%Y-%m-%d")
+        day_name = date_obj.strftime("%A").lower()
+        working_day = next((wh for wh in employee.get("working_hours", []) if wh.get("day") == day_name), None)
+        if not working_day or working_day.get("is_closed"):
+            return AvailabilityResponse(date=date, slots=[], tables=[])
+
+        open_time = datetime.strptime(working_day["open_time"], "%H:%M")
+        close_time = datetime.strptime(working_day["close_time"], "%H:%M")
+
+        break_start = working_day.get("break_start")
+        break_end = working_day.get("break_end")
+        break_start_dt = None
+        break_end_dt = None
+        if break_start and break_end:
+            break_start_dt = datetime.combine(date_obj.date(), datetime.strptime(break_start, "%H:%M").time())
+            break_end_dt = datetime.combine(date_obj.date(), datetime.strptime(break_end, "%H:%M").time())
+
+        existing_bookings = await bookings_col.find({
+            "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
+            "employee_id": {"$in": [ObjectId(employee_id), employee_id]},
+            "booking_date": date,
+            "status": "confirmed"
+        }).to_list(1000)
+
+        def is_employee_free(slot_start_dt: datetime, slot_end_dt: datetime) -> bool:
+            slot_end_with_buffer = slot_end_dt + timedelta(minutes=int(buffer_minutes or 0))
+            if break_start_dt and break_end_dt:
+                if break_start_dt < slot_end_dt and slot_start_dt < break_end_dt:
+                    return False
+            for booking in existing_bookings:
+                existing_start = datetime.strptime(
+                    f"{booking['booking_date']} {booking['start_time']}",
+                    "%Y-%m-%d %H:%M"
+                )
+                existing_end = datetime.strptime(
+                    f"{booking['booking_date']} {booking['end_time']}",
+                    "%Y-%m-%d %H:%M"
+                )
+                existing_end_with_buffer = existing_end + timedelta(minutes=int(buffer_minutes or 0))
+                if existing_start < slot_end_with_buffer and slot_start_dt < existing_end_with_buffer:
+                    return False
+            return True
+
+        slots = []
+        step_minutes = duration
+        current_time = open_time
+        while current_time + timedelta(minutes=duration) <= close_time:
+            slot_start_dt = datetime.combine(date_obj.date(), current_time.time())
+            slot_end_dt = slot_start_dt + timedelta(minutes=duration)
+            available = is_employee_free(slot_start_dt, slot_end_dt)
+            slot_label = current_time.strftime("%H:%M")
+            if start_time and slot_label != start_time:
+                current_time += timedelta(minutes=step_minutes)
+                continue
+            slots.append(AvailabilitySlot(
+                time=slot_label,
+                available=available,
+                tables_available=1 if available else 0
+            ))
+            current_time += timedelta(minutes=step_minutes)
+
+        return AvailabilityResponse(date=date, slots=slots, tables=[])
     
     # Get all tables that can accommodate party size
     # Accept both ObjectId and string-stored provider_id values to be robust
@@ -960,6 +1505,8 @@ async def get_booking(booking_id: str):
         id=str(booking["_id"]),
         provider_id=str(booking["provider_id"]),
         table_id=str(booking["table_id"]) if booking.get("table_id") else None,
+        service_id=str(booking.get("service_id")) if booking.get("service_id") else None,
+        employee_id=str(booking.get("employee_id")) if booking.get("employee_id") else None,
         customer_name=booking["customer_name"],
         customer_email=booking["customer_email"],
         customer_phone=booking["customer_phone"],

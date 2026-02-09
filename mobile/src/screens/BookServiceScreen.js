@@ -22,13 +22,26 @@ export default function BookServiceScreen({ navigation, route }) {
   const { provider } = route.params;
   const { user } = useAuth();
 
+  const isAppointment = provider?.booking_settings?.type === 'appointment_based';
+
   const [loading, setLoading] = useState(false);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [availability, setAvailability] = useState(null);
   const [tables, setTables] = useState([]);
   const [loadingTables, setLoadingTables] = useState(false);
   const [selectedTableId, setSelectedTableId] = useState(null);
+  const [services, setServices] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [loadingServices, setLoadingServices] = useState(false);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [selectedServiceId, setSelectedServiceId] = useState(null);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const selectedTable = (availability?.tables || tables).find((t) => t.id === selectedTableId) || null;
+  const selectedService = services.find((s) => s.id === selectedServiceId) || null;
+  const selectedEmployee = employees.find((e) => e.id === selectedEmployeeId) || null;
+  const filteredEmployees = selectedServiceId
+    ? employees.filter((e) => (e.service_ids || []).includes(selectedServiceId))
+    : employees;
   const hasAnyAvailability = availability
     ? (availability.slots || []).some((slot) => slot.available) ||
       (availability.tables || []).some(
@@ -65,6 +78,14 @@ export default function BookServiceScreen({ navigation, route }) {
   }, []);
 
   useEffect(() => {
+    if (provider?.booking_settings?.type === 'appointment_based') {
+      setPartySize('1');
+      setPartyAdults('1');
+      setPartyChildren('0');
+    }
+  }, [provider]);
+
+  useEffect(() => {
     const loadTables = async () => {
       setLoadingTables(true);
       try {
@@ -85,6 +106,34 @@ export default function BookServiceScreen({ navigation, route }) {
   }, [provider]);
 
   useEffect(() => {
+    const loadServicesAndEmployees = async () => {
+      setLoadingServices(true);
+      setLoadingEmployees(true);
+      try {
+        const [servicesRes, employeesRes] = await Promise.all([
+          bookingsAPI.getServices(provider.id),
+          bookingsAPI.getEmployees(provider.id),
+        ]);
+        if (servicesRes.success) {
+          setServices(servicesRes.data || []);
+        }
+        if (employeesRes.success) {
+          setEmployees(employeesRes.data || []);
+        }
+      } catch (error) {
+        // ignore
+      } finally {
+        setLoadingServices(false);
+        setLoadingEmployees(false);
+      }
+    };
+
+    if (provider?.booking_settings?.type === 'appointment_based') {
+      loadServicesAndEmployees();
+    }
+  }, [provider]);
+
+  useEffect(() => {
     const partySizeValue = parseInt(partySize || '0', 10);
     if (!selectedTableId || !partySizeValue) return;
     const selected = tables.find((t) => t.id === selectedTableId);
@@ -93,34 +142,52 @@ export default function BookServiceScreen({ navigation, route }) {
     }
   }, [partySize, selectedTableId, tables]);
 
-  const handleCheckAvailability = async () => {
-    if (!bookingDate || !partySize || !selectedTime || !durationMinutes) {
-      Alert.alert('Eroare', 'Selectează data, ora și durata');
-      return;
+  useEffect(() => {
+    if (provider?.booking_settings?.type === 'appointment_based' && selectedService) {
+      setDurationMinutes(String(selectedService.duration_minutes || 0));
     }
+  }, [provider, selectedService]);
 
-    const durationValue = parseInt(durationMinutes, 10);
-    if (!durationValue || durationValue <= 0 || durationValue > 180) {
-      Alert.alert('Eroare', 'Durata trebuie sa fie intre 1 si 180 minute');
-      return;
+  const handleCheckAvailability = async () => {
+    const isAppointment = provider?.booking_settings?.type === 'appointment_based';
+    if (isAppointment) {
+      if (!bookingDate || !selectedServiceId || !selectedEmployeeId) {
+        Alert.alert('Eroare', 'Selectează data, serviciul și angajatul');
+        return;
+      }
+    } else {
+      if (!bookingDate || !partySize || !selectedTime || !durationMinutes) {
+        Alert.alert('Eroare', 'Selectează data, ora și durata');
+        return;
+      }
+
+      const durationValue = parseInt(durationMinutes, 10);
+      if (!durationValue || durationValue <= 0 || durationValue > 180) {
+        Alert.alert('Eroare', 'Durata trebuie sa fie intre 1 si 180 minute');
+        return;
+      }
     }
 
     setCheckingAvailability(true);
     setSelectedTableId(null);
+    setAvailability(null);
 
     try {
+      const durationValue = parseInt(durationMinutes, 10);
       const result = await bookingsAPI.checkAvailability(
         provider.id,
         bookingDate,
         parseInt(partySize),
-        selectedTime,
-        durationValue
+        isAppointment ? null : selectedTime,
+        isAppointment ? null : durationValue,
+        isAppointment ? selectedServiceId : null,
+        isAppointment ? selectedEmployeeId : null
       );
 
       if (result.success) {
         setAvailability(result.data);
         if (result.data.slots.filter(s => s.available).length === 0) {
-          Alert.alert('Info', 'Nu există sloturi disponibile pentru această dată și număr de persoane');
+          Alert.alert('Info', 'Nu există sloturi disponibile pentru această dată');
         }
       } else {
         Alert.alert('Eroare', result.error);
@@ -134,19 +201,27 @@ export default function BookServiceScreen({ navigation, route }) {
 
   const handleBooking = async () => {
     const requiresTable = provider?.booking_settings?.type === 'table_based';
-    if (!customerName || !customerEmail || !customerPhone || !selectedTime || !durationMinutes) {
+    const isAppointment = provider?.booking_settings?.type === 'appointment_based';
+    if (!customerName || !customerEmail || !customerPhone || !selectedTime || (!isAppointment && !durationMinutes)) {
       Alert.alert('Eroare', 'Completează toate câmpurile și alege un slot orar');
       return;
     }
 
     const durationValue = parseInt(durationMinutes, 10);
-    if (!durationValue || durationValue <= 0 || durationValue > 180) {
-      Alert.alert('Eroare', 'Durata trebuie sa fie intre 1 si 180 minute');
-      return;
+    if (!isAppointment) {
+      if (!durationValue || durationValue <= 0 || durationValue > 180) {
+        Alert.alert('Eroare', 'Durata trebuie sa fie intre 1 si 180 minute');
+        return;
+      }
     }
 
     if (requiresTable && !selectedTableId) {
       Alert.alert('Eroare', 'Selectează o masă pentru rezervare');
+      return;
+    }
+
+    if (isAppointment && (!selectedServiceId || !selectedEmployeeId)) {
+      Alert.alert('Eroare', 'Selectează serviciul și angajatul');
       return;
     }
 
@@ -155,12 +230,14 @@ export default function BookServiceScreen({ navigation, route }) {
     const bookingData = {
       provider_id: provider.id,
       table_id: selectedTableId || null,
+      service_id: isAppointment ? selectedServiceId : null,
+      employee_id: isAppointment ? selectedEmployeeId : null,
       customer_name: customerName,
       customer_email: customerEmail,
       customer_phone: customerPhone,
       booking_date: bookingDate,
       start_time: selectedTime,
-      duration_minutes: durationValue,
+      duration_minutes: isAppointment ? null : durationValue,
       party_size: parseInt(partySize),
       party_adults: parseInt(partyAdults),
       party_children: parseInt(partyChildren),
@@ -171,11 +248,14 @@ export default function BookServiceScreen({ navigation, route }) {
     try {
       const result = await bookingsAPI.createBooking(bookingData);
       if (result.success) {
+        const priceLine = isAppointment && selectedService?.price != null
+          ? ` Pret: ${selectedService.price} lei.`
+          : '';
         Alert.alert(
           'Rezervare Confirmată!',
           `Rezervarea ta la ${provider.name} pentru ${bookingDate} la ${selectedTime} a fost ${
             provider.booking_settings.auto_confirm ? 'confirmată' : 'înregistrată și așteaptă confirmare'
-          }.`,
+          }.${priceLine}`,
           [
             {
               text: 'OK',
@@ -269,6 +349,60 @@ export default function BookServiceScreen({ navigation, route }) {
               style={styles.input}
               placeholder="YYYY-MM-DD"
             />
+            {isAppointment && (
+              <View style={{ marginBottom: 12 }}>
+                <Text style={styles.slotsTitle}>Serviciu</Text>
+                {loadingServices ? (
+                  <ActivityIndicator size="small" color="#4CAF50" />
+                ) : services.length === 0 ? (
+                  <Text style={styles.emptyText}>Nu exista servicii disponibile.</Text>
+                ) : (
+                  <View style={styles.slotsGrid}>
+                    {services.map((service) => (
+                      <Chip
+                        key={service.id}
+                        selected={selectedServiceId === service.id}
+                        onPress={() => {
+                          setSelectedServiceId(service.id);
+                          setSelectedEmployeeId(null);
+                          setSelectedTime('');
+                          setAvailability(null);
+                        }}
+                        mode="outlined"
+                        style={styles.slotChip}
+                      >
+                        {service.name} ({service.duration_minutes} min)
+                      </Chip>
+                    ))}
+                  </View>
+                )}
+
+                <Text style={[styles.slotsTitle, { marginTop: 12 }]}>Angajat</Text>
+                {loadingEmployees ? (
+                  <ActivityIndicator size="small" color="#4CAF50" />
+                ) : filteredEmployees.length === 0 ? (
+                  <Text style={styles.emptyText}>Nu exista angajati disponibili.</Text>
+                ) : (
+                  <View style={styles.slotsGrid}>
+                    {filteredEmployees.map((employee) => (
+                      <Chip
+                        key={employee.id}
+                        selected={selectedEmployeeId === employee.id}
+                        onPress={() => {
+                          setSelectedEmployeeId(employee.id);
+                          setSelectedTime('');
+                          setAvailability(null);
+                        }}
+                        mode="outlined"
+                        style={styles.slotChip}
+                      >
+                        {employee.name}
+                      </Chip>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <TextInput
                 label="Ora inceput *"
@@ -276,7 +410,8 @@ export default function BookServiceScreen({ navigation, route }) {
                 onChangeText={setSelectedTime}
                 mode="outlined"
                 style={[styles.input, { flex: 1 }]}
-                placeholder="HH:MM"
+                placeholder={isAppointment ? 'Selecteaza din sloturi' : 'HH:MM'}
+                editable={!isAppointment}
               />
               <TextInput
                 label="Durata (min) *"
@@ -286,34 +421,39 @@ export default function BookServiceScreen({ navigation, route }) {
                 style={[styles.input, { flex: 1 }]}
                 keyboardType="numeric"
                 placeholder="ex: 90"
+                editable={!isAppointment}
               />
             </View>
-            <TextInput
-              label="Număr Persoane *"
-              value={partySize}
-              onChangeText={setPartySize}
-              mode="outlined"
-              style={styles.input}
-              keyboardType="numeric"
-            />
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <TextInput
-                label="Adulți"
-                value={partyAdults}
-                onChangeText={setPartyAdults}
-                mode="outlined"
-                style={[styles.input, { flex: 1 }]}
-                keyboardType="numeric"
-              />
-              <TextInput
-                label="Copii"
-                value={partyChildren}
-                onChangeText={setPartyChildren}
-                mode="outlined"
-                style={[styles.input, { flex: 1 }]}
-                keyboardType="numeric"
-              />
-            </View>
+            {!isAppointment && (
+              <>
+                <TextInput
+                  label="Număr Persoane *"
+                  value={partySize}
+                  onChangeText={setPartySize}
+                  mode="outlined"
+                  style={styles.input}
+                  keyboardType="numeric"
+                />
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TextInput
+                    label="Adulți"
+                    value={partyAdults}
+                    onChangeText={setPartyAdults}
+                    mode="outlined"
+                    style={[styles.input, { flex: 1 }]}
+                    keyboardType="numeric"
+                  />
+                  <TextInput
+                    label="Copii"
+                    value={partyChildren}
+                    onChangeText={setPartyChildren}
+                    mode="outlined"
+                    style={[styles.input, { flex: 1 }]}
+                    keyboardType="numeric"
+                  />
+                </View>
+              </>
+            )}
             <List.Section title="Ocazie specială">
               <List.Item
                 title="Nicio ocazie"
@@ -351,14 +491,14 @@ export default function BookServiceScreen({ navigation, route }) {
               Verifică Disponibilitate
             </Button>
 
-            {/* Available Time Slots for non-table providers */}
-            {availability && provider?.booking_settings?.type !== 'table_based' && (
+            {/* Available Time Slots for appointment-based providers */}
+            {availability && provider?.booking_settings?.type === 'appointment_based' && (
               <View style={styles.slotsContainer}>
                 <Text style={styles.slotsTitle}>Disponibilitate:</Text>
                 {availability.slots.filter(s => s.available).length === 0 ? (
                   <Text style={styles.emptyText}>Nu există disponibilitate pentru intervalul ales</Text>
                 ) : (
-                  <Text style={styles.tableHint}>Interval disponibil. Alege masa.</Text>
+                  <Text style={styles.tableHint}>Alege ora din sloturile disponibile.</Text>
                 )}
               </View>
             )}
@@ -392,6 +532,32 @@ export default function BookServiceScreen({ navigation, route }) {
                   )}
                 </Card.Content>
               </Card>
+            )}
+
+            {isAppointment && availability && (
+              <View style={styles.slotsContainer}>
+                <Text style={styles.slotsTitle}>Sloturi disponibile:</Text>
+                {availability.slots.filter((s) => s.available).length === 0 ? (
+                  <Text style={styles.emptyText}>Nu exista sloturi disponibile.</Text>
+                ) : (
+                  <View style={styles.slotsGrid}>
+                    {availability.slots
+                      .filter((s) => s.available)
+                      .map((slot) => (
+                        <Chip
+                          key={slot.time}
+                          selected={selectedTime === slot.time}
+                          onPress={() => setSelectedTime(slot.time)}
+                          mode="outlined"
+                          style={styles.slotChip}
+                          icon={selectedTime === slot.time ? 'check' : 'clock-outline'}
+                        >
+                          {slot.time}
+                        </Chip>
+                      ))}
+                  </View>
+                )}
+              </View>
             )}
 
             {provider?.booking_settings?.type === 'table_based' && (

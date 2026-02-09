@@ -11,6 +11,7 @@ export default function ProfileScreen({ navigation }) {
   const [providerBookings, setProviderBookings] = useState([]);
   const [providerMap, setProviderMap] = useState({});
   const [tableMap, setTableMap] = useState({});
+  const [serviceMap, setServiceMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [cancelingBookingId, setCancelingBookingId] = useState(null);
   const [updatingBookingId, setUpdatingBookingId] = useState(null);
@@ -66,9 +67,10 @@ export default function ProfileScreen({ navigation }) {
     }
     const providerIds = Array.from(new Set(bookingProviderIds));
     if (providerIds.length > 0) {
-      const tablesResults = await Promise.all(
-        providerIds.map((providerId) => bookingsAPI.getTables(providerId))
-      );
+      const [tablesResults, servicesResults] = await Promise.all([
+        Promise.all(providerIds.map((providerId) => bookingsAPI.getTables(providerId))),
+        Promise.all(providerIds.map((providerId) => bookingsAPI.getServices(providerId))),
+      ]);
       const nextTableMap = {};
       tablesResults.forEach((res) => {
         if (res.success && Array.isArray(res.data)) {
@@ -78,8 +80,18 @@ export default function ProfileScreen({ navigation }) {
         }
       });
       setTableMap(nextTableMap);
+      const nextServiceMap = {};
+      servicesResults.forEach((res) => {
+        if (res.success && Array.isArray(res.data)) {
+          res.data.forEach((service) => {
+            nextServiceMap[String(service.id)] = service;
+          });
+        }
+      });
+      setServiceMap(nextServiceMap);
     } else {
       setTableMap({});
+      setServiceMap({});
     }
     setLoading(false);
   };
@@ -182,6 +194,25 @@ export default function ProfileScreen({ navigation }) {
                     Gestionează mese
                   </Button>
                 )}
+                {provider.booking_settings?.type === 'appointment_based' && (
+                  <>
+                    <Button
+                      mode="contained"
+                      icon="content-cut"
+                      onPress={() => navigation.navigate('ManageServices', { provider })}
+                      style={{ marginRight: 8 }}
+                    >
+                      Servicii
+                    </Button>
+                    <Button
+                      mode="contained"
+                      icon="account"
+                      onPress={() => navigation.navigate('ManageEmployees', { provider })}
+                    >
+                      Angajati
+                    </Button>
+                  </>
+                )}
               </Card.Actions>
             </Card>
           ))
@@ -202,6 +233,9 @@ export default function ProfileScreen({ navigation }) {
                       <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
                       <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
                       <Paragraph>Email: {booking.customer_email}</Paragraph>
+                      {booking.service_id && serviceMap[String(booking.service_id)] && (
+                        <Paragraph>Serviciu: {serviceMap[String(booking.service_id)].name}</Paragraph>
+                      )}
                       {booking.table_id && tableMap[String(booking.table_id)] && (
                         <Paragraph>Masa: {formatTableDetails(tableMap[String(booking.table_id)])}</Paragraph>
                       )}
@@ -251,6 +285,9 @@ export default function ProfileScreen({ navigation }) {
                       <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
                       <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
                       <Paragraph>Email: {booking.customer_email}</Paragraph>
+                      {booking.service_id && serviceMap[String(booking.service_id)] && (
+                        <Paragraph>Serviciu: {serviceMap[String(booking.service_id)].name}</Paragraph>
+                      )}
                       {booking.table_id && tableMap[String(booking.table_id)] && (
                         <Paragraph>Masa: {formatTableDetails(tableMap[String(booking.table_id)])}</Paragraph>
                       )}
@@ -299,6 +336,9 @@ export default function ProfileScreen({ navigation }) {
                 <Paragraph>
                   Serviciu: {providerMap[String(booking.provider_id)] || 'Serviciu'}
                 </Paragraph>
+                {booking.service_id && serviceMap[String(booking.service_id)] && (
+                  <Paragraph>Serviciu ales: {serviceMap[String(booking.service_id)].name}</Paragraph>
+                )}
                 {booking.table_id && tableMap[String(booking.table_id)] && (
                   <Paragraph>Masa: {formatTableDetails(tableMap[String(booking.table_id)])}</Paragraph>
                 )}

@@ -475,7 +475,15 @@ export const bookingsAPI = {
   /**
    * Check availability
    */
-  checkAvailability: async (providerId, date, partySize, startTime, durationMinutes) => {
+  checkAvailability: async (
+    providerId,
+    date,
+    partySize,
+    startTime,
+    durationMinutes,
+    serviceId,
+    employeeId
+  ) => {
     try {
       const response = await api.get(`/bookings/availability/${providerId}`, {
         params: {
@@ -483,6 +491,8 @@ export const bookingsAPI = {
           party_size: partySize,
           start_time: startTime || undefined,
           duration_minutes: durationMinutes || undefined,
+          service_id: serviceId || undefined,
+          employee_id: employeeId || undefined,
         }
       });
       return { success: true, data: response.data };
@@ -539,6 +549,134 @@ export const bookingsAPI = {
       return {
         success: false,
         error: error.response?.data?.detail || error.message || 'Failed to update booking status',
+      };
+    }
+  },
+
+  /**
+   * Create a service
+   */
+  createService: async (serviceData) => {
+    try {
+      const response = await api.post('/bookings/services', serviceData);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] createService error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to create service',
+      };
+    }
+  },
+
+  /**
+   * Get services for a provider
+   */
+  getServices: async (providerId) => {
+    try {
+      const response = await api.get(`/bookings/services/${providerId}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] getServices error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to get services',
+      };
+    }
+  },
+
+  /**
+   * Update a service
+   */
+  updateService: async (serviceId, serviceData) => {
+    try {
+      const response = await api.put(`/bookings/services/${serviceId}`, serviceData);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] updateService error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to update service',
+      };
+    }
+  },
+
+  /**
+   * Delete (deactivate) a service
+   */
+  deleteService: async (serviceId) => {
+    try {
+      const response = await api.delete(`/bookings/services/${serviceId}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] deleteService error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to delete service',
+      };
+    }
+  },
+
+  /**
+   * Create an employee
+   */
+  createEmployee: async (employeeData) => {
+    try {
+      const response = await api.post('/bookings/employees', employeeData);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] createEmployee error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to create employee',
+      };
+    }
+  },
+
+  /**
+   * Get employees for a provider
+   */
+  getEmployees: async (providerId) => {
+    try {
+      const response = await api.get(`/bookings/employees/${providerId}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] getEmployees error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to get employees',
+      };
+    }
+  },
+
+  /**
+   * Update an employee
+   */
+  updateEmployee: async (employeeId, employeeData) => {
+    try {
+      const response = await api.put(`/bookings/employees/${employeeId}`, employeeData);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] updateEmployee error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to update employee',
+      };
+    }
+  },
+
+  /**
+   * Delete (deactivate) an employee
+   */
+  deleteEmployee: async (employeeId) => {
+    try {
+      const response = await api.delete(`/bookings/employees/${employeeId}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] deleteEmployee error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to delete employee',
       };
     }
   },

@@ -28,6 +28,8 @@ export default function ServicesScreen({ navigation }) {
   const [myBookings, setMyBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [providerTables, setProviderTables] = useState([]);
+  const [providerServices, setProviderServices] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
   useEffect(() => {
     loadProviders();
@@ -37,6 +39,7 @@ export default function ServicesScreen({ navigation }) {
   useEffect(() => {
     if (myProvider?.id) {
       loadProviderTables(myProvider.id);
+      loadProviderServices(myProvider.id);
     }
   }, [myProvider?.id]);
 
@@ -65,6 +68,17 @@ export default function ServicesScreen({ navigation }) {
     }
   };
 
+  const loadProviderServices = async (providerId) => {
+    try {
+      const result = await bookingsAPI.getServices(providerId);
+      if (result.success) {
+        setProviderServices(result.data || []);
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
   const loadProviders = async () => {
     try {
       const result = await bookingsAPI.getProviders();
@@ -87,6 +101,11 @@ export default function ServicesScreen({ navigation }) {
 
   const tableById = providerTables.reduce((acc, table) => {
     acc[String(table.id)] = table;
+    return acc;
+  }, {});
+
+  const serviceById = providerServices.reduce((acc, service) => {
+    acc[String(service.id)] = service;
     return acc;
   }, {});
 
@@ -240,6 +259,37 @@ export default function ServicesScreen({ navigation }) {
           </Card>
         )}
 
+        {myProvider && myProvider.booking_settings?.type === 'appointment_based' && (
+          <Card style={styles.card}>
+            <Card.Content>
+              <View style={styles.titleContainer}>
+                <MaterialCommunityIcons name="content-cut" size={24} color="#4CAF50" />
+                <Title style={styles.titleText}>Servicii & Angajati</Title>
+              </View>
+              <Paragraph>
+                Adauga servicii, angajati si programul lor de lucru.
+              </Paragraph>
+            </Card.Content>
+            <Card.Actions>
+              <Button
+                mode="contained"
+                icon="content-cut"
+                onPress={() => navigation.navigate('ManageServices', { provider: myProvider })}
+                style={{ marginRight: 8 }}
+              >
+                Servicii
+              </Button>
+              <Button
+                mode="contained"
+                icon="account"
+                onPress={() => navigation.navigate('ManageEmployees', { provider: myProvider })}
+              >
+                Angajati
+              </Button>
+            </Card.Actions>
+          </Card>
+        )}
+
         {/* Rezervări în curs pentru serviciile mele */}
         {myProvider && (
           <>
@@ -256,6 +306,9 @@ export default function ServicesScreen({ navigation }) {
                     <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
                     <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
                     <Paragraph>Email: {booking.customer_email}</Paragraph>
+                    {booking.service_id && serviceById[String(booking.service_id)] && (
+                      <Paragraph>Serviciu: {serviceById[String(booking.service_id)].name}</Paragraph>
+                    )}
                     {booking.table_id && tableById[String(booking.table_id)] && (
                       <Paragraph>Masa: {formatTableDetails(tableById[String(booking.table_id)])}</Paragraph>
                     )}
@@ -302,6 +355,9 @@ export default function ServicesScreen({ navigation }) {
                     <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
                     <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
                     <Paragraph>Email: {booking.customer_email}</Paragraph>
+                    {booking.service_id && serviceById[String(booking.service_id)] && (
+                      <Paragraph>Serviciu: {serviceById[String(booking.service_id)].name}</Paragraph>
+                    )}
                     {booking.table_id && tableById[String(booking.table_id)] && (
                       <Paragraph>Masa: {formatTableDetails(tableById[String(booking.table_id)])}</Paragraph>
                     )}
@@ -315,17 +371,37 @@ export default function ServicesScreen({ navigation }) {
 
         {/* All Providers */}
         <Title style={styles.sectionTitle}>Servicii Disponibile</Title>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+          {[
+            { key: 'all', label: 'Toate' },
+            { key: 'food_drinks', label: 'Restaurant / Pub' },
+            { key: 'barber', label: 'Frizerie / Barber' },
+            { key: 'massage_spa', label: 'Masaj & Spa' },
+            { key: 'beauty', label: 'Beauty' },
+          ].map((cat) => (
+            <Chip
+              key={cat.key}
+              selected={selectedCategory === cat.key}
+              onPress={() => setSelectedCategory(cat.key)}
+              style={styles.categoryChip}
+            >
+              {cat.label}
+            </Chip>
+          ))}
+        </ScrollView>
         
-        {providers.length === 0 ? (
+        {providers.filter((provider) => selectedCategory === 'all' || provider.category === selectedCategory).length === 0 ? (
           <Card style={styles.card}>
             <Card.Content>
               <Text style={styles.emptyText}>
-                Nu există servicii disponibile momentan.
+                Nu există servicii disponibile pentru această categorie.
               </Text>
             </Card.Content>
           </Card>
         ) : (
-          providers.map((provider) => {
+          providers
+            .filter((provider) => selectedCategory === 'all' || provider.category === selectedCategory)
+            .map((provider) => {
             if (user?.id && provider.user_id) {
               console.log('[DEBUG] user.id:', user.id, '| provider.user_id:', provider.user_id);
             }
@@ -339,7 +415,7 @@ export default function ServicesScreen({ navigation }) {
                     ))}
                   </ScrollView>
                 )}
-                <Card.Content>
+                  <Card.Content>
                   <View style={styles.titleContainer}>
                     <MaterialCommunityIcons
                       name={provider.booking_settings.type === 'table_based' ? 'silverware-fork-knife' : 'scissors-cutting'}
@@ -371,7 +447,7 @@ export default function ServicesScreen({ navigation }) {
                     </View>
                   )}
                 </Card.Content>
-                <Card.Actions>
+                  <Card.Actions>
                   <Button
                     mode="outlined"
                     icon="calendar-plus"
@@ -390,9 +466,9 @@ export default function ServicesScreen({ navigation }) {
                     </Button>
                   )}
                 </Card.Actions>
-              </Card>
-            );
-          })
+                </Card>
+              );
+            })
         )}
       </ScrollView>
 
@@ -425,6 +501,14 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: 15,
     elevation: 2,
+  },
+  categoryScroll: {
+    marginHorizontal: 12,
+    marginBottom: 8,
+  },
+  categoryChip: {
+    marginRight: 8,
+    marginBottom: 4,
   },
   myProviderCard: {
     borderLeftWidth: 4,

@@ -23,6 +23,8 @@ import RouteBuilderScreen from './src/screens/RouteBuilderScreen';
 import ServicesScreen from './src/screens/ServicesScreen';
 import ManageProviderScreen from './src/screens/ManageProviderScreen';
 import ManageTablesScreen from './src/screens/ManageTablesScreen';
+import ManageServicesScreen from './src/screens/ManageServicesScreen';
+import ManageEmployeesScreen from './src/screens/ManageEmployeesScreen';
 import BookServiceScreen from './src/screens/BookServiceScreen';
 import ProviderDetailScreen from './src/screens/ProviderDetailScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
@@ -64,6 +66,8 @@ function AppStack() {
       <Stack.Screen name="ProviderDetail" component={ProviderDetailScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="ManageTables" component={ManageTablesScreen} />
+      <Stack.Screen name="ManageServices" component={ManageServicesScreen} />
+      <Stack.Screen name="ManageEmployees" component={ManageEmployeesScreen} />
       <Stack.Screen name="BookService" component={BookServiceScreen} />
       <Stack.Screen name="BookingCalendar" component={BookingCalendarScreen} />
     </Stack.Navigator>

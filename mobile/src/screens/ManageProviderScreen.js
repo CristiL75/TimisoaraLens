@@ -27,6 +27,13 @@ const DAYS = [
   { key: 'sunday', label: 'Duminica' },
 ];
 
+const SERVICE_CATEGORIES = [
+  { key: 'food_drinks', label: 'Restaurant / Pub' },
+  { key: 'barber', label: 'Frizerie / Barber' },
+  { key: 'massage_spa', label: 'Masaj & Spa' },
+  { key: 'beauty', label: 'Beauty' },
+];
+
 const DEFAULT_WORKING_HOURS = DAYS.map((day) => ({
   day: day.key,
   open_time: '10:00',
@@ -106,7 +113,7 @@ export default function ManageProviderScreen({ navigation, route }) {
       facilities: category === 'food_drinks' ? facilities : null,
       tables: category === 'food_drinks' ? tables : null, // Add tables field for food_drinks category
       booking_settings: {
-        type: 'table_based',
+        type: category === 'food_drinks' ? 'table_based' : 'appointment_based',
         default_duration_minutes: parseInt(duration, 10),
         buffer_minutes: parseInt(buffer, 10),
         advance_booking_hours: 2,
@@ -159,6 +166,19 @@ export default function ManageProviderScreen({ navigation, route }) {
         <Card style={styles.card}>
           <Card.Content>
             <Title>Detalii Serviciu</Title>
+            <Title style={styles.sectionTitle}>Categorie</Title>
+            <View style={styles.categoryRow}>
+              {SERVICE_CATEGORIES.map((cat) => (
+                <Chip
+                  key={cat.key}
+                  selected={category === cat.key}
+                  onPress={() => setCategory(cat.key)}
+                  style={styles.categoryChip}
+                >
+                  {cat.label}
+                </Chip>
+              ))}
+            </View>
             <TextInput
               label="Nume"
               value={name}
@@ -239,7 +259,7 @@ export default function ManageProviderScreen({ navigation, route }) {
           </Card>
         )}
 
-        {isEdit && (
+        {isEdit && category === 'food_drinks' && (
           <Card style={styles.card}>
             <Card.Content>
               <Title>Mese</Title>
@@ -251,6 +271,31 @@ export default function ManageProviderScreen({ navigation, route }) {
                 style={styles.tablesButton}
               >
                 Gestioneaza Mese
+              </Button>
+            </Card.Content>
+          </Card>
+        )}
+
+        {isEdit && category !== 'food_drinks' && (
+          <Card style={styles.card}>
+            <Card.Content>
+              <Title>Servicii si Angajati</Title>
+              <Text style={styles.noteText}>Gestioneaza serviciile si programul angajatilor.</Text>
+              <Button
+                mode="contained"
+                icon="content-cut"
+                onPress={() => navigation.navigate('ManageServices', { provider: existingProvider })}
+                style={styles.tablesButton}
+              >
+                Gestioneaza Servicii
+              </Button>
+              <Button
+                mode="contained"
+                icon="account"
+                onPress={() => navigation.navigate('ManageEmployees', { provider: existingProvider })}
+                style={styles.tablesButton}
+              >
+                Gestioneaza Angajati
               </Button>
             </Card.Content>
           </Card>
@@ -289,6 +334,19 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  categoryChip: {
+    marginBottom: 8,
   },
   noteText: {
     color: '#666',

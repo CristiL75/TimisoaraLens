@@ -126,6 +126,8 @@ async def connect_to_mongo():
         await database.providers.create_index("user_id")
         await database.providers.create_index("status")
         await database.tables.create_index("provider_id")
+        await database.services.create_index("provider_id")
+        await database.employees.create_index("provider_id")
         await database.bookings.create_index("provider_id")
         await database.bookings.create_index([("provider_id", 1), ("booking_date", 1)])
         await database.bookings.create_index("status")
@@ -172,6 +174,14 @@ def get_bookings_collection():
     """Get bookings collection"""
     return database.bookings
 
+def get_services_collection():
+    """Get services collection"""
+    return database.services
+
+def get_employees_collection():
+    """Get employees collection"""
+    return database.employees
+
 
 # ============================================================
 # BOOKING SYSTEM MODELS
@@ -183,6 +193,8 @@ class WorkingHours(BaseModel):
     open_time: str  # "10:00"
     close_time: str  # "22:00"
     is_closed: bool = False
+    break_start: Optional[str] = None  # "13:00"
+    break_end: Optional[str] = None  # "14:00"
 
 
 class BookingSettings(BaseModel):
@@ -243,11 +255,46 @@ class Table(BaseModel):
         json_encoders = {ObjectId: str}
 
 
+class Service(BaseModel):
+    """Appointment-based service (haircut, massage, etc.)"""
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    provider_id: PyObjectId
+    name: str
+    duration_minutes: int
+    price: float
+    buffer_minutes: Optional[int] = None
+    category: Optional[str] = None
+    status: str = "active"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        populate_by_name = True
+        json_encoders = {ObjectId: str}
+
+
+class Employee(BaseModel):
+    """Employee for appointment-based services"""
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    provider_id: PyObjectId
+    name: str
+    role: Optional[str] = None
+    service_ids: list[PyObjectId] = []
+    working_hours: list[WorkingHours] = []
+    status: str = "active"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        populate_by_name = True
+        json_encoders = {ObjectId: str}
+
+
 class Booking(BaseModel):
     """Customer booking/reservation"""
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     provider_id: PyObjectId
     table_id: Optional[PyObjectId] = None  # Can be null (auto-assign)
+    service_id: Optional[PyObjectId] = None
+    employee_id: Optional[PyObjectId] = None
     
     # Customer info
     customer_name: str
