@@ -2,7 +2,7 @@
  * Create/Manage Provider Screen
  */
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Image } from 'react-native';
 import {
   Appbar,
   Card,
@@ -14,6 +14,7 @@ import {
   Switch,
   ActivityIndicator,
 } from 'react-native-paper';
+import * as ImagePicker from 'expo-image-picker';
 import { bookingsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -54,6 +55,9 @@ export default function ManageProviderScreen({ navigation, route }) {
   const [phone, setPhone] = useState(existingProvider?.phone || '');
   const [description, setDescription] = useState(existingProvider?.description || '');
   const [address, setAddress] = useState(existingProvider?.address || '');
+  const [latitude, setLatitude] = useState(existingProvider?.latitude || null);
+  const [longitude, setLongitude] = useState(existingProvider?.longitude || null);
+  const [images, setImages] = useState(existingProvider?.images || []);
 
   const [duration, setDuration] = useState(
     existingProvider?.booking_settings?.default_duration_minutes?.toString() || '90'
@@ -91,8 +95,66 @@ export default function ManageProviderScreen({ navigation, route }) {
     }
   }, [existingProvider]);
 
+  useEffect(() => {
+    ImagePicker.requestMediaLibraryPermissionsAsync();
+    ImagePicker.requestCameraPermissionsAsync();
+  }, []);
+
   const toggleFacility = (key) => {
     setFacilities((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleLocationSelected = (location) => {
+    setLatitude(location.latitude);
+    setLongitude(location.longitude);
+    setAddress(location.address || '');
+  };
+
+  const takePhoto = async () => {
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        allowsEditing: true,
+        aspect: [4, 3],
+      });
+
+      if (!result.canceled) {
+        setImages((prev) => [...prev, result.assets[0].uri]);
+      }
+    } catch (error) {
+      Alert.alert('Eroare', 'Nu s-a putut face poza');
+    }
+  };
+
+  const pickImages = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        quality: 0.8,
+        allowsEditing: false,
+      });
+
+      if (!result.canceled) {
+        const imageUris = result.assets.map((asset) => asset.uri);
+        setImages((prev) => [...prev, ...imageUris]);
+      }
+    } catch (error) {
+      Alert.alert('Eroare', 'Nu s-au putut selecta imaginile');
+    }
+  };
+
+  const showImageOptions = () => {
+    Alert.alert('Adauga imagini', 'Alege sursa imaginilor', [
+      { text: 'Fa o poza', onPress: takePhoto },
+      { text: 'Galerie foto', onPress: pickImages },
+      { text: 'Anuleaza', style: 'cancel' },
+    ]);
+  };
+
+  const handleRemoveImage = (url) => {
+    setImages((prev) => prev.filter((item) => item !== url));
   };
 
   const handleSave = async () => {
@@ -108,8 +170,10 @@ export default function ManageProviderScreen({ navigation, route }) {
       email,
       phone,
       description: description || null,
-      images: existingProvider?.images || [],
+      images,
       address: address || null,
+      latitude: latitude || null,
+      longitude: longitude || null,
       facilities: category === 'food_drinks' ? facilities : null,
       tables: category === 'food_drinks' ? tables : null, // Add tables field for food_drinks category
       booking_settings: {
@@ -209,6 +273,24 @@ export default function ManageProviderScreen({ navigation, route }) {
               mode="outlined"
               style={styles.input}
             />
+            <View style={styles.locationRow}>
+              <Button
+                mode="outlined"
+                icon="map-search"
+                onPress={() => navigation.navigate('LocationPicker', {
+                  initialLocation: latitude && longitude ? { latitude, longitude, address } : null,
+                  onLocationSelected: handleLocationSelected,
+                })}
+                style={styles.locationButton}
+              >
+                Alege pe harta
+              </Button>
+              {latitude && longitude && (
+                <Text style={styles.locationMeta}>
+                  {latitude.toFixed(6)}, {longitude.toFixed(6)}
+                </Text>
+              )}
+            </View>
             <TextInput
               label="Descriere"
               value={description}
@@ -217,6 +299,30 @@ export default function ManageProviderScreen({ navigation, route }) {
               style={styles.input}
               multiline
             />
+          </Card.Content>
+        </Card>
+
+        <Card style={styles.card}>
+          <Card.Content>
+            <Title>Poze locatie</Title>
+            <Text style={styles.noteText}>Adauga poze din camera sau galerie.</Text>
+            <Button mode="outlined" onPress={showImageOptions} style={styles.addImageButton}>
+              Adauga Poze
+            </Button>
+            {images.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageScroll}>
+                {images.map((img) => (
+                  <View key={img} style={styles.imageItem}>
+                    <Image source={{ uri: img }} style={styles.imagePreview} />
+                    <Button mode="text" onPress={() => handleRemoveImage(img)}>
+                      Sterge
+                    </Button>
+                  </View>
+                ))}
+              </ScrollView>
+            ) : (
+              <Text style={styles.noteText}>Nu sunt poze adaugate.</Text>
+            )}
           </Card.Content>
         </Card>
 
@@ -335,6 +441,22 @@ const styles = StyleSheet.create({
   input: {
     marginBottom: 12,
   },
+  addImageButton: {
+    marginBottom: 8,
+  },
+  imageScroll: {
+    marginTop: 8,
+  },
+  imageItem: {
+    marginRight: 12,
+    alignItems: 'center',
+  },
+  imagePreview: {
+    width: 120,
+    height: 80,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
   sectionTitle: {
     fontSize: 16,
     marginBottom: 8,
@@ -357,6 +479,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 8,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  locationButton: {
+    marginRight: 12,
+  },
+  locationMeta: {
+    color: '#666',
+    fontSize: 12,
   },
   facilityChip: {
     marginRight: 12,

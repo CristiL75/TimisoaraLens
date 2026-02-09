@@ -23,6 +23,7 @@ export default function BookServiceScreen({ navigation, route }) {
   const { user } = useAuth();
 
   const isAppointment = provider?.booking_settings?.type === 'appointment_based';
+  const isRestaurant = provider?.category === 'food_drinks';
 
   const [loading, setLoading] = useState(false);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
@@ -76,6 +77,12 @@ export default function BookServiceScreen({ navigation, route }) {
     tomorrow.setDate(tomorrow.getDate() + 1);
     setBookingDate(tomorrow.toISOString().split('T')[0]);
   }, []);
+
+  useEffect(() => {
+    if (user?.email) {
+      setCustomerEmail(user.email);
+    }
+  }, [user?.email]);
 
   useEffect(() => {
     if (provider?.booking_settings?.type === 'appointment_based') {
@@ -227,21 +234,23 @@ export default function BookServiceScreen({ navigation, route }) {
 
     setLoading(true);
 
+    const effectiveEmail = user?.email || customerEmail;
+
     const bookingData = {
       provider_id: provider.id,
       table_id: selectedTableId || null,
       service_id: isAppointment ? selectedServiceId : null,
       employee_id: isAppointment ? selectedEmployeeId : null,
       customer_name: customerName,
-      customer_email: customerEmail,
+      customer_email: effectiveEmail,
       customer_phone: customerPhone,
       booking_date: bookingDate,
       start_time: selectedTime,
       duration_minutes: isAppointment ? null : durationValue,
       party_size: parseInt(partySize),
-      party_adults: parseInt(partyAdults),
-      party_children: parseInt(partyChildren),
-      special_occasion: specialOccasion,
+      party_adults: isRestaurant ? parseInt(partyAdults) : 0,
+      party_children: isRestaurant ? parseInt(partyChildren) : 0,
+      special_occasion: isAppointment ? null : specialOccasion,
       notes: notes || null,
     };
 
@@ -324,6 +333,7 @@ export default function BookServiceScreen({ navigation, route }) {
               mode="outlined"
               style={styles.input}
               keyboardType="email-address"
+              editable={!user?.email}
             />
             <TextInput
               label="Telefon *"
@@ -434,52 +444,56 @@ export default function BookServiceScreen({ navigation, route }) {
                   style={styles.input}
                   keyboardType="numeric"
                 />
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <TextInput
-                    label="Adulți"
-                    value={partyAdults}
-                    onChangeText={setPartyAdults}
-                    mode="outlined"
-                    style={[styles.input, { flex: 1 }]}
-                    keyboardType="numeric"
-                  />
-                  <TextInput
-                    label="Copii"
-                    value={partyChildren}
-                    onChangeText={setPartyChildren}
-                    mode="outlined"
-                    style={[styles.input, { flex: 1 }]}
-                    keyboardType="numeric"
-                  />
-                </View>
+                {isRestaurant && (
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TextInput
+                      label="Adulti"
+                      value={partyAdults}
+                      onChangeText={setPartyAdults}
+                      mode="outlined"
+                      style={[styles.input, { flex: 1 }]}
+                      keyboardType="numeric"
+                    />
+                    <TextInput
+                      label="Copii"
+                      value={partyChildren}
+                      onChangeText={setPartyChildren}
+                      mode="outlined"
+                      style={[styles.input, { flex: 1 }]}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                )}
               </>
             )}
-            <List.Section title="Ocazie specială">
-              <List.Item
-                title="Nicio ocazie"
-                left={() => <MaterialCommunityIcons name="calendar-blank" size={24} color="#BDBDBD" />}
-                onPress={() => setSpecialOccasion('nicio_ocazie')}
-                style={specialOccasion === 'nicio_ocazie' ? { backgroundColor: '#F5F5F5' } : {}}
-              />
-              <List.Item
-                title="Zi de naștere"
-                left={() => <MaterialCommunityIcons name="cake-variant" size={24} color="#FFB300" />}
-                onPress={() => setSpecialOccasion('zi_de_nastere')}
-                style={specialOccasion === 'zi_de_nastere' ? { backgroundColor: '#FFF8E1' } : {}}
-              />
-              <List.Item
-                title="Aniversare"
-                left={() => <MaterialCommunityIcons name="heart" size={24} color="#E57373" />}
-                onPress={() => setSpecialOccasion('aniversare')}
-                style={specialOccasion === 'aniversare' ? { backgroundColor: '#FFEBEE' } : {}}
-              />
-              <List.Item
-                title="Business"
-                left={() => <MaterialCommunityIcons name="briefcase" size={24} color="#64B5F6" />}
-                onPress={() => setSpecialOccasion('business')}
-                style={specialOccasion === 'business' ? { backgroundColor: '#E3F2FD' } : {}}
-              />
-            </List.Section>
+            {!isAppointment && (
+              <List.Section title="Ocazie speciala">
+                <List.Item
+                  title="Nicio ocazie"
+                  left={() => <MaterialCommunityIcons name="calendar-blank" size={24} color="#BDBDBD" />}
+                  onPress={() => setSpecialOccasion('nicio_ocazie')}
+                  style={specialOccasion === 'nicio_ocazie' ? { backgroundColor: '#F5F5F5' } : {}}
+                />
+                <List.Item
+                  title="Zi de nastere"
+                  left={() => <MaterialCommunityIcons name="cake-variant" size={24} color="#FFB300" />}
+                  onPress={() => setSpecialOccasion('zi_de_nastere')}
+                  style={specialOccasion === 'zi_de_nastere' ? { backgroundColor: '#FFF8E1' } : {}}
+                />
+                <List.Item
+                  title="Aniversare"
+                  left={() => <MaterialCommunityIcons name="heart" size={24} color="#E57373" />}
+                  onPress={() => setSpecialOccasion('aniversare')}
+                  style={specialOccasion === 'aniversare' ? { backgroundColor: '#FFEBEE' } : {}}
+                />
+                <List.Item
+                  title="Business"
+                  left={() => <MaterialCommunityIcons name="briefcase" size={24} color="#64B5F6" />}
+                  onPress={() => setSpecialOccasion('business')}
+                  style={specialOccasion === 'business' ? { backgroundColor: '#E3F2FD' } : {}}
+                />
+              </List.Section>
+            )}
             <Button
               mode="contained"
               onPress={handleCheckAvailability}

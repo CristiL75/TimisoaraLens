@@ -294,102 +294,104 @@ export default function ManageEmployeesScreen({ navigation, route }) {
       />
 
       <Portal>
-        <Dialog visible={dialogVisible} onDismiss={handleCloseDialog} style={{ maxHeight: '90%' }}>
+        <Dialog visible={dialogVisible} onDismiss={handleCloseDialog} style={styles.dialog}>
           <Dialog.Title>{editingEmployee ? 'Editeaza Angajat' : 'Adauga Angajat'}</Dialog.Title>
-          <Dialog.Content>
-            <TextInput
-              label="Nume Angajat *"
-              value={employeeName}
-              onChangeText={setEmployeeName}
-              mode="outlined"
-              style={styles.input}
-            />
-            <TextInput
-              label="Rol / Specializare"
-              value={employeeRole}
-              onChangeText={setEmployeeRole}
-              mode="outlined"
-              style={styles.input}
-            />
+          <Dialog.ScrollArea style={styles.dialogScroll}>
+            <ScrollView contentContainerStyle={styles.dialogContent}>
+              <TextInput
+                label="Nume Angajat *"
+                value={employeeName}
+                onChangeText={setEmployeeName}
+                mode="outlined"
+                style={styles.input}
+              />
+              <TextInput
+                label="Rol / Specializare"
+                value={employeeRole}
+                onChangeText={setEmployeeRole}
+                mode="outlined"
+                style={styles.input}
+              />
 
-            <Title style={styles.sectionTitle}>Servicii oferite</Title>
-            {services.length === 0 ? (
-              <Text style={styles.emptyText}>Adauga servicii inainte de a asigna angajati.</Text>
-            ) : (
-              <View style={styles.servicesRow}>
-                {services.map((service) => (
-                  <Chip
-                    key={service.id}
-                    selected={employeeServices.includes(service.id)}
-                    onPress={() => {
-                      setEmployeeServices((prev) =>
-                        prev.includes(service.id)
-                          ? prev.filter((id) => id !== service.id)
-                          : [...prev, service.id]
-                      );
-                    }}
-                    style={styles.serviceChip}
-                  >
-                    {service.name}
-                  </Chip>
-                ))}
-              </View>
-            )}
-
-            <Title style={styles.sectionTitle}>Program de lucru</Title>
-            {workingHours.map((day) => (
-              <View key={day.day} style={styles.dayCard}>
-                <View style={styles.dayHeader}>
-                  <Text style={styles.dayLabel}>{DAYS.find((d) => d.key === day.day)?.label}</Text>
-                  <View style={styles.switchRow}>
-                    <Text>Inchis</Text>
-                    <Switch
-                      value={day.is_closed}
-                      onValueChange={(value) => updateWorkingHours(day.day, 'is_closed', value)}
-                    />
-                  </View>
+              <Title style={styles.sectionTitle}>Servicii oferite</Title>
+              {services.length === 0 ? (
+                <Text style={styles.emptyText}>Adauga servicii inainte de a asigna angajati.</Text>
+              ) : (
+                <View style={styles.servicesRow}>
+                  {services.map((service) => (
+                    <Chip
+                      key={service.id}
+                      selected={employeeServices.includes(service.id)}
+                      onPress={() => {
+                        setEmployeeServices((prev) =>
+                          prev.includes(service.id)
+                            ? prev.filter((id) => id !== service.id)
+                            : [...prev, service.id]
+                        );
+                      }}
+                      style={styles.serviceChip}
+                    >
+                      {service.name}
+                    </Chip>
+                  ))}
                 </View>
-                {!day.is_closed && (
-                  <>
-                    <View style={styles.timeRow}>
-                      <TextInput
-                        label="Deschide"
-                        value={day.open_time}
-                        onChangeText={(value) => updateWorkingHours(day.day, 'open_time', value)}
-                        mode="outlined"
-                        style={[styles.input, styles.timeInput]}
-                      />
-                      <TextInput
-                        label="Inchide"
-                        value={day.close_time}
-                        onChangeText={(value) => updateWorkingHours(day.day, 'close_time', value)}
-                        mode="outlined"
-                        style={[styles.input, styles.timeInput]}
+              )}
+
+              <Title style={styles.sectionTitle}>Program de lucru</Title>
+              {workingHours.map((day) => (
+                <View key={day.day} style={styles.dayCard}>
+                  <View style={styles.dayHeader}>
+                    <Text style={styles.dayLabel}>{DAYS.find((d) => d.key === day.day)?.label}</Text>
+                    <View style={styles.switchRow}>
+                      <Text>Inchis</Text>
+                      <Switch
+                        value={day.is_closed}
+                        onValueChange={(value) => updateWorkingHours(day.day, 'is_closed', value)}
                       />
                     </View>
-                    <View style={styles.timeRow}>
-                      <TextInput
-                        label="Pauza start"
-                        value={day.break_start}
-                        onChangeText={(value) => updateWorkingHours(day.day, 'break_start', value)}
-                        mode="outlined"
-                        style={[styles.input, styles.timeInput]}
-                        placeholder="ex: 13:00"
-                      />
-                      <TextInput
-                        label="Pauza final"
-                        value={day.break_end}
-                        onChangeText={(value) => updateWorkingHours(day.day, 'break_end', value)}
-                        mode="outlined"
-                        style={[styles.input, styles.timeInput]}
-                        placeholder="ex: 14:00"
-                      />
-                    </View>
-                  </>
-                )}
-              </View>
-            ))}
-          </Dialog.Content>
+                  </View>
+                  {!day.is_closed && (
+                    <>
+                      <View style={styles.timeRow}>
+                        <TextInput
+                          label="Deschide"
+                          value={day.open_time}
+                          onChangeText={(value) => updateWorkingHours(day.day, 'open_time', value)}
+                          mode="outlined"
+                          style={[styles.input, styles.timeInput, styles.timeInputLeft]}
+                        />
+                        <TextInput
+                          label="Inchide"
+                          value={day.close_time}
+                          onChangeText={(value) => updateWorkingHours(day.day, 'close_time', value)}
+                          mode="outlined"
+                          style={[styles.input, styles.timeInput]}
+                        />
+                      </View>
+                      <View style={styles.timeRow}>
+                        <TextInput
+                          label="Pauza start"
+                          value={day.break_start}
+                          onChangeText={(value) => updateWorkingHours(day.day, 'break_start', value)}
+                          mode="outlined"
+                          style={[styles.input, styles.timeInput, styles.timeInputLeft]}
+                          placeholder="ex: 13:00"
+                        />
+                        <TextInput
+                          label="Pauza final"
+                          value={day.break_end}
+                          onChangeText={(value) => updateWorkingHours(day.day, 'break_end', value)}
+                          mode="outlined"
+                          style={[styles.input, styles.timeInput]}
+                          placeholder="ex: 14:00"
+                        />
+                      </View>
+                    </>
+                  )}
+                </View>
+              ))}
+            </ScrollView>
+          </Dialog.ScrollArea>
           <Dialog.Actions>
             <Button onPress={handleCloseDialog}>Renunta</Button>
             <Button onPress={handleSaveEmployee} loading={saving} disabled={saving}>
@@ -412,13 +414,17 @@ const styles = StyleSheet.create({
   fab: { position: 'absolute', margin: 16, right: 0, bottom: 0 },
   input: { marginBottom: 12 },
   deleteButton: { backgroundColor: '#d32f2f' },
-  servicesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  serviceChip: { marginBottom: 8 },
+  servicesRow: { flexDirection: 'row', flexWrap: 'wrap' },
+  serviceChip: { marginRight: 8, marginBottom: 8 },
   sectionTitle: { marginTop: 8, marginBottom: 8, fontSize: 16 },
   dayCard: { padding: 8, borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 8, marginBottom: 12 },
   dayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   dayLabel: { fontWeight: 'bold' },
-  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  timeRow: { flexDirection: 'row', gap: 8 },
+  switchRow: { flexDirection: 'row', alignItems: 'center' },
+  timeRow: { flexDirection: 'row' },
   timeInput: { flex: 1 },
+  timeInputLeft: { marginRight: 8 },
+  dialog: { alignSelf: 'center', width: '92%' },
+  dialogScroll: { maxHeight: 360, paddingHorizontal: 0 },
+  dialogContent: { paddingHorizontal: 24, paddingBottom: 8 },
 });

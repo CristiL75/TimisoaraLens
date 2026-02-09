@@ -402,13 +402,13 @@ export default function ListingsScreen({ navigation }) {
 
                 {listing.amenities && listing.amenities.length > 0 && (
                   <View style={[styles.amenitiesRow, { paddingLeft: 12 }]}>
-                    {listing.amenities.slice(0,3).map((amenity) => (
-                      <Chip key={amenity} compact style={styles.amenityChip} textStyle={styles.amenityText}>
+                      {listing.amenities.slice(0,3).map((amenity) => (
+                        <Chip key={amenity} style={styles.amenityChip} textStyle={styles.amenityText}>
                         {amenity}
                       </Chip>
                     ))}
-                    {listing.amenities.length > 3 && (
-                      <Chip compact style={styles.amenityChip} onPress={() => { setAmenitiesForModal(listing.amenities); setAmenitiesModalVisible(true); }}>
+                      {listing.amenities.length > 3 && (
+                        <Chip style={styles.amenityChip} onPress={() => { setAmenitiesForModal(listing.amenities); setAmenitiesModalVisible(true); }}>
                         +{listing.amenities.length - 3}
                       </Chip>
                     )}
@@ -562,7 +562,6 @@ export default function ListingsScreen({ navigation }) {
                 onPress={searchLocationByText}
                 style={styles.miniSearchButton}
                 icon="magnify"
-                compact
               >
                 Caută
               </Button>

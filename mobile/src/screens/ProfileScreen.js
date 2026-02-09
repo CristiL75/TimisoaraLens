@@ -102,6 +102,16 @@ export default function ProfileScreen({ navigation }) {
     return bookingDate === todayStr;
   };
 
+  const isExpiredBooking = (bookingDate) => {
+    if (!bookingDate) return false;
+    const bookingDay = new Date(`${bookingDate}T00:00:00`);
+    const expiresAt = new Date(bookingDay);
+    expiresAt.setDate(expiresAt.getDate() + 1);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return expiresAt < today;
+  };
+
   const handleCancelBooking = async (booking) => {
     if (isSameDay(booking.booking_date)) {
       Alert.alert('Nu se poate', 'Rezervarea nu poate fi anulata in aceeasi zi.');
@@ -195,7 +205,7 @@ export default function ProfileScreen({ navigation }) {
                   </Button>
                 )}
                 {provider.booking_settings?.type === 'appointment_based' && (
-                  <>
+                  <View style={styles.actionRow}>
                     <Button
                       mode="contained"
                       icon="content-cut"
@@ -211,7 +221,7 @@ export default function ProfileScreen({ navigation }) {
                     >
                       Angajati
                     </Button>
-                  </>
+                  </View>
                 )}
               </Card.Actions>
             </Card>
@@ -228,7 +238,10 @@ export default function ProfileScreen({ navigation }) {
                 .map((booking) => (
                   <Card key={booking.id} style={styles.card}>
                     <Card.Content>
-                      <Title>{booking.customer_name} ({booking.party_size} pers.)</Title>
+                      <Title>
+                        {booking.customer_name}
+                        {booking.table_id ? ` (${booking.party_size} pers.)` : ''}
+                      </Title>
                       <Paragraph>Serviciu: {providerMap[String(booking.provider_id)] || 'Serviciu'}</Paragraph>
                       <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
                       <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
@@ -239,10 +252,12 @@ export default function ProfileScreen({ navigation }) {
                       {booking.table_id && tableMap[String(booking.table_id)] && (
                         <Paragraph>Masa: {formatTableDetails(tableMap[String(booking.table_id)])}</Paragraph>
                       )}
-                      {booking.special_occasion && (
+                      {booking.table_id && booking.special_occasion && (
                         <Paragraph>Ocazie speciala: {formatTableLabel(booking.special_occasion)}</Paragraph>
                       )}
-                      <Paragraph>Adulti: {booking.party_adults} | Copii: {booking.party_children}</Paragraph>
+                      {booking.table_id && (
+                        <Paragraph>Adulti: {booking.party_adults} | Copii: {booking.party_children}</Paragraph>
+                      )}
                       {booking.notes && <Paragraph>Notite: {booking.notes}</Paragraph>}
                     </Card.Content>
                     <Card.Actions>
@@ -280,7 +295,10 @@ export default function ProfileScreen({ navigation }) {
                 .map((booking) => (
                   <Card key={booking.id} style={styles.card}>
                     <Card.Content>
-                      <Title>{booking.customer_name} ({booking.party_size} pers.)</Title>
+                      <Title>
+                        {booking.customer_name}
+                        {booking.table_id ? ` (${booking.party_size} pers.)` : ''}
+                      </Title>
                       <Paragraph>Serviciu: {providerMap[String(booking.provider_id)] || 'Serviciu'}</Paragraph>
                       <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
                       <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
@@ -291,10 +309,12 @@ export default function ProfileScreen({ navigation }) {
                       {booking.table_id && tableMap[String(booking.table_id)] && (
                         <Paragraph>Masa: {formatTableDetails(tableMap[String(booking.table_id)])}</Paragraph>
                       )}
-                      {booking.special_occasion && (
+                      {booking.table_id && booking.special_occasion && (
                         <Paragraph>Ocazie speciala: {formatTableLabel(booking.special_occasion)}</Paragraph>
                       )}
-                      <Paragraph>Adulti: {booking.party_adults} | Copii: {booking.party_children}</Paragraph>
+                      {booking.table_id && (
+                        <Paragraph>Adulti: {booking.party_adults} | Copii: {booking.party_children}</Paragraph>
+                      )}
                       {booking.notes && <Paragraph>Notite: {booking.notes}</Paragraph>}
                     </Card.Content>
                   </Card>
@@ -310,7 +330,10 @@ export default function ProfileScreen({ navigation }) {
                 .map((booking) => (
                   <Card key={booking.id} style={styles.card}>
                     <Card.Content>
-                      <Title>{booking.customer_name} ({booking.party_size} pers.)</Title>
+                      <Title>
+                        {booking.customer_name}
+                        {booking.table_id ? ` (${booking.party_size} pers.)` : ''}
+                      </Title>
                       <Paragraph>Serviciu: {providerMap[String(booking.provider_id)] || 'Serviciu'}</Paragraph>
                       <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
                       <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
@@ -326,10 +349,12 @@ export default function ProfileScreen({ navigation }) {
           </>
         )}
         <Title style={styles.sectionTitle}>Rezervările mele</Title>
-        {bookings.length === 0 ? (
+        {bookings.filter((booking) => !isExpiredBooking(booking.booking_date)).length === 0 ? (
           <Text style={styles.emptyText}>Nu ai făcut nicio rezervare.</Text>
         ) : (
-          bookings.map((booking) => (
+          bookings
+            .filter((booking) => !isExpiredBooking(booking.booking_date))
+            .map((booking) => (
             <Card key={booking.id} style={styles.card}>
               <Card.Content>
                 <Title>{booking.customer_name}</Title>
@@ -353,7 +378,8 @@ export default function ProfileScreen({ navigation }) {
                     cancelingBookingId === booking.id ||
                     booking.status === 'canceled' ||
                     booking.status === 'rejected' ||
-                    isSameDay(booking.booking_date)
+                    isSameDay(booking.booking_date) ||
+                    isExpiredBooking(booking.booking_date)
                   }
                   loading={cancelingBookingId === booking.id}
                 >
@@ -373,6 +399,7 @@ const styles = StyleSheet.create({
   content: { flex: 1 },
   card: { margin: 12 },
   chip: { margin: 4 },
+  actionRow: { flexDirection: 'row' },
   sectionTitle: { marginLeft: 16, marginTop: 16, fontWeight: 'bold' },
   emptyText: { marginLeft: 16, color: '#888', marginBottom: 8 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },

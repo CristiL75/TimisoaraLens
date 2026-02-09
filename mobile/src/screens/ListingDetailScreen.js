@@ -684,7 +684,7 @@ export default function ListingDetailScreen({ route, navigation }) {
                       </View>
                       {((effectiveIsOwner) || (currentUser && (r.user_id === currentUser.id || r.user_id === currentUser._id || r.username === currentUser.username))) && (
                         <View style={{ alignItems: 'flex-end', marginTop: 8 }}>
-                          <Button compact onPress={() => confirmDeleteReview(r.id)}>Șterge</Button>
+                          <Button onPress={() => confirmDeleteReview(r.id)}>Sterge</Button>
                         </View>
                       )}
                     </View>

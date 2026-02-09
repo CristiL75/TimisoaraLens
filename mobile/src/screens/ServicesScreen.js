@@ -1,20 +1,18 @@
 /**
  * Services Screen - List providers and manage own services
  */
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, StyleSheet, ScrollView, RefreshControl, Image } from 'react-native';
 import {
   Appbar,
   Card,
   Title,
   Paragraph,
   Button,
-  FAB,
   Chip,
   ActivityIndicator,
   Text,
 } from 'react-native-paper';
-import { Image, ScrollView as RNScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { bookingsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -22,7 +20,6 @@ import { useAuth } from '../context/AuthContext';
 export default function ServicesScreen({ navigation }) {
   const { user } = useAuth();
   const [providers, setProviders] = useState([]);
-  const [myProvider, setMyProvider] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [myBookings, setMyBookings] = useState([]);
@@ -37,102 +34,120 @@ export default function ServicesScreen({ navigation }) {
   }, []);
 
   useEffect(() => {
-    if (myProvider?.id) {
-      loadProviderTables(myProvider.id);
-      loadProviderServices(myProvider.id);
-    }
-  }, [myProvider?.id]);
+    const ownedProviderIds = providers
+      .filter((provider) => provider.user_id && user?.id && String(provider.user_id).trim() === String(user.id).trim())
+      .map((provider) => provider.id);
 
-  const loadProviderBookings = async () => {
-    setLoadingBookings(true);
-    try {
-      const result = await bookingsAPI.getProviderBookings();
-      if (result.success) {
-        setMyBookings(result.data);
-      }
-    } catch (e) {
-      // ignore
-    } finally {
-      setLoadingBookings(false);
-    }
-  };
-
-  const loadProviderTables = async (providerId) => {
-    try {
-      const result = await bookingsAPI.getTables(providerId);
-      if (result.success) {
-        setProviderTables(result.data || []);
-      }
-    } catch (e) {
-      // ignore
-    }
-  };
-
-  const loadProviderServices = async (providerId) => {
-    try {
-      const result = await bookingsAPI.getServices(providerId);
-      if (result.success) {
-        setProviderServices(result.data || []);
-      }
-    } catch (e) {
-      // ignore
-    }
-  };
+    loadProviderTables(ownedProviderIds);
+    loadProviderServices(ownedProviderIds);
+  }, [providers, user?.id]);
 
   const loadProviders = async () => {
+    setLoading(true);
     try {
       const result = await bookingsAPI.getProviders();
       if (result.success) {
-        setProviders(result.data);
-        
-        // Find provider belonging to current user (normalize IDs to strings)
-        const userProvider = result.data.find(
-          (p) => String(p?.user_id || '').trim() === String(user?.id || '').trim()
-        );
-        setMyProvider(userProvider);
+        setProviders(result.data || []);
       }
-    } catch (error) {
-      console.error('Failed to load providers:', error);
+    } catch (e) {
+      // no-op
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  const tableById = providerTables.reduce((acc, table) => {
-    acc[String(table.id)] = table;
-    return acc;
-  }, {});
-
-  const serviceById = providerServices.reduce((acc, service) => {
-    acc[String(service.id)] = service;
-    return acc;
-  }, {});
-
-  const formatOccasion = (value) => {
-    if (!value) return '';
-    const label = value.replace(/_/g, ' ');
-    return label.charAt(0).toUpperCase() + label.slice(1);
+  const loadProviderBookings = async () => {
+    setLoadingBookings(true);
+    try {
+      const result = await bookingsAPI.getProviderBookings();
+      if (result.success) {
+        setMyBookings(result.data || []);
+      }
+    } catch (e) {
+      // no-op
+    } finally {
+      setLoadingBookings(false);
+    }
   };
+
+  const loadProviderTables = async (providerIds) => {
+    if (!providerIds || providerIds.length === 0) {
+      setProviderTables([]);
+      return;
+    }
+    try {
+      const results = await Promise.all(
+        providerIds.map((providerId) => bookingsAPI.getTables(providerId))
+      );
+      const tables = results.flatMap((res) => (res.success ? res.data : []));
+      setProviderTables(tables);
+    } catch (e) {
+      setProviderTables([]);
+    }
+  };
+
+  const loadProviderServices = async (providerIds) => {
+    if (!providerIds || providerIds.length === 0) {
+      setProviderServices([]);
+      return;
+    }
+    try {
+      const results = await Promise.all(
+        providerIds.map((providerId) => bookingsAPI.getServices(providerId))
+      );
+      const services = results.flatMap((res) => (res.success ? res.data : []));
+      setProviderServices(services);
+    } catch (e) {
+      setProviderServices([]);
+    }
+  };
+
+  const tableById = useMemo(() => {
+    return providerTables.reduce((acc, table) => {
+      acc[String(table.id)] = table;
+      return acc;
+    }, {});
+  }, [providerTables]);
+
+  const serviceById = useMemo(() => {
+    return providerServices.reduce((acc, service) => {
+      acc[String(service.id)] = service;
+      return acc;
+    }, {});
+  }, [providerServices]);
+
+  const ownedProviders = providers.filter(
+    (provider) => provider.user_id && user?.id && String(provider.user_id).trim() === String(user.id).trim()
+  );
 
   const formatTableLabel = (value) => {
     if (!value) return '';
-    const label = value.replace(/_/g, ' ');
-    return label.charAt(0).toUpperCase() + label.slice(1);
+    return String(value).replace(/_/g, ' ');
   };
 
   const formatTableDetails = (table) => {
     if (!table) return '';
-    const parts = [`${table.name} • ${table.seats} locuri`];
-    const zoneLabel = formatTableLabel(table.zone || table.location || '');
-    if (zoneLabel) {
-      parts.push(zoneLabel);
-    }
+    const parts = [];
+    if (table.name) parts.push(table.name);
+    if (table.seats) parts.push(`${table.seats} locuri`);
+    if (table.zone) parts.push(formatTableLabel(table.zone));
+    if (table.location) parts.push(formatTableLabel(table.location));
     const options = (table.special_options || []).filter(Boolean);
     if (options.length > 0) {
       parts.push(options.map(formatTableLabel).join(', '));
     }
     return parts.join(' • ');
+  };
+
+  const formatOccasion = (value) => {
+    const map = {
+      nicio_ocazie: 'Nicio ocazie',
+      zi_de_nastere: 'Zi de nastere',
+      aniversare: 'Aniversare',
+      business: 'Business',
+    };
+    return map[value] || value || '-';
   };
 
   const onRefresh = () => {
@@ -145,7 +160,7 @@ export default function ServicesScreen({ navigation }) {
       <View style={styles.container}>
         <Appbar.Header>
           <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title="Servicii & Rezervări" />
+          <Appbar.Content title="Servicii & Rezervari" />
         </Appbar.Header>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
@@ -158,7 +173,7 @@ export default function ServicesScreen({ navigation }) {
     <View style={styles.container}>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Servicii & Rezervări" />
+        <Appbar.Content title="Servicii & Rezervari" />
       </Appbar.Header>
 
       <ScrollView
@@ -167,204 +182,128 @@ export default function ServicesScreen({ navigation }) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* My Provider Section */}
-        {myProvider ? (
-          <Card style={[styles.card, styles.myProviderCard]}>
-            <Card.Content>
-              <View style={styles.titleContainer}>
-                <MaterialCommunityIcons name="store-check" size={24} color="#4CAF50" />
-                <Title style={styles.titleText}>Serviciul Meu</Title>
-              </View>
-              <Paragraph style={styles.providerName}>{myProvider.name}</Paragraph>
-              <Chip icon="email" style={styles.chip}>{myProvider.email}</Chip>
-              <Chip icon="phone" style={styles.chip}>{myProvider.phone}</Chip>
-            </Card.Content>
-            <Card.Actions>
-              <Button
-                mode="contained"
-                icon="pencil"
-                onPress={() => navigation.navigate('ManageProvider', { provider: myProvider })}
-                style={{ marginRight: 8 }}
-              >
-                Editează
-              </Button>
-              <Button
-                mode="contained"
-                icon="delete"
-                style={{ backgroundColor: '#d32f2f' }}
-                onPress={async () => {
-                  // Confirmare rapidă pentru ștergere
-                  if (window.confirm) {
-                    if (!window.confirm('Ești sigur că vrei să ștergi acest serviciu?')) return;
-                  }
-                  const result = await bookingsAPI.deleteProvider(myProvider.id);
-                  if (result.success) {
-                    alert('Serviciul a fost șters!');
-                    setMyProvider(null);
-                    loadProviders();
-                  } else {
-                    alert(result.error || 'Nu s-a putut șterge serviciul');
-                  }
-                }}
-              >
-                Șterge
-              </Button>
-            </Card.Actions>
-          </Card>
-        ) : (
-          <Card style={styles.card}>
-            <Card.Content>
-              <View style={styles.titleContainer}>
-                <MaterialCommunityIcons name="store-plus" size={24} color="#6200ee" />
-                <Title style={styles.titleText}>Oferă Servicii</Title>
-              </View>
-              <Paragraph>
-                Ai un restaurant, pub sau alt serviciu? Creează-ți contul de provider
-                și permite clienților să facă rezervări online.
-              </Paragraph>
-            </Card.Content>
-            <Card.Actions>
-              <Button
-                mode="contained"
-                icon="plus"
-                onPress={() => navigation.navigate('CreateProvider')}
-              >
-                Adaugă Serviciu
-              </Button>
-            </Card.Actions>
-          </Card>
-        )}
+        <Card style={styles.card}>
+          <Card.Content>
+            <View style={styles.titleContainer}>
+              <MaterialCommunityIcons name="store-plus" size={24} color="#6200ee" />
+              <Title style={styles.titleText}>Adauga un serviciu nou</Title>
+            </View>
+            <Paragraph>
+              Poti adauga mai multe servicii si le poti gestiona separat.
+            </Paragraph>
+          </Card.Content>
+          <Card.Actions>
+            <Button
+              mode="contained"
+              icon="plus"
+              onPress={() => navigation.navigate('CreateProvider')}
+            >
+              Adauga Serviciu
+            </Button>
+          </Card.Actions>
+        </Card>
 
-        {/* Mese pentru restaurante */}
-        {myProvider && myProvider.category === 'food_drinks' && (
-          <Card style={styles.card}>
-            <Card.Content>
-              <View style={styles.titleContainer}>
-                <MaterialCommunityIcons name="table-furniture" size={24} color="#4CAF50" />
-                <Title style={styles.titleText}>Mese</Title>
-              </View>
-              <Paragraph>
-                Adaugă și gestionează mesele pentru rezervări.
-              </Paragraph>
-            </Card.Content>
-            <Card.Actions>
-              <Button
-                mode="contained"
-                icon="table-furniture"
-                onPress={() => navigation.navigate('ManageTables', { provider: myProvider })}
-              >
-                Gestionează Mese
-              </Button>
-            </Card.Actions>
-          </Card>
-        )}
-
-        {myProvider && myProvider.booking_settings?.type === 'appointment_based' && (
-          <Card style={styles.card}>
-            <Card.Content>
-              <View style={styles.titleContainer}>
-                <MaterialCommunityIcons name="content-cut" size={24} color="#4CAF50" />
-                <Title style={styles.titleText}>Servicii & Angajati</Title>
-              </View>
-              <Paragraph>
-                Adauga servicii, angajati si programul lor de lucru.
-              </Paragraph>
-            </Card.Content>
-            <Card.Actions>
-              <Button
-                mode="contained"
-                icon="content-cut"
-                onPress={() => navigation.navigate('ManageServices', { provider: myProvider })}
-                style={{ marginRight: 8 }}
-              >
-                Servicii
-              </Button>
-              <Button
-                mode="contained"
-                icon="account"
-                onPress={() => navigation.navigate('ManageEmployees', { provider: myProvider })}
-              >
-                Angajati
-              </Button>
-            </Card.Actions>
-          </Card>
-        )}
-
-        {/* Rezervări în curs pentru serviciile mele */}
-        {myProvider && (
+        {/* Rezervari in curs pentru serviciile mele */}
+        {ownedProviders.length > 0 && (
           <>
-            <Title style={styles.sectionTitle}>Rezervări în curs</Title>
+            <Title style={styles.sectionTitle}>Rezervari in curs</Title>
             {loadingBookings ? (
               <ActivityIndicator size="small" color="#4CAF50" />
             ) : myBookings.length === 0 ? (
-              <Text style={styles.emptyText}>Nu există rezervări în curs pentru serviciul tău.</Text>
+              <Text style={styles.emptyText}>Nu exista rezervari in curs pentru serviciile tale.</Text>
             ) : (
-              myBookings.filter(b => b.status === 'pending').map((booking) => (
-                <Card key={booking.id} style={styles.card}>
-                  <Card.Content>
-                    <Title>{booking.customer_name} ({booking.party_size} pers.)</Title>
-                    <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
-                    <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
-                    <Paragraph>Email: {booking.customer_email}</Paragraph>
-                    {booking.service_id && serviceById[String(booking.service_id)] && (
-                      <Paragraph>Serviciu: {serviceById[String(booking.service_id)].name}</Paragraph>
-                    )}
-                    {booking.table_id && tableById[String(booking.table_id)] && (
-                      <Paragraph>Masa: {formatTableDetails(tableById[String(booking.table_id)])}</Paragraph>
-                    )}
-                    {booking.special_occasion && (
-                      <Paragraph>Ocazie specială: {formatOccasion(booking.special_occasion)}</Paragraph>
-                    )}
-                    <Paragraph>Adulți: {booking.party_adults} | Copii: {booking.party_children}</Paragraph>
-                    {booking.notes && <Paragraph>Notițe: {booking.notes}</Paragraph>}
-                  </Card.Content>
-                  <Card.Actions>
-                    <Button mode="contained" icon="check" style={{ backgroundColor: '#388e3c', marginRight: 8 }} onPress={async () => {
-                      const result = await bookingsAPI.updateBookingStatus(booking.id, 'confirmed');
-                      if (result.success) {
-                        alert('Rezervarea a fost confirmată!');
-                        loadProviderBookings();
-                      } else {
-                        alert(result.error || 'Eroare la confirmare');
-                      }
-                    }}>Confirmă</Button>
-                    <Button mode="contained" icon="close" style={{ backgroundColor: '#d32f2f' }} onPress={async () => {
-                      const result = await bookingsAPI.updateBookingStatus(booking.id, 'rejected');
-                      if (result.success) {
-                        alert('Rezervarea a fost respinsă!');
-                        loadProviderBookings();
-                      } else {
-                        alert(result.error || 'Eroare la respingere');
-                      }
-                    }}>Respinge</Button>
-                  </Card.Actions>
-                </Card>
-              ))
+              myBookings
+                .filter((booking) => booking.status === 'pending')
+                .map((booking) => (
+                  <Card key={booking.id} style={styles.card}>
+                    <Card.Content>
+                      <Title>
+                        {booking.customer_name}
+                        {booking.table_id ? ` (${booking.party_size} pers.)` : ''}
+                      </Title>
+                      <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
+                      <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
+                      <Paragraph>Email: {booking.customer_email}</Paragraph>
+                      {booking.service_id && serviceById[String(booking.service_id)] && (
+                        <Paragraph>Serviciu: {serviceById[String(booking.service_id)].name}</Paragraph>
+                      )}
+                      {booking.table_id && tableById[String(booking.table_id)] && (
+                        <Paragraph>Masa: {formatTableDetails(tableById[String(booking.table_id)])}</Paragraph>
+                      )}
+                      {booking.table_id && booking.special_occasion && (
+                        <Paragraph>Ocazie speciala: {formatOccasion(booking.special_occasion)}</Paragraph>
+                      )}
+                      {booking.table_id && (
+                        <Paragraph>Adulti: {booking.party_adults} | Copii: {booking.party_children}</Paragraph>
+                      )}
+                      {booking.notes && <Paragraph>Notite: {booking.notes}</Paragraph>}
+                    </Card.Content>
+                    <Card.Actions>
+                      <Button
+                        mode="contained"
+                        icon="check"
+                        style={{ backgroundColor: '#388e3c', marginRight: 8 }}
+                        onPress={async () => {
+                          const result = await bookingsAPI.updateBookingStatus(booking.id, 'confirmed');
+                          if (result.success) {
+                            alert('Rezervarea a fost confirmata!');
+                            loadProviderBookings();
+                          } else {
+                            alert(result.error || 'Eroare la confirmare');
+                          }
+                        }}
+                      >
+                        Confirma
+                      </Button>
+                      <Button
+                        mode="contained"
+                        icon="close"
+                        style={{ backgroundColor: '#d32f2f' }}
+                        onPress={async () => {
+                          const result = await bookingsAPI.updateBookingStatus(booking.id, 'rejected');
+                          if (result.success) {
+                            alert('Rezervarea a fost respinsa!');
+                            loadProviderBookings();
+                          } else {
+                            alert(result.error || 'Eroare la respingere');
+                          }
+                        }}
+                      >
+                        Respinge
+                      </Button>
+                    </Card.Actions>
+                  </Card>
+                ))
             )}
 
-            <Title style={styles.sectionTitle}>Rezervări anulate</Title>
+            <Title style={styles.sectionTitle}>Rezervari anulate</Title>
             {loadingBookings ? (
               <ActivityIndicator size="small" color="#4CAF50" />
-            ) : myBookings.filter(b => b.status === 'canceled').length === 0 ? (
-              <Text style={styles.emptyText}>Nu există rezervări anulate.</Text>
+            ) : myBookings.filter((booking) => booking.status === 'canceled').length === 0 ? (
+              <Text style={styles.emptyText}>Nu exista rezervari anulate.</Text>
             ) : (
-              myBookings.filter(b => b.status === 'canceled').map((booking) => (
-                <Card key={booking.id} style={styles.card}>
-                  <Card.Content>
-                    <Title>{booking.customer_name} ({booking.party_size} pers.)</Title>
-                    <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
-                    <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
-                    <Paragraph>Email: {booking.customer_email}</Paragraph>
-                    {booking.service_id && serviceById[String(booking.service_id)] && (
-                      <Paragraph>Serviciu: {serviceById[String(booking.service_id)].name}</Paragraph>
-                    )}
-                    {booking.table_id && tableById[String(booking.table_id)] && (
-                      <Paragraph>Masa: {formatTableDetails(tableById[String(booking.table_id)])}</Paragraph>
-                    )}
-                    <Paragraph>Status: Anulata de client</Paragraph>
-                  </Card.Content>
-                </Card>
-              ))
+              myBookings
+                .filter((booking) => booking.status === 'canceled')
+                .map((booking) => (
+                  <Card key={booking.id} style={styles.card}>
+                    <Card.Content>
+                      <Title>
+                        {booking.customer_name}
+                        {booking.table_id ? ` (${booking.party_size} pers.)` : ''}
+                      </Title>
+                      <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
+                      <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
+                      <Paragraph>Email: {booking.customer_email}</Paragraph>
+                      {booking.service_id && serviceById[String(booking.service_id)] && (
+                        <Paragraph>Serviciu: {serviceById[String(booking.service_id)].name}</Paragraph>
+                      )}
+                      {booking.table_id && tableById[String(booking.table_id)] && (
+                        <Paragraph>Masa: {formatTableDetails(tableById[String(booking.table_id)])}</Paragraph>
+                      )}
+                      <Paragraph>Status: Anulata de client</Paragraph>
+                    </Card.Content>
+                  </Card>
+                ))
             )}
           </>
         )}
@@ -389,12 +328,12 @@ export default function ServicesScreen({ navigation }) {
             </Chip>
           ))}
         </ScrollView>
-        
+
         {providers.filter((provider) => selectedCategory === 'all' || provider.category === selectedCategory).length === 0 ? (
           <Card style={styles.card}>
             <Card.Content>
               <Text style={styles.emptyText}>
-                Nu există servicii disponibile pentru această categorie.
+                Nu exista servicii disponibile pentru aceasta categorie.
               </Text>
             </Card.Content>
           </Card>
@@ -402,84 +341,82 @@ export default function ServicesScreen({ navigation }) {
           providers
             .filter((provider) => selectedCategory === 'all' || provider.category === selectedCategory)
             .map((provider) => {
-            if (user?.id && provider.user_id) {
-              console.log('[DEBUG] user.id:', user.id, '| provider.user_id:', provider.user_id);
-            }
-            const isOwner = user?.id && provider.user_id && String(user.id).trim() === String(provider.user_id).trim();
-            return (
-              <Card key={provider.id} style={styles.card} onPress={() => navigation.navigate('ProviderDetail', { provider, isOwner })}>
-                {provider.images && provider.images.length > 0 && (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 8 }}>
-                    {provider.images.map((img, idx) => (
-                      <Image key={idx} source={{ uri: img }} style={{ width: 120, height: 80, borderRadius: 8, marginRight: 8 }} />
-                    ))}
-                  </ScrollView>
-                )}
-                  <Card.Content>
-                  <View style={styles.titleContainer}>
-                    <MaterialCommunityIcons
-                      name={provider.booking_settings.type === 'table_based' ? 'silverware-fork-knife' : 'scissors-cutting'}
-                      size={24}
-                      color="#FF9800"
-                    />
-                    <Title style={styles.titleText}>{provider.name}</Title>
-                  </View>
-                  {provider.description && (
-                    <Paragraph numberOfLines={2}>{provider.description}</Paragraph>
-                  )}
-                  <View style={styles.tagsContainer}>
-                    <Chip icon="clock" mode="outlined" style={styles.smallChip}>
-                      {provider.booking_settings.default_duration_minutes} min
-                    </Chip>
-                    <Chip
-                      icon={provider.booking_settings.auto_confirm ? 'check-circle' : 'timer-sand'}
-                      mode="outlined"
-                      style={styles.smallChip}
-                    >
-                      {provider.booking_settings.auto_confirm ? 'Auto-confirm' : 'Manual'}
-                    </Chip>
-                  </View>
-                  {provider.facilities && (
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
-                      {Object.entries(provider.facilities).filter(([k, v]) => v).map(([k]) => (
-                        <Chip key={k} style={styles.smallChip}>{k}</Chip>
+              const isOwner = user?.id && provider.user_id && String(user.id).trim() === String(provider.user_id).trim();
+              return (
+                <Card
+                  key={provider.id}
+                  style={styles.card}
+                  onPress={() => navigation.navigate('ProviderDetail', { provider, isOwner })}
+                >
+                  {provider.images && provider.images.length > 0 && (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 8 }}>
+                      {provider.images.map((img, idx) => (
+                        <Image
+                          key={idx}
+                          source={{ uri: img }}
+                          style={{ width: 120, height: 80, borderRadius: 8, marginRight: 8 }}
+                        />
                       ))}
+                    </ScrollView>
+                  )}
+                  <Card.Content>
+                    <View style={styles.titleContainer}>
+                      <MaterialCommunityIcons
+                        name={provider.booking_settings.type === 'table_based' ? 'silverware-fork-knife' : 'scissors-cutting'}
+                        size={24}
+                        color="#FF9800"
+                      />
+                      <Title style={styles.titleText}>{provider.name}</Title>
                     </View>
-                  )}
-                </Card.Content>
+                    {provider.description && (
+                      <Paragraph numberOfLines={2}>{provider.description}</Paragraph>
+                    )}
+                    <View style={styles.tagsContainer}>
+                      <Chip icon="clock" mode="outlined" style={styles.smallChip}>
+                        {provider.booking_settings.default_duration_minutes} min
+                      </Chip>
+                      <Chip
+                        icon={provider.booking_settings.auto_confirm ? 'check-circle' : 'timer-sand'}
+                        mode="outlined"
+                        style={styles.smallChip}
+                      >
+                        {provider.booking_settings.auto_confirm ? 'Auto-confirm' : 'Manual'}
+                      </Chip>
+                    </View>
+                    {provider.facilities && (
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
+                        {Object.entries(provider.facilities)
+                          .filter(([, v]) => v)
+                          .map(([k]) => (
+                            <Chip key={k} style={styles.smallChip}>{k}</Chip>
+                          ))}
+                      </View>
+                    )}
+                  </Card.Content>
                   <Card.Actions>
-                  <Button
-                    mode="outlined"
-                    icon="calendar-plus"
-                    onPress={() => navigation.navigate('BookService', { provider })}
-                  >
-                    Rezervă
-                  </Button>
-                  {isOwner && (
                     <Button
-                      mode="contained"
-                      icon="pencil"
-                      style={{ marginLeft: 8 }}
-                      onPress={() => navigation.navigate('ManageProvider', { provider })}
+                      mode="outlined"
+                      icon="calendar-plus"
+                      onPress={() => navigation.navigate('BookService', { provider })}
                     >
-                      Editează
+                      Rezerva
                     </Button>
-                  )}
-                </Card.Actions>
+                    {isOwner && (
+                      <Button
+                        mode="contained"
+                        icon="pencil"
+                        style={{ marginLeft: 8 }}
+                        onPress={() => navigation.navigate('ManageProvider', { provider })}
+                      >
+                        Editeaza
+                      </Button>
+                    )}
+                  </Card.Actions>
                 </Card>
               );
             })
         )}
       </ScrollView>
-
-      {!myProvider && (
-        <FAB
-          icon="plus"
-          label="Adaugă Serviciu"
-          style={styles.fab}
-          onPress={() => navigation.navigate('CreateProvider')}
-        />
-      )}
     </View>
   );
 }
@@ -510,10 +447,6 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginBottom: 4,
   },
-  myProviderCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50',
-  },
   titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -522,11 +455,6 @@ const styles = StyleSheet.create({
   titleText: {
     marginLeft: 8,
     marginBottom: 0,
-  },
-  providerName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
   },
   chip: {
     marginTop: 4,
@@ -551,11 +479,5 @@ const styles = StyleSheet.create({
   smallChip: {
     marginRight: 8,
     marginTop: 4,
-  },
-  fab: {
-    position: 'absolute',
-    right: 16,
-    bottom: 16,
-    backgroundColor: '#4CAF50',
   },
 });

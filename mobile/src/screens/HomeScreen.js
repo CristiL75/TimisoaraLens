@@ -28,7 +28,6 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.profileCorner}>
           <Button
             mode="text"
-            compact
             onPress={() => navigation.navigate('Profile')}
             style={styles.profileButton}
           >

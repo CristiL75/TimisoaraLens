@@ -3,11 +3,13 @@ from calendar_block import get_calendar_blocks_collection, CalendarBlock
 Bookings API Router
 Handles restaurant/pub table reservations
 """
-from fastapi import APIRouter, HTTPException, Depends, status, Response, Body
+from fastapi import APIRouter, HTTPException, Depends, status, Response, Body, Request
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime, timedelta
+import re
 from bson import ObjectId
+from jose import JWTError, jwt
 
 from database_mongo import (
     get_providers_collection,
@@ -15,6 +17,7 @@ from database_mongo import (
     get_bookings_collection,
     get_services_collection,
     get_employees_collection,
+    get_users_collection,
     Provider,
     Table,
     Booking,
@@ -24,10 +27,38 @@ from database_mongo import (
     WorkingHours,
     PyObjectId,
 )
-from auth_utils import get_current_user
+from auth_utils import get_current_user, SECRET_KEY, ALGORITHM
 
 # Router trebuie definit imediat după importuri
 router = APIRouter(tags=["Bookings"])
+
+
+async def purge_expired_bookings(bookings_col) -> None:
+    """Delete bookings that expired one day after booking_date."""
+    try:
+        today_str = datetime.utcnow().date().isoformat()
+        await bookings_col.delete_many({"booking_date": {"$lt": today_str}})
+    except Exception as exc:
+        print(f"[ERROR] Failed to purge expired bookings: {exc}")
+
+
+async def get_optional_user_from_request(request: Request) -> Optional[dict]:
+    """Return user info if Authorization header is present and valid."""
+    auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header.split(" ", 1)[1].strip()
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except JWTError:
+        return None
+    email = payload.get("email")
+    if not email:
+        return None
+    users_col = get_users_collection()
+    user_doc = await users_col.find_one({"email": email})
+    user_id = str(user_doc["_id"]) if user_doc and "_id" in user_doc else None
+    return {"email": email, "id": user_id, "username": payload.get("username")}
 
 # ============================================================
 # REQUEST/RESPONSE MODELS
@@ -242,6 +273,7 @@ async def get_provider_bookings(current_user=Depends(get_current_user)):
     """Return all bookings for services owned by current user"""
     providers_col = get_providers_collection()
     bookings_col = get_bookings_collection()
+    await purge_expired_bookings(bookings_col)
     # Găsește toate serviciile deținute de user
     providers = await providers_col.find({"user_id": current_user["id"]}).to_list(100)
     provider_ids = [str(p["_id"]) for p in providers]
@@ -341,7 +373,23 @@ async def get_my_providers(current_user=Depends(get_current_user)):
 async def get_my_bookings(current_user=Depends(get_current_user)):
     """Return all bookings made by current user"""
     bookings_col = get_bookings_collection()
-    bookings = await bookings_col.find({"customer_email": current_user["email"]}).to_list(100)
+    await purge_expired_bookings(bookings_col)
+    email = current_user.get("email")
+    email_query = {"customer_email": email}
+    case_insensitive_query = {
+        "customer_email": {
+            "$regex": f"^{re.escape(email)}$",
+            "$options": "i",
+        }
+    }
+    user_id = current_user.get("id")
+    user_id_query = None
+    if user_id and ObjectId.is_valid(user_id):
+        user_id_query = {"user_id": {"$in": [ObjectId(user_id), user_id]}}
+    query = {"$or": [email_query, case_insensitive_query]}
+    if user_id_query:
+        query["$or"].append(user_id_query)
+    bookings = await bookings_col.find(query).to_list(100)
     result = []
     for b in bookings:
         try:
@@ -1033,11 +1081,13 @@ async def get_provider_calendar(provider_id: str):
 # ============================================================
 
 @router.post("/", response_model=BookingResponse, status_code=status.HTTP_201_CREATED)
-async def create_booking(request: BookingCreateRequest):
+async def create_booking(request: BookingCreateRequest, http_request: Request):
     """Create a new booking"""
     providers_col = get_providers_collection()
     tables_col = get_tables_collection()
     bookings_col = get_bookings_collection()
+
+    current_user = await get_optional_user_from_request(http_request)
     
     # Validate provider
     if not ObjectId.is_valid(request.provider_id):
@@ -1183,8 +1233,9 @@ async def create_booking(request: BookingCreateRequest):
         service_id=PyObjectId(request.service_id) if request.service_id else None,
         employee_id=PyObjectId(request.employee_id) if request.employee_id else None,
         customer_name=request.customer_name,
-        customer_email=request.customer_email,
+        customer_email=current_user["email"] if current_user else request.customer_email,
         customer_phone=request.customer_phone,
+        user_id=PyObjectId(current_user["id"]) if current_user and current_user.get("id") and ObjectId.is_valid(current_user["id"]) else None,
         booking_date=request.booking_date,
         start_time=request.start_time,
         end_time=end_time,
