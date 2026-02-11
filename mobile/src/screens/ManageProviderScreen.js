@@ -335,7 +335,7 @@ export default function ManageProviderScreen({ navigation, route }) {
               ))}
             </View>
             <TextInput
-              label="Email (optional)"
+              label="Nume Serviciu"
               value={name}
               onChangeText={setName}
               mode="outlined"
@@ -343,7 +343,7 @@ export default function ManageProviderScreen({ navigation, route }) {
             />
             <TextInput
               label="Email"
-              label={category === 'rent_a_car' ? 'Oras / zona operare' : 'Adresa'}
+              value={email}
               onChangeText={setEmail}
               mode="outlined"
               style={styles.input}
