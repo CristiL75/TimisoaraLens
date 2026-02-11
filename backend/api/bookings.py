@@ -1188,6 +1188,81 @@ async def get_provider_calendar(provider_id: str):
     return result
 # ============================================================
 
+@router.get("/calendar/cars/{provider_id}")
+async def get_provider_car_calendar(
+    provider_id: str,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get rent-a-car bookings per car for a date range (owner only)."""
+    providers_col = get_providers_collection()
+    bookings_col = get_bookings_collection()
+
+    if not ObjectId.is_valid(provider_id):
+        raise HTTPException(status_code=400, detail="Invalid provider ID")
+
+    provider = await providers_col.find_one({"_id": ObjectId(provider_id)})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    if str(provider.get("user_id")) != str(current_user.get("id")):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    if provider.get("category") != "rent_a_car":
+        raise HTTPException(status_code=400, detail="Provider is not rent-a-car")
+
+    today = datetime.utcnow().date()
+    try:
+        range_start = datetime.strptime(start_date, "%Y-%m-%d").date() if start_date else today
+        range_end = datetime.strptime(end_date, "%Y-%m-%d").date() if end_date else today + timedelta(days=30)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format")
+
+    if range_end < range_start:
+        raise HTTPException(status_code=400, detail="End date must be after start date")
+
+    cars = provider.get("cars", [])
+    car_label_map = {str(car.get("id")): f"{car.get('brand', '')} {car.get('model', '')}".strip() for car in cars}
+
+    bookings = await bookings_col.find({
+        "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
+        "car_id": {"$ne": None},
+        "status": {"$in": ["confirmed", "pending"]}
+    }).to_list(2000)
+
+    items = []
+    for booking in bookings:
+        booking_date = booking.get("booking_date")
+        rental_end_date = booking.get("rental_end_date") or booking_date
+        if not booking_date:
+            continue
+        try:
+            booking_start = datetime.strptime(booking_date, "%Y-%m-%d").date()
+            booking_end = datetime.strptime(rental_end_date, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+
+        if booking_start <= range_end and range_start <= booking_end:
+            car_id = str(booking.get("car_id")) if booking.get("car_id") else None
+            items.append({
+                "car_id": car_id,
+                "car_label": car_label_map.get(car_id) or car_id,
+                "booking_date": booking_date,
+                "start_time": booking.get("start_time"),
+                "rental_end_date": rental_end_date,
+                "rental_end_time": booking.get("rental_end_time"),
+                "status": booking.get("status"),
+                "customer_name": booking.get("customer_name"),
+            })
+
+    return {
+        "start_date": range_start.isoformat(),
+        "end_date": range_end.isoformat(),
+        "items": items,
+    }
+# ============================================================
+
 @router.post("/", response_model=BookingResponse, status_code=status.HTTP_201_CREATED)
 async def create_booking(request: BookingCreateRequest, http_request: Request):
     """Create a new booking"""

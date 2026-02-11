@@ -23,7 +23,10 @@ import MapView, { Marker } from 'react-native-maps';
 import { Calendar } from 'react-native-calendars';
 
 export default function BookServiceScreen({ navigation, route }) {
-  const { provider } = route.params;
+  const providerParam = route?.params?.provider || null;
+  const providerIdParam = route?.params?.providerId || providerParam?.id || null;
+  const [provider, setProvider] = useState(providerParam);
+  const [providerLoading, setProviderLoading] = useState(false);
   const { user } = useAuth();
 
   const isAppointment = provider?.booking_settings?.type === 'appointment_based';
@@ -85,6 +88,18 @@ export default function BookServiceScreen({ navigation, route }) {
     return `${digits.slice(0, 2)}:${digits.slice(2, 4)}`;
   };
 
+  const buildFormDraft = () => ({
+    customerName,
+    customerEmail,
+    customerPhone,
+    selectedCarId,
+    rentalStartDate,
+    rentalStartTime,
+    rentalEndDate,
+    rentalEndTime,
+    notes,
+  });
+
   // Form fields
   const [customerName, setCustomerName] = useState(user?.username || '');
   const [customerEmail, setCustomerEmail] = useState(user?.email || '');
@@ -101,15 +116,45 @@ export default function BookServiceScreen({ navigation, route }) {
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
+    if (providerParam && !provider) {
+      setProvider(providerParam);
+    }
+  }, [providerParam, provider]);
+
+  useEffect(() => {
+    const fetchProvider = async () => {
+      if (provider || !providerIdParam || providerLoading) {
+        return;
+      }
+      setProviderLoading(true);
+      const result = await bookingsAPI.getProvider(providerIdParam);
+      if (result.success) {
+        setProvider(result.data);
+      }
+      setProviderLoading(false);
+    };
+    fetchProvider();
+  }, [provider, providerIdParam, providerLoading]);
+
+  useEffect(() => {
+    if (!provider) {
+      return;
+    }
     // Set default date to tomorrow
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    setBookingDate(tomorrow.toISOString().split('T')[0]);
+    if (!bookingDate) {
+      setBookingDate(tomorrow.toISOString().split('T')[0]);
+    }
     if (isRentCar) {
       const endDate = new Date(tomorrow);
       endDate.setDate(endDate.getDate() + 1);
-      setRentalStartDate(tomorrow.toISOString().split('T')[0]);
-      setRentalEndDate(endDate.toISOString().split('T')[0]);
+      if (!rentalStartDate) {
+        setRentalStartDate(tomorrow.toISOString().split('T')[0]);
+      }
+      if (!rentalEndDate) {
+        setRentalEndDate(endDate.toISOString().split('T')[0]);
+      }
     }
   }, [isRentCar]);
 
@@ -118,9 +163,33 @@ export default function BookServiceScreen({ navigation, route }) {
       setDeliveryAddress(route.params.pickedLocation.address || '');
       setDeliveryLatitude(route.params.pickedLocation.latitude || null);
       setDeliveryLongitude(route.params.pickedLocation.longitude || null);
-      navigation.setParams({ pickedLocation: null, pickedLocationTarget: null });
+      if (route?.params?.provider && !provider) {
+        setProvider(route.params.provider);
+      }
+      navigation.setParams({
+        pickedLocation: null,
+        pickedLocationTarget: null,
+        provider: route?.params?.provider || null,
+        formDraft: route?.params?.formDraft || null,
+      });
     }
   }, [route?.params?.pickedLocation, route?.params?.pickedLocationTarget]);
+
+  useEffect(() => {
+    if (route?.params?.formDraft) {
+      const draft = route.params.formDraft;
+      if (draft.customerName != null) setCustomerName(draft.customerName);
+      if (draft.customerEmail != null) setCustomerEmail(draft.customerEmail);
+      if (draft.customerPhone != null) setCustomerPhone(draft.customerPhone);
+      if (draft.selectedCarId != null) setSelectedCarId(draft.selectedCarId);
+      if (draft.rentalStartDate != null) setRentalStartDate(draft.rentalStartDate);
+      if (draft.rentalStartTime != null) setRentalStartTime(draft.rentalStartTime);
+      if (draft.rentalEndDate != null) setRentalEndDate(draft.rentalEndDate);
+      if (draft.rentalEndTime != null) setRentalEndTime(draft.rentalEndTime);
+      if (draft.notes != null) setNotes(draft.notes);
+      navigation.setParams({ formDraft: null });
+    }
+  }, [route?.params?.formDraft]);
 
   useEffect(() => {
     if (user?.email) {
@@ -441,6 +510,34 @@ export default function BookServiceScreen({ navigation, route }) {
     }
   };
 
+  if (!provider && providerLoading) {
+    return (
+      <View style={styles.container}>
+        <Appbar.Header>
+          <Appbar.BackAction onPress={() => navigation.goBack()} />
+          <Appbar.Content title="Rezervare" />
+        </Appbar.Header>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4CAF50" />
+        </View>
+      </View>
+    );
+  }
+
+  if (!provider) {
+    return (
+      <View style={styles.container}>
+        <Appbar.Header>
+          <Appbar.BackAction onPress={() => navigation.goBack()} />
+          <Appbar.Content title="Rezervare" />
+        </Appbar.Header>
+        <View style={{ padding: 16 }}>
+          <Text>Nu am putut incarca serviciul selectat.</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Appbar.Header>
@@ -581,6 +678,9 @@ export default function BookServiceScreen({ navigation, route }) {
                       : null,
                     returnTo: 'BookService',
                     locationTarget: 'rental_delivery',
+                    providerId: provider?.id || providerIdParam,
+                    provider,
+                    formDraft: buildFormDraft(),
                   })}
                   style={styles.locationButton}
                 >

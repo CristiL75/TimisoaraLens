@@ -14,7 +14,7 @@ if (Platform.OS !== 'web') {
 import * as Location from 'expo-location';
 
 const LocationPickerScreen = ({ navigation, route }) => {
-  const { initialLocation, returnTo, locationTarget } = route.params || {};
+  const { initialLocation, returnTo, locationTarget, providerId, provider, formDraft } = route.params || {};
   
   // State pentru locație selectată
   const [selectedLocation, setSelectedLocation] = useState(
@@ -203,7 +203,13 @@ const LocationPickerScreen = ({ navigation, route }) => {
     if (returnTo) {
       navigation.navigate({
         name: returnTo,
-        params: { pickedLocation: payload, pickedLocationTarget: locationTarget || null },
+        params: {
+          pickedLocation: payload,
+          pickedLocationTarget: locationTarget || null,
+          providerId: providerId || null,
+          provider: provider || null,
+          formDraft: formDraft || null,
+        },
         merge: true,
       });
       return;

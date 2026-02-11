@@ -560,6 +560,68 @@ export const bookingsAPI = {
   },
 
   /**
+   * Get provider calendar (blocked/full days)
+   */
+  getProviderCalendar: async (providerId) => {
+    try {
+      const response = await api.get(`/bookings/calendar/${providerId}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] getProviderCalendar error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to load calendar',
+      };
+    }
+  },
+
+  /**
+   * Block a day for a provider calendar
+   */
+  blockProviderDay: async (providerId, date, reason = null) => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      const response = await api.post(
+        '/bookings/calendar/block',
+        { provider_id: providerId, date, reason },
+        {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : undefined,
+          },
+        }
+      );
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] blockProviderDay error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to block day',
+      };
+    }
+  },
+
+  /**
+   * Get rent-a-car calendar (booked cars in date range)
+   */
+  getProviderCarCalendar: async (providerId, startDate, endDate) => {
+    try {
+      const response = await api.get(`/bookings/calendar/cars/${providerId}`, {
+        params: {
+          start_date: startDate || undefined,
+          end_date: endDate || undefined,
+        },
+      });
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] getProviderCarCalendar error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to load car calendar',
+      };
+    }
+  },
+
+  /**
    * Create a service
    */
   createService: async (serviceData) => {

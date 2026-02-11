@@ -36,6 +36,13 @@ export default function ProfileScreen({ navigation }) {
     return parts.join(' • ');
   };
 
+  const getCarLabel = (booking) => {
+    if (!booking?.car_id) return null;
+    const provider = providers.find((item) => String(item.id) === String(booking.provider_id));
+    const car = provider?.cars?.find((item) => String(item.id) === String(booking.car_id));
+    return car ? `${car.brand} ${car.model}` : null;
+  };
+
   useEffect(() => {
     loadProfileData();
   }, []);
@@ -244,6 +251,14 @@ export default function ProfileScreen({ navigation }) {
                       </Title>
                       <Paragraph>Serviciu: {providerMap[String(booking.provider_id)] || 'Serviciu'}</Paragraph>
                       <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
+                      {booking.car_id && (
+                        <Paragraph>Masina: {getCarLabel(booking) || booking.car_id}</Paragraph>
+                      )}
+                      {booking.rental_end_date && booking.rental_end_time && (
+                        <Paragraph>
+                          Perioada: {booking.booking_date} {booking.start_time} - {booking.rental_end_date} {booking.rental_end_time}
+                        </Paragraph>
+                      )}
                       <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
                       <Paragraph>Email: {booking.customer_email}</Paragraph>
                       {booking.service_id && serviceMap[String(booking.service_id)] && (
@@ -301,6 +316,14 @@ export default function ProfileScreen({ navigation }) {
                       </Title>
                       <Paragraph>Serviciu: {providerMap[String(booking.provider_id)] || 'Serviciu'}</Paragraph>
                       <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
+                      {booking.car_id && (
+                        <Paragraph>Masina: {getCarLabel(booking) || booking.car_id}</Paragraph>
+                      )}
+                      {booking.rental_end_date && booking.rental_end_time && (
+                        <Paragraph>
+                          Perioada: {booking.booking_date} {booking.start_time} - {booking.rental_end_date} {booking.rental_end_time}
+                        </Paragraph>
+                      )}
                       <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
                       <Paragraph>Email: {booking.customer_email}</Paragraph>
                       {booking.service_id && serviceMap[String(booking.service_id)] && (
@@ -336,6 +359,14 @@ export default function ProfileScreen({ navigation }) {
                       </Title>
                       <Paragraph>Serviciu: {providerMap[String(booking.provider_id)] || 'Serviciu'}</Paragraph>
                       <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
+                      {booking.car_id && (
+                        <Paragraph>Masina: {getCarLabel(booking) || booking.car_id}</Paragraph>
+                      )}
+                      {booking.rental_end_date && booking.rental_end_time && (
+                        <Paragraph>
+                          Perioada: {booking.booking_date} {booking.start_time} - {booking.rental_end_date} {booking.rental_end_time}
+                        </Paragraph>
+                      )}
                       <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
                       <Paragraph>Email: {booking.customer_email}</Paragraph>
                       {booking.table_id && tableMap[String(booking.table_id)] && (
@@ -368,6 +399,14 @@ export default function ProfileScreen({ navigation }) {
                   <Paragraph>Masa: {formatTableDetails(tableMap[String(booking.table_id)])}</Paragraph>
                 )}
                 <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
+                {booking.car_id && (
+                  <Paragraph>Masina: {getCarLabel(booking) || booking.car_id}</Paragraph>
+                )}
+                {booking.rental_end_date && booking.rental_end_time && (
+                  <Paragraph>
+                    Perioada: {booking.booking_date} {booking.start_time} - {booking.rental_end_date} {booking.rental_end_time}
+                  </Paragraph>
+                )}
                 <Chip style={styles.chip}>{booking.status}</Chip>
               </Card.Content>
               <Card.Actions>
