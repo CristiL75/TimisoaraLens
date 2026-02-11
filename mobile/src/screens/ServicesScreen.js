@@ -26,6 +26,7 @@ export default function ServicesScreen({ navigation }) {
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [providerTables, setProviderTables] = useState([]);
   const [providerServices, setProviderServices] = useState([]);
+  const [providerRooms, setProviderRooms] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
 
   useEffect(() => {
@@ -40,6 +41,7 @@ export default function ServicesScreen({ navigation }) {
 
     loadProviderTables(ownedProviderIds);
     loadProviderServices(ownedProviderIds);
+    loadProviderRooms(ownedProviderIds);
   }, [providers, user?.id]);
 
   const loadProviders = async () => {
@@ -103,6 +105,22 @@ export default function ServicesScreen({ navigation }) {
     }
   };
 
+  const loadProviderRooms = async (providerIds) => {
+    if (!providerIds || providerIds.length === 0) {
+      setProviderRooms([]);
+      return;
+    }
+    try {
+      const results = await Promise.all(
+        providerIds.map((providerId) => bookingsAPI.getRooms(providerId))
+      );
+      const rooms = results.flatMap((res) => (res.success ? res.data : []));
+      setProviderRooms(rooms);
+    } catch (e) {
+      setProviderRooms([]);
+    }
+  };
+
   const tableById = useMemo(() => {
     return providerTables.reduce((acc, table) => {
       acc[String(table.id)] = table;
@@ -116,6 +134,13 @@ export default function ServicesScreen({ navigation }) {
       return acc;
     }, {});
   }, [providerServices]);
+
+  const roomById = useMemo(() => {
+    return providerRooms.reduce((acc, room) => {
+      acc[String(room.id)] = room;
+      return acc;
+    }, {});
+  }, [providerRooms]);
 
   const ownedProviders = providers.filter(
     (provider) => provider.user_id && user?.id && String(provider.user_id).trim() === String(user.id).trim()
@@ -137,6 +162,15 @@ export default function ServicesScreen({ navigation }) {
     if (options.length > 0) {
       parts.push(options.map(formatTableLabel).join(', '));
     }
+    return parts.join(' • ');
+  };
+
+  const formatRoomDetails = (room) => {
+    if (!room) return '';
+    const parts = [];
+    if (room.name) parts.push(room.name);
+    if (room.capacity) parts.push(`${room.capacity} pers`);
+    if (room.space_type) parts.push(String(room.space_type).replace(/_/g, ' '));
     return parts.join(' • ');
   };
 
@@ -248,6 +282,9 @@ export default function ServicesScreen({ navigation }) {
                       {booking.table_id && tableById[String(booking.table_id)] && (
                         <Paragraph>Masa: {formatTableDetails(tableById[String(booking.table_id)])}</Paragraph>
                       )}
+                      {booking.room_id && roomById[String(booking.room_id)] && (
+                        <Paragraph>Spatiu: {formatRoomDetails(roomById[String(booking.room_id)])}</Paragraph>
+                      )}
                       {booking.table_id && booking.special_occasion && (
                         <Paragraph>Ocazie speciala: {formatOccasion(booking.special_occasion)}</Paragraph>
                       )}
@@ -329,6 +366,9 @@ export default function ServicesScreen({ navigation }) {
                       {booking.table_id && tableById[String(booking.table_id)] && (
                         <Paragraph>Masa: {formatTableDetails(tableById[String(booking.table_id)])}</Paragraph>
                       )}
+                      {booking.room_id && roomById[String(booking.room_id)] && (
+                        <Paragraph>Spatiu: {formatRoomDetails(roomById[String(booking.room_id)])}</Paragraph>
+                      )}
                       <Paragraph>Status: Anulata de client</Paragraph>
                     </Card.Content>
                   </Card>
@@ -347,6 +387,7 @@ export default function ServicesScreen({ navigation }) {
             { key: 'massage_spa', label: 'Masaj & Spa' },
             { key: 'beauty', label: 'Beauty' },
             { key: 'rent_a_car', label: 'Rent-a-Car' },
+            { key: 'location_space', label: 'Locatie / Business' },
           ].map((cat) => (
             <Chip
               key={cat.key}
@@ -373,6 +414,7 @@ export default function ServicesScreen({ navigation }) {
             .map((provider) => {
               const isOwner = user?.id && provider.user_id && String(user.id).trim() === String(provider.user_id).trim();
               const isRentCar = provider.category === 'rent_a_car';
+              const isLocationSpace = provider.category === 'location_space';
               return (
                 <Card
                   key={provider.id}
@@ -393,7 +435,7 @@ export default function ServicesScreen({ navigation }) {
                   <Card.Content>
                     <View style={styles.titleContainer}>
                       <MaterialCommunityIcons
-                        name={isRentCar ? 'car' : (provider.booking_settings.type === 'table_based' ? 'silverware-fork-knife' : 'scissors-cutting')}
+                        name={isRentCar ? 'car' : isLocationSpace ? 'office-building' : (provider.booking_settings.type === 'table_based' ? 'silverware-fork-knife' : 'scissors-cutting')}
                         size={24}
                         color="#FF9800"
                       />
@@ -423,6 +465,13 @@ export default function ServicesScreen({ navigation }) {
                         </Chip>
                       </View>
                     )}
+                    {isLocationSpace && (
+                      <View style={styles.tagsContainer}>
+                        <Chip icon="office-building" mode="outlined" style={styles.smallChip}>
+                          Locatie evenimente
+                        </Chip>
+                      </View>
+                    )}
                     {provider.facilities && (
                       <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
                         {Object.entries(provider.facilities)
@@ -434,13 +483,22 @@ export default function ServicesScreen({ navigation }) {
                     )}
                   </Card.Content>
                   <Card.Actions>
-                    {!isRentCar && (
+                    {!isRentCar && !isLocationSpace && (
                       <Button
                         mode="outlined"
                         icon="calendar-plus"
                         onPress={() => navigation.navigate('BookService', { provider })}
                       >
                         Rezerva
+                      </Button>
+                    )}
+                    {isLocationSpace && (
+                      <Button
+                        mode="outlined"
+                        icon="calendar-plus"
+                        onPress={() => navigation.navigate('BookService', { provider })}
+                      >
+                        Rezerva spatiu
                       </Button>
                     )}
                     {isRentCar && (

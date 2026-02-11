@@ -126,6 +126,7 @@ async def connect_to_mongo():
         await database.providers.create_index("user_id")
         await database.providers.create_index("status")
         await database.tables.create_index("provider_id")
+        await database.rooms.create_index("provider_id")
         await database.services.create_index("provider_id")
         await database.employees.create_index("provider_id")
         await database.bookings.create_index("provider_id")
@@ -169,6 +170,10 @@ def get_providers_collection():
 def get_tables_collection():
     """Get tables collection"""
     return database.tables
+
+def get_rooms_collection():
+    """Get rooms collection"""
+    return database.rooms
 
 def get_bookings_collection():
     """Get bookings collection"""
@@ -275,6 +280,28 @@ class Table(BaseModel):
         json_encoders = {ObjectId: str}
 
 
+class Room(BaseModel):
+    """Room or hall resource for location/business providers"""
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    provider_id: PyObjectId
+
+    name: str
+    space_type: str
+    capacity: int
+    price_per_hour: Optional[float] = None
+    price_half_day: Optional[float] = None
+    price_full_day: Optional[float] = None
+    amenities: list[str] = []
+    layouts: list[str] = []
+
+    status: str = "active"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        populate_by_name = True
+        json_encoders = {ObjectId: str}
+
+
 class Service(BaseModel):
     """Appointment-based service (haircut, massage, etc.)"""
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
@@ -316,6 +343,9 @@ class Booking(BaseModel):
     service_id: Optional[PyObjectId] = None
     employee_id: Optional[PyObjectId] = None
     car_id: Optional[str] = None
+    room_id: Optional[PyObjectId] = None
+    room_layout: Optional[str] = None
+    pricing_unit: Optional[str] = None
     
     # Customer info
     customer_name: str

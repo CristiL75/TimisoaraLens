@@ -34,6 +34,7 @@ const SERVICE_CATEGORIES = [
   { key: 'massage_spa', label: 'Masaj & Spa' },
   { key: 'beauty', label: 'Beauty' },
   { key: 'rent_a_car', label: 'Rent-a-Car' },
+  { key: 'location_space', label: 'Locatie / Business' },
 ];
 
 const TRANSMISSION_OPTIONS = [
@@ -336,9 +337,15 @@ export default function ManageProviderScreen({ navigation, route }) {
       ? 'table_based'
       : category === 'rent_a_car'
         ? 'fleet_based'
-        : 'appointment_based';
-    const defaultDuration = category === 'rent_a_car' ? 0 : parseInt(duration, 10);
-    const defaultBuffer = category === 'rent_a_car' ? 0 : parseInt(buffer, 10);
+        : category === 'location_space'
+          ? 'space_based'
+          : 'appointment_based';
+    const defaultDuration = (category === 'rent_a_car' || category === 'location_space')
+      ? 0
+      : parseInt(duration, 10);
+    const defaultBuffer = (category === 'rent_a_car' || category === 'location_space')
+      ? 0
+      : parseInt(buffer, 10);
     const providerData = {
       category,
       name,
@@ -703,7 +710,7 @@ export default function ManageProviderScreen({ navigation, route }) {
           </Card>
         )}
 
-        {category !== 'rent_a_car' && (
+        {category !== 'rent_a_car' && category !== 'location_space' && (
           <Card style={styles.card}>
             <Card.Content>
               <Title>Setari Rezervari</Title>
@@ -761,7 +768,7 @@ export default function ManageProviderScreen({ navigation, route }) {
           </Card>
         )}
 
-        {isEdit && category !== 'food_drinks' && category !== 'rent_a_car' && (
+        {isEdit && category !== 'food_drinks' && category !== 'rent_a_car' && category !== 'location_space' && (
           <Card style={styles.card}>
             <Card.Content>
               <Title>Servicii si Angajati</Title>
@@ -781,6 +788,23 @@ export default function ManageProviderScreen({ navigation, route }) {
                 style={styles.tablesButton}
               >
                 Gestioneaza Angajati
+              </Button>
+            </Card.Content>
+          </Card>
+        )}
+
+        {isEdit && category === 'location_space' && (
+          <Card style={styles.card}>
+            <Card.Content>
+              <Title>Spatii</Title>
+              <Text style={styles.noteText}>Gestioneaza salile si disponibilitatea lor.</Text>
+              <Button
+                mode="contained"
+                icon="office-building"
+                onPress={() => navigation.navigate('ManageRooms', { provider: existingProvider })}
+                style={styles.tablesButton}
+              >
+                Gestioneaza Spatii
               </Button>
             </Card.Content>
           </Card>

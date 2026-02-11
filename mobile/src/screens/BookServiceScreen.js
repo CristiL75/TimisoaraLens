@@ -22,6 +22,20 @@ import { useAuth } from '../context/AuthContext';
 import MapView, { Marker } from 'react-native-maps';
 import { Calendar } from 'react-native-calendars';
 
+const ROOM_LAYOUTS = [
+  { key: 'theatre', label: 'Theatre' },
+  { key: 'classroom', label: 'Classroom' },
+  { key: 'u_shape', label: 'U-shape' },
+  { key: 'boardroom', label: 'Boardroom' },
+  { key: 'standing', label: 'Standing event' },
+];
+
+const PRICING_UNITS = [
+  { key: 'hour', label: 'Per ora' },
+  { key: 'half_day', label: 'Jumatate zi' },
+  { key: 'full_day', label: 'Zi intreaga' },
+];
+
 export default function BookServiceScreen({ navigation, route }) {
   const providerParam = route?.params?.provider || null;
   const providerIdParam = route?.params?.providerId || providerParam?.id || null;
@@ -32,6 +46,7 @@ export default function BookServiceScreen({ navigation, route }) {
   const isAppointment = provider?.booking_settings?.type === 'appointment_based';
   const isRestaurant = provider?.category === 'food_drinks';
   const isRentCar = provider?.category === 'rent_a_car';
+  const isLocationSpace = provider?.category === 'location_space';
 
   const [loading, setLoading] = useState(false);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
@@ -46,6 +61,13 @@ export default function BookServiceScreen({ navigation, route }) {
   const [selectedServiceId, setSelectedServiceId] = useState(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [selectedCarId, setSelectedCarId] = useState(null);
+  const [rooms, setRooms] = useState([]);
+  const [loadingRooms, setLoadingRooms] = useState(false);
+  const [selectedRoomId, setSelectedRoomId] = useState(null);
+  const [selectedLayout, setSelectedLayout] = useState('');
+  const [pricingUnit, setPricingUnit] = useState('hour');
+  const [spaceEndTime, setSpaceEndTime] = useState('');
+  const [spaceAvailability, setSpaceAvailability] = useState(null);
   const [rentalStartDate, setRentalStartDate] = useState('');
   const [rentalStartTime, setRentalStartTime] = useState('');
   const [rentalEndDate, setRentalEndDate] = useState('');
@@ -64,6 +86,7 @@ export default function BookServiceScreen({ navigation, route }) {
     () => (provider?.cars || []).find((car) => String(car.id) === String(selectedCarId)) || null,
     [provider?.cars, selectedCarId]
   );
+  const selectedRoom = rooms.find((room) => String(room.id) === String(selectedRoomId)) || null;
   const filteredEmployees = selectedServiceId
     ? employees.filter((e) => (e.service_ids || []).includes(selectedServiceId))
     : employees;
@@ -254,6 +277,26 @@ export default function BookServiceScreen({ navigation, route }) {
   }, [provider]);
 
   useEffect(() => {
+    const loadRooms = async () => {
+      setLoadingRooms(true);
+      try {
+        const result = await bookingsAPI.getRooms(provider.id);
+        if (result.success) {
+          setRooms(result.data || []);
+        }
+      } catch (error) {
+        // ignore
+      } finally {
+        setLoadingRooms(false);
+      }
+    };
+
+    if (provider?.category === 'location_space') {
+      loadRooms();
+    }
+  }, [provider]);
+
+  useEffect(() => {
     const partySizeValue = parseInt(partySize || '0', 10);
     if (!selectedTableId || !partySizeValue) return;
     const selected = tables.find((t) => t.id === selectedTableId);
@@ -270,6 +313,43 @@ export default function BookServiceScreen({ navigation, route }) {
 
   const handleCheckAvailability = async () => {
     const isAppointment = provider?.booking_settings?.type === 'appointment_based';
+    if (isLocationSpace) {
+      if (!bookingDate || !selectedRoomId || !selectedTime || !spaceEndTime || !partySize) {
+        Alert.alert('Eroare', 'Selecteaza spatiul, data, intervalul si numarul de participanti');
+        return;
+      }
+
+      setCheckingAvailability(true);
+      setSpaceAvailability(null);
+
+      try {
+        const result = await bookingsAPI.checkAvailability(
+          provider.id,
+          bookingDate,
+          parseInt(partySize, 10),
+          selectedTime,
+          null,
+          null,
+          null,
+          null,
+          null,
+          spaceEndTime,
+          selectedRoomId
+        );
+
+        if (result.success) {
+          const available = result.data?.slots?.[0]?.available ?? false;
+          setSpaceAvailability(available);
+        } else {
+          Alert.alert('Eroare', result.error);
+        }
+      } catch (error) {
+        Alert.alert('Eroare', 'A aparut o eroare la verificarea disponibilitatii');
+      } finally {
+        setCheckingAvailability(false);
+      }
+      return;
+    }
     if (isAppointment) {
       if (!bookingDate || !selectedServiceId || !selectedEmployeeId) {
         Alert.alert('Eroare', 'Selectează data, serviciul și angajatul');
@@ -297,11 +377,15 @@ export default function BookServiceScreen({ navigation, route }) {
       const result = await bookingsAPI.checkAvailability(
         provider.id,
         bookingDate,
-        parseInt(partySize),
+        parseInt(partySize, 10),
         isAppointment ? null : selectedTime,
         isAppointment ? null : durationValue,
         isAppointment ? selectedServiceId : null,
-        isAppointment ? selectedEmployeeId : null
+        isAppointment ? selectedEmployeeId : null,
+        null,
+        null,
+        null,
+        null
       );
 
       if (result.success) {
@@ -322,6 +406,10 @@ export default function BookServiceScreen({ navigation, route }) {
   const handleBooking = async () => {
     const requiresTable = provider?.booking_settings?.type === 'table_based';
     const isAppointment = provider?.booking_settings?.type === 'appointment_based';
+    if (isLocationSpace) {
+      await handleSpaceBooking();
+      return;
+    }
     if (!customerName || !customerEmail || !customerPhone || !selectedTime || (!isAppointment && !durationMinutes)) {
       Alert.alert('Eroare', 'Completează toate câmpurile și alege un slot orar');
       return;
@@ -425,6 +513,7 @@ export default function BookServiceScreen({ navigation, route }) {
         null,
         selectedCarId,
         rentalEndDate,
+        null,
         null
       );
 
@@ -438,6 +527,53 @@ export default function BookServiceScreen({ navigation, route }) {
       Alert.alert('Eroare', 'A aparut o eroare la verificarea disponibilitatii');
     } finally {
       setCheckingCarAvailability(false);
+    }
+  };
+
+  const handleSpaceBooking = async () => {
+    if (!customerName || !customerEmail || !customerPhone) {
+      Alert.alert('Eroare', 'Completeaza datele de contact');
+      return;
+    }
+
+    if (!selectedRoomId || !bookingDate || !selectedTime || !spaceEndTime || !partySize) {
+      Alert.alert('Eroare', 'Completeaza spatiul, data, intervalul si participantii');
+      return;
+    }
+
+    setLoading(true);
+    const effectiveEmail = user?.email || customerEmail;
+
+    const bookingData = {
+      provider_id: provider.id,
+      room_id: selectedRoomId,
+      room_layout: selectedLayout || null,
+      pricing_unit: pricingUnit || null,
+      customer_name: customerName,
+      customer_email: effectiveEmail,
+      customer_phone: customerPhone,
+      booking_date: bookingDate,
+      start_time: selectedTime,
+      end_time: spaceEndTime,
+      party_size: parseInt(partySize, 10),
+      notes: notes || null,
+    };
+
+    try {
+      const result = await bookingsAPI.createBooking(bookingData);
+      if (result.success) {
+        Alert.alert(
+          'Cerere trimisa',
+          `Cererea ta la ${provider.name} a fost inregistrata si asteapta confirmare.`,
+          [{ text: 'OK', onPress: () => navigation.navigate('Services') }]
+        );
+      } else {
+        Alert.alert('Eroare', result.error);
+      }
+    } catch (error) {
+      Alert.alert('Eroare', 'A aparut o eroare la trimiterea cererii');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -710,6 +846,185 @@ export default function BookServiceScreen({ navigation, route }) {
               style={styles.bookButton}
             >
               Trimite cerere inchiriere
+            </Button>
+          </>
+        ) : isLocationSpace ? (
+          <>
+            <Card style={styles.card}>
+              <Card.Content>
+                <View style={styles.titleContainer}>
+                  <MaterialCommunityIcons name="office-building" size={28} color="#4CAF50" />
+                  <Title style={styles.titleText}>{provider.name}</Title>
+                </View>
+                {provider.description && (
+                  <Text style={styles.description}>{provider.description}</Text>
+                )}
+                {selectedRoom && (
+                  <Text style={styles.noteText}>
+                    {selectedRoom.name} • {selectedRoom.capacity} pers
+                  </Text>
+                )}
+              </Card.Content>
+            </Card>
+
+            <Card style={styles.card}>
+              <Card.Content>
+                <Title style={styles.sectionTitle}>Datele Tale</Title>
+                <TextInput
+                  label="Nume *"
+                  value={customerName}
+                  onChangeText={setCustomerName}
+                  mode="outlined"
+                  style={styles.input}
+                />
+                <TextInput
+                  label="Email *"
+                  value={customerEmail}
+                  onChangeText={setCustomerEmail}
+                  mode="outlined"
+                  style={styles.input}
+                  keyboardType="email-address"
+                  editable={!user?.email}
+                />
+                <TextInput
+                  label="Telefon *"
+                  value={customerPhone}
+                  onChangeText={setCustomerPhone}
+                  mode="outlined"
+                  style={styles.input}
+                  keyboardType="phone-pad"
+                  placeholder="+40 ..."
+                />
+              </Card.Content>
+            </Card>
+
+            <Card style={styles.card}>
+              <Card.Content>
+                <Title style={styles.sectionTitle}>Spatiu</Title>
+                {loadingRooms ? (
+                  <ActivityIndicator size="small" color="#4CAF50" />
+                ) : rooms.length === 0 ? (
+                  <Text style={styles.emptyText}>Nu exista spatii disponibile.</Text>
+                ) : (
+                  <View style={styles.slotsGrid}>
+                    {rooms.map((room, roomIndex) => (
+                      <Chip
+                        key={`${room.id || room.name}-${roomIndex}`}
+                        selected={selectedRoomId === room.id}
+                        onPress={() => setSelectedRoomId(room.id)}
+                        mode="outlined"
+                        style={styles.slotChip}
+                      >
+                        {room.name} ({room.capacity})
+                      </Chip>
+                    ))}
+                  </View>
+                )}
+
+                <Text style={[styles.slotsTitle, { marginTop: 12 }]}>Layout (optional)</Text>
+                <View style={styles.slotsGrid}>
+                  {ROOM_LAYOUTS.map((layout) => (
+                    <Chip
+                      key={layout.key}
+                      selected={selectedLayout === layout.key}
+                      onPress={() => setSelectedLayout(layout.key)}
+                      mode="outlined"
+                      style={styles.slotChip}
+                    >
+                      {layout.label}
+                    </Chip>
+                  ))}
+                </View>
+
+                <Text style={[styles.slotsTitle, { marginTop: 12 }]}>Tarif</Text>
+                <View style={styles.slotsGrid}>
+                  {PRICING_UNITS.map((unit) => (
+                    <Chip
+                      key={unit.key}
+                      selected={pricingUnit === unit.key}
+                      onPress={() => setPricingUnit(unit.key)}
+                      mode="outlined"
+                      style={styles.slotChip}
+                    >
+                      {unit.label}
+                    </Chip>
+                  ))}
+                </View>
+              </Card.Content>
+            </Card>
+
+            <Card style={styles.card}>
+              <Card.Content>
+                <Title style={styles.sectionTitle}>Detalii Rezervare</Title>
+                <TextInput
+                  label="Data *"
+                  value={bookingDate}
+                  onChangeText={setBookingDate}
+                  mode="outlined"
+                  style={styles.input}
+                  placeholder="YYYY-MM-DD"
+                />
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TextInput
+                    label="Ora inceput *"
+                    value={selectedTime}
+                    onChangeText={(value) => setSelectedTime(normalizeTimeInput(value))}
+                    mode="outlined"
+                    style={[styles.input, { flex: 1 }]}
+                    placeholder="HH:MM"
+                  />
+                  <TextInput
+                    label="Ora sfarsit *"
+                    value={spaceEndTime}
+                    onChangeText={(value) => setSpaceEndTime(normalizeTimeInput(value))}
+                    mode="outlined"
+                    style={[styles.input, { flex: 1 }]}
+                    placeholder="HH:MM"
+                  />
+                </View>
+                <TextInput
+                  label="Numar participanti *"
+                  value={partySize}
+                  onChangeText={setPartySize}
+                  mode="outlined"
+                  style={styles.input}
+                  keyboardType="numeric"
+                />
+                <Button
+                  mode="contained"
+                  onPress={handleCheckAvailability}
+                  loading={checkingAvailability}
+                  disabled={checkingAvailability}
+                  icon="calendar-search"
+                  style={styles.checkButton}
+                >
+                  Verifica disponibilitate
+                </Button>
+                {spaceAvailability !== null && (
+                  <Text style={spaceAvailability ? styles.availableText : styles.unavailableText}>
+                    {spaceAvailability ? 'Spatiul este disponibil.' : 'Spatiul nu este disponibil.'}
+                  </Text>
+                )}
+                <TextInput
+                  label="Notite (optional)"
+                  value={notes}
+                  onChangeText={setNotes}
+                  mode="outlined"
+                  style={styles.input}
+                  multiline
+                />
+              </Card.Content>
+            </Card>
+
+            <Button
+              mode="contained"
+              onPress={handleSpaceBooking}
+              loading={loading}
+              disabled={loading || spaceAvailability === false}
+              style={styles.bookButton}
+              icon="calendar-check"
+            >
+              Trimite cerere
             </Button>
           </>
         ) : (

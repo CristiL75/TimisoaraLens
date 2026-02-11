@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, ScrollView, Image, StyleSheet, Platform } from 'react-native';
 import { Appbar, Title, Paragraph, Chip, Button, Card, Text } from 'react-native-paper';
+import { bookingsAPI } from '../services/api';
 
 // react-native-maps is native only and breaks web bundling.
 // Import it dynamically at runtime for native platforms only.
@@ -18,6 +19,21 @@ export default function ProviderDetailScreen({ route, navigation }) {
   const lng = typeof provider?.longitude === 'number' ? provider.longitude : parseFloat(provider?.longitude);
   const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
   const isRentCar = provider?.category === 'rent_a_car';
+  const isLocationSpace = provider?.category === 'location_space';
+  const [rooms, setRooms] = useState([]);
+
+  useEffect(() => {
+    if (!isLocationSpace || !provider?.id) {
+      return;
+    }
+    const loadRooms = async () => {
+      const result = await bookingsAPI.getRooms(provider.id);
+      if (result.success) {
+        setRooms(result.data || []);
+      }
+    };
+    loadRooms();
+  }, [isLocationSpace, provider?.id]);
 
   return (
     <View style={styles.container}>
@@ -68,15 +84,48 @@ export default function ProviderDetailScreen({ route, navigation }) {
                 ))}
               </View>
             )}
-            {!isRentCar && (
+            {!isRentCar && !isLocationSpace && (
               <View style={styles.tagsRow}>
                 <Chip style={styles.chip}>{provider.booking_settings?.default_duration_minutes} min</Chip>
                 <Chip style={styles.chip}>{provider.booking_settings?.auto_confirm ? 'Auto-confirm' : 'Manual'}</Chip>
               </View>
             )}
+            {isLocationSpace && (
+              <View style={styles.tagsRow}>
+                <Chip style={styles.chip}>Spatii: {rooms.length}</Chip>
+              </View>
+            )}
             {isRentCar && (
               <View style={styles.tagsRow}>
                 <Chip style={styles.chip}>Flota: {(provider.cars || []).length} masini</Chip>
+              </View>
+            )}
+            {isLocationSpace && rooms.length > 0 && (
+              <View style={styles.fleetList}>
+                {rooms.map((room, index) => (
+                  <View key={`${room.id || room.name}-${index}`} style={styles.fleetItem}>
+                    <Text style={styles.fleetTitle}>{room.name}</Text>
+                    <Text style={styles.fleetMeta}>
+                      {String(room.space_type || '').replace(/_/g, ' ')} • {room.capacity} pers
+                    </Text>
+                    {(room.price_per_hour != null || room.price_half_day != null || room.price_full_day != null) && (
+                      <Text style={styles.fleetMeta}>
+                        {room.price_per_hour != null ? `${room.price_per_hour} lei/ora` : ''}
+                        {room.price_half_day != null ? ` • ${room.price_half_day} lei/jumatate zi` : ''}
+                        {room.price_full_day != null ? ` • ${room.price_full_day} lei/zi` : ''}
+                      </Text>
+                    )}
+                    {room.amenities && room.amenities.length > 0 && (
+                      <View style={styles.facilitiesRow}>
+                        {room.amenities.map((amenity) => (
+                          <Chip key={`${room.id}-${amenity}`} style={styles.chip}>
+                            {String(amenity).replace(/_/g, ' ')}
+                          </Chip>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ))}
               </View>
             )}
             {isRentCar && (provider.cars || []).length > 0 && (
@@ -122,7 +171,7 @@ export default function ProviderDetailScreen({ route, navigation }) {
               onPress={() => navigation.navigate('BookService', { provider })}
               style={styles.actionBtn}
             >
-              {isRentCar ? 'Inchiriaza' : 'Rezerva'}
+              {isRentCar ? 'Inchiriaza' : isLocationSpace ? 'Rezerva spatiu' : 'Rezerva'}
             </Button>
           </View>
         )}

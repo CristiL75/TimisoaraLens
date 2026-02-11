@@ -12,6 +12,7 @@ export default function ProfileScreen({ navigation }) {
   const [providerMap, setProviderMap] = useState({});
   const [tableMap, setTableMap] = useState({});
   const [serviceMap, setServiceMap] = useState({});
+  const [roomMap, setRoomMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [cancelingBookingId, setCancelingBookingId] = useState(null);
   const [updatingBookingId, setUpdatingBookingId] = useState(null);
@@ -32,6 +33,15 @@ export default function ProfileScreen({ navigation }) {
     const options = (table.special_options || []).filter(Boolean);
     if (options.length > 0) {
       parts.push(options.map(formatTableLabel).join(', '));
+    }
+    return parts.join(' • ');
+  };
+
+  const formatRoomDetails = (room) => {
+    if (!room) return '';
+    const parts = [`${room.name} • ${room.capacity} pers`];
+    if (room.space_type) {
+      parts.push(String(room.space_type).replace(/_/g, ' '));
     }
     return parts.join(' • ');
   };
@@ -74,9 +84,10 @@ export default function ProfileScreen({ navigation }) {
     }
     const providerIds = Array.from(new Set(bookingProviderIds));
     if (providerIds.length > 0) {
-      const [tablesResults, servicesResults] = await Promise.all([
+      const [tablesResults, servicesResults, roomsResults] = await Promise.all([
         Promise.all(providerIds.map((providerId) => bookingsAPI.getTables(providerId))),
         Promise.all(providerIds.map((providerId) => bookingsAPI.getServices(providerId))),
+        Promise.all(providerIds.map((providerId) => bookingsAPI.getRooms(providerId))),
       ]);
       const nextTableMap = {};
       tablesResults.forEach((res) => {
@@ -96,9 +107,19 @@ export default function ProfileScreen({ navigation }) {
         }
       });
       setServiceMap(nextServiceMap);
+      const nextRoomMap = {};
+      roomsResults.forEach((res) => {
+        if (res.success && Array.isArray(res.data)) {
+          res.data.forEach((room) => {
+            nextRoomMap[String(room.id)] = room;
+          });
+        }
+      });
+      setRoomMap(nextRoomMap);
     } else {
       setTableMap({});
       setServiceMap({});
+      setRoomMap({});
     }
     setLoading(false);
   };
@@ -211,6 +232,15 @@ export default function ProfileScreen({ navigation }) {
                     Gestionează mese
                   </Button>
                 )}
+                {provider.category === 'location_space' && (
+                  <Button
+                    mode="contained"
+                    icon="office-building"
+                    onPress={() => navigation.navigate('ManageRooms', { provider })}
+                  >
+                    Gestionează spatii
+                  </Button>
+                )}
                 {provider.booking_settings?.type === 'appointment_based' && (
                   <View style={styles.actionRow}>
                     <Button
@@ -266,6 +296,9 @@ export default function ProfileScreen({ navigation }) {
                       )}
                       {booking.table_id && tableMap[String(booking.table_id)] && (
                         <Paragraph>Masa: {formatTableDetails(tableMap[String(booking.table_id)])}</Paragraph>
+                      )}
+                      {booking.room_id && roomMap[String(booking.room_id)] && (
+                        <Paragraph>Spatiu: {formatRoomDetails(roomMap[String(booking.room_id)])}</Paragraph>
                       )}
                       {booking.table_id && booking.special_occasion && (
                         <Paragraph>Ocazie speciala: {formatTableLabel(booking.special_occasion)}</Paragraph>
@@ -332,6 +365,9 @@ export default function ProfileScreen({ navigation }) {
                       {booking.table_id && tableMap[String(booking.table_id)] && (
                         <Paragraph>Masa: {formatTableDetails(tableMap[String(booking.table_id)])}</Paragraph>
                       )}
+                      {booking.room_id && roomMap[String(booking.room_id)] && (
+                        <Paragraph>Spatiu: {formatRoomDetails(roomMap[String(booking.room_id)])}</Paragraph>
+                      )}
                       {booking.table_id && booking.special_occasion && (
                         <Paragraph>Ocazie speciala: {formatTableLabel(booking.special_occasion)}</Paragraph>
                       )}
@@ -372,6 +408,9 @@ export default function ProfileScreen({ navigation }) {
                       {booking.table_id && tableMap[String(booking.table_id)] && (
                         <Paragraph>Masa: {formatTableDetails(tableMap[String(booking.table_id)])}</Paragraph>
                       )}
+                      {booking.room_id && roomMap[String(booking.room_id)] && (
+                        <Paragraph>Spatiu: {formatRoomDetails(roomMap[String(booking.room_id)])}</Paragraph>
+                      )}
                       <Paragraph>Status: Anulata de client</Paragraph>
                     </Card.Content>
                   </Card>
@@ -397,6 +436,9 @@ export default function ProfileScreen({ navigation }) {
                 )}
                 {booking.table_id && tableMap[String(booking.table_id)] && (
                   <Paragraph>Masa: {formatTableDetails(tableMap[String(booking.table_id)])}</Paragraph>
+                )}
+                {booking.room_id && roomMap[String(booking.room_id)] && (
+                  <Paragraph>Spatiu: {formatRoomDetails(roomMap[String(booking.room_id)])}</Paragraph>
                 )}
                 <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
                 {booking.car_id && (

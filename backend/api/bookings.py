@@ -16,12 +16,14 @@ from jose import JWTError, jwt
 from database_mongo import (
     get_providers_collection,
     get_tables_collection,
+    get_rooms_collection,
     get_bookings_collection,
     get_services_collection,
     get_employees_collection,
     get_users_collection,
     Provider,
     Table,
+    Room,
     Booking,
     Service,
     Employee,
@@ -127,6 +129,34 @@ class TableResponse(BaseModel):
     status: str
 
 
+class RoomCreateRequest(BaseModel):
+    """Request to create a room/hall"""
+    provider_id: str
+    name: str
+    space_type: str
+    capacity: int
+    price_per_hour: Optional[float] = None
+    price_half_day: Optional[float] = None
+    price_full_day: Optional[float] = None
+    amenities: List[str] = []
+    layouts: List[str] = []
+
+
+class RoomResponse(BaseModel):
+    """Room response"""
+    id: str
+    provider_id: str
+    name: str
+    space_type: str
+    capacity: int
+    price_per_hour: Optional[float] = None
+    price_half_day: Optional[float] = None
+    price_full_day: Optional[float] = None
+    amenities: List[str] = []
+    layouts: List[str] = []
+    status: str
+
+
 class ServiceCreateRequest(BaseModel):
     """Request to create a service"""
     provider_id: str
@@ -177,6 +207,7 @@ class BookingCreateRequest(BaseModel):
     customer_phone: str
     booking_date: str  # "2026-02-01"
     start_time: str  # "19:00"
+    end_time: Optional[str] = None
     duration_minutes: Optional[int] = None
     party_size: int
     party_adults: Optional[int] = 0
@@ -188,6 +219,9 @@ class BookingCreateRequest(BaseModel):
     service_id: Optional[str] = None
     employee_id: Optional[str] = None
     car_id: Optional[str] = None
+    room_id: Optional[str] = None
+    room_layout: Optional[str] = None
+    pricing_unit: Optional[str] = None
     rental_end_date: Optional[str] = None
     rental_end_time: Optional[str] = None
     delivery_address: Optional[str] = None
@@ -203,6 +237,9 @@ class BookingResponse(BaseModel):
     service_id: Optional[str]
     employee_id: Optional[str]
     car_id: Optional[str] = None
+    room_id: Optional[str] = None
+    room_layout: Optional[str] = None
+    pricing_unit: Optional[str] = None
     customer_name: str
     customer_email: str
     customer_phone: str
@@ -231,6 +268,7 @@ async def update_booking_status(booking_id: str, payload: dict = Body(...), curr
     bookings_col = get_bookings_collection()
     providers_col = get_providers_collection()
     tables_col = get_tables_collection()
+    rooms_col = get_rooms_collection()
     booking = await bookings_col.find_one({"_id": ObjectId(booking_id)})
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
@@ -242,6 +280,42 @@ async def update_booking_status(booking_id: str, payload: dict = Body(...), curr
         raise HTTPException(status_code=400, detail="Invalid status")
 
     if status == "confirmed":
+        if provider.get("booking_settings", {}).get("type") == "space_based" and booking.get("room_id"):
+            room_id = str(booking.get("room_id"))
+            if not ObjectId.is_valid(room_id):
+                raise HTTPException(status_code=400, detail="Invalid room ID")
+
+            room = await rooms_col.find_one({
+                "_id": ObjectId(room_id),
+                "provider_id": {"$in": [ObjectId(str(booking["provider_id"])), str(booking["provider_id"])]},
+                "status": "active"
+            })
+            if not room:
+                raise HTTPException(status_code=404, detail="Room not found")
+
+            existing_room_bookings = await bookings_col.find({
+                "_id": {"$ne": ObjectId(booking_id)},
+                "provider_id": {"$in": [ObjectId(str(booking["provider_id"])), str(booking["provider_id"])]},
+                "room_id": {"$in": [ObjectId(room_id), room_id]},
+                "booking_date": booking["booking_date"],
+                "status": "confirmed"
+            }).to_list(1000)
+
+            start_dt = datetime.strptime(f"{booking['booking_date']} {booking['start_time']}", "%Y-%m-%d %H:%M")
+            end_dt = datetime.strptime(f"{booking['booking_date']} {booking['end_time']}", "%Y-%m-%d %H:%M")
+
+            for existing in existing_room_bookings:
+                existing_start = datetime.strptime(
+                    f"{existing['booking_date']} {existing['start_time']}",
+                    "%Y-%m-%d %H:%M"
+                )
+                existing_end = datetime.strptime(
+                    f"{existing['booking_date']} {existing['end_time']}",
+                    "%Y-%m-%d %H:%M"
+                )
+                if existing_start < end_dt and start_dt < existing_end:
+                    raise HTTPException(status_code=409, detail="Room already booked for this time")
+
         if provider.get("booking_settings", {}).get("type") == "fleet_based" and booking.get("car_id"):
             if not booking.get("rental_end_date") or not booking.get("rental_end_time"):
                 raise HTTPException(status_code=400, detail="Missing rental end date/time")
@@ -336,6 +410,9 @@ async def get_provider_bookings(current_user=Depends(get_current_user)):
                 service_id=str(b.get("service_id")) if b.get("service_id") else None,
                 employee_id=str(b.get("employee_id")) if b.get("employee_id") else None,
                 car_id=b.get("car_id"),
+                room_id=str(b.get("room_id")) if b.get("room_id") else None,
+                room_layout=b.get("room_layout"),
+                pricing_unit=b.get("pricing_unit"),
                 customer_name=b["customer_name"],
                 customer_email=b["customer_email"],
                 customer_phone=b["customer_phone"],
@@ -455,6 +532,9 @@ async def get_my_bookings(current_user=Depends(get_current_user)):
                 service_id=str(b.get("service_id")) if b.get("service_id") else None,
                 employee_id=str(b.get("employee_id")) if b.get("employee_id") else None,
                 car_id=b.get("car_id"),
+                room_id=str(b.get("room_id")) if b.get("room_id") else None,
+                room_layout=b.get("room_layout"),
+                pricing_unit=b.get("pricing_unit"),
                 customer_name=b["customer_name"],
                 customer_email=b["customer_email"],
                 customer_phone=b["customer_phone"],
@@ -838,6 +918,119 @@ async def delete_table(table_id: str, current_user: dict = Depends(get_current_u
 
     await tables_col.update_one(
         {"_id": ObjectId(table_id)},
+        {"$set": {"status": "inactive"}}
+    )
+
+    return Response(status_code=204)
+
+
+# ============================================================
+# ROOMS ENDPOINTS
+# ============================================================
+
+@router.post("/rooms", response_model=RoomResponse, status_code=status.HTTP_201_CREATED)
+async def create_room(request: RoomCreateRequest, current_user: dict = Depends(get_current_user)):
+    """Create a new room/hall for a provider"""
+    providers_col = get_providers_collection()
+    rooms_col = get_rooms_collection()
+
+    if not ObjectId.is_valid(request.provider_id):
+        raise HTTPException(status_code=400, detail="Invalid provider ID")
+
+    provider = await providers_col.find_one({"_id": ObjectId(request.provider_id)})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    if str(provider.get("user_id")) != str(current_user.get("id")):
+        raise HTTPException(status_code=403, detail="Not authorized to manage this provider")
+
+    room = Room(
+        provider_id=PyObjectId(request.provider_id),
+        name=request.name,
+        space_type=request.space_type,
+        capacity=request.capacity,
+        price_per_hour=request.price_per_hour,
+        price_half_day=request.price_half_day,
+        price_full_day=request.price_full_day,
+        amenities=request.amenities,
+        layouts=request.layouts,
+        status="active"
+    )
+
+    result = await rooms_col.insert_one(room.model_dump(by_alias=True, exclude={"id"}))
+
+    return RoomResponse(
+        id=str(result.inserted_id),
+        provider_id=request.provider_id,
+        name=room.name,
+        space_type=room.space_type,
+        capacity=room.capacity,
+        price_per_hour=room.price_per_hour,
+        price_half_day=room.price_half_day,
+        price_full_day=room.price_full_day,
+        amenities=room.amenities,
+        layouts=room.layouts,
+        status=room.status
+    )
+
+
+@router.get("/rooms/{provider_id}", response_model=List[RoomResponse])
+async def list_rooms(provider_id: str):
+    """List all rooms for a provider"""
+    rooms_col = get_rooms_collection()
+
+    if not ObjectId.is_valid(provider_id):
+        raise HTTPException(status_code=400, detail="Invalid provider ID")
+
+    provider_oid = ObjectId(provider_id)
+    rooms = await rooms_col.find(
+        {"provider_id": {"$in": [provider_oid, provider_id]}, "status": "active"}
+    ).to_list(200)
+
+    return [
+        RoomResponse(
+            id=str(r["_id"]),
+            provider_id=str(r["provider_id"]),
+            name=r["name"],
+            space_type=r.get("space_type", ""),
+            capacity=r.get("capacity", 0),
+            price_per_hour=r.get("price_per_hour"),
+            price_half_day=r.get("price_half_day"),
+            price_full_day=r.get("price_full_day"),
+            amenities=r.get("amenities", []),
+            layouts=r.get("layouts", []),
+            status=r.get("status", "active")
+        )
+        for r in rooms
+    ]
+
+
+@router.delete("/rooms/{room_id}")
+async def delete_room(room_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete (deactivate) a room for a provider"""
+    providers_col = get_providers_collection()
+    rooms_col = get_rooms_collection()
+
+    if not ObjectId.is_valid(room_id):
+        raise HTTPException(status_code=400, detail="Invalid room ID")
+
+    room = await rooms_col.find_one({"_id": ObjectId(room_id)})
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    provider_id = room.get("provider_id")
+    provider_oid = None
+    if isinstance(provider_id, ObjectId):
+        provider_oid = provider_id
+    elif isinstance(provider_id, str) and ObjectId.is_valid(provider_id):
+        provider_oid = ObjectId(provider_id)
+
+    provider = await providers_col.find_one({"_id": provider_oid}) if provider_oid else None
+    if not provider or str(provider.get("user_id")) != str(current_user.get("id")):
+        raise HTTPException(status_code=403, detail="Not authorized to manage this provider")
+
+    await rooms_col.update_one(
+        {"_id": ObjectId(room_id)},
         {"$set": {"status": "inactive"}}
     )
 
@@ -1268,6 +1461,7 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
     """Create a new booking"""
     providers_col = get_providers_collection()
     tables_col = get_tables_collection()
+    rooms_col = get_rooms_collection()
     bookings_col = get_bookings_collection()
 
     current_user = await get_optional_user_from_request(http_request)
@@ -1338,6 +1532,76 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
 
         end_time = request.rental_end_time
         party_size_value = request.party_size or 1
+
+    elif booking_type == "space_based":
+        if not request.room_id:
+            raise HTTPException(status_code=400, detail="Room selection is required")
+
+        if not ObjectId.is_valid(request.room_id):
+            raise HTTPException(status_code=400, detail="Invalid room ID")
+
+        room = await rooms_col.find_one({
+            "_id": ObjectId(request.room_id),
+            "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
+            "status": "active"
+        })
+        if not room:
+            raise HTTPException(status_code=404, detail="Room not found")
+
+        party_size_value = request.party_size or 1
+        if room.get("capacity", 0) < party_size_value:
+            raise HTTPException(status_code=400, detail="Room does not fit participant count")
+
+        try:
+            start_dt = datetime.strptime(f"{request.booking_date} {request.start_time}", "%Y-%m-%d %H:%M")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date/time format")
+
+        end_dt = None
+        if request.end_time:
+            try:
+                end_dt = datetime.strptime(f"{request.booking_date} {request.end_time}", "%Y-%m-%d %H:%M")
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid end time format")
+        elif request.duration_minutes:
+            duration_value = int(request.duration_minutes)
+            if duration_value <= 0 or duration_value > 720:
+                raise HTTPException(status_code=400, detail="Invalid duration")
+            end_dt = start_dt + timedelta(minutes=duration_value)
+
+        if not end_dt or end_dt <= start_dt:
+            raise HTTPException(status_code=400, detail="End time must be after start time")
+
+        day_name = start_dt.strftime("%A").lower()
+        working_day = next((wh for wh in provider.get("working_hours", []) if wh.get("day") == day_name), None)
+        if not working_day or working_day.get("is_closed"):
+            raise HTTPException(status_code=400, detail="Provider is closed on this day")
+
+        open_time = datetime.strptime(working_day["open_time"], "%H:%M").time()
+        close_time = datetime.strptime(working_day["close_time"], "%H:%M").time()
+        if not (open_time <= start_dt.time() and end_dt.time() <= close_time):
+            raise HTTPException(status_code=400, detail="Time is outside working hours")
+
+        existing_room_bookings = await bookings_col.find({
+            "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
+            "room_id": {"$in": [ObjectId(request.room_id), request.room_id]},
+            "booking_date": request.booking_date,
+            "status": "confirmed"
+        }).to_list(1000)
+
+        for booking in existing_room_bookings:
+            existing_start = datetime.strptime(
+                f"{booking['booking_date']} {booking['start_time']}",
+                "%Y-%m-%d %H:%M"
+            )
+            existing_end = datetime.strptime(
+                f"{booking['booking_date']} {booking['end_time']}",
+                "%Y-%m-%d %H:%M"
+            )
+            if existing_start < end_dt and start_dt < existing_end:
+                raise HTTPException(status_code=409, detail="Room already booked for this time")
+
+        end_time = end_dt.strftime("%H:%M")
 
     elif booking_type == "appointment_based":
         services_col = get_services_collection()
@@ -1475,6 +1739,9 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
         service_id=PyObjectId(request.service_id) if request.service_id else None,
         employee_id=PyObjectId(request.employee_id) if request.employee_id else None,
         car_id=request.car_id,
+        room_id=PyObjectId(request.room_id) if request.room_id else None,
+        room_layout=request.room_layout,
+        pricing_unit=request.pricing_unit,
         customer_name=request.customer_name,
         customer_email=current_user["email"] if current_user else request.customer_email,
         customer_phone=request.customer_phone,
@@ -1507,6 +1774,9 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
         service_id=str(booking.service_id) if booking.service_id else None,
         employee_id=str(booking.employee_id) if booking.employee_id else None,
         car_id=booking.car_id,
+        room_id=str(booking.room_id) if booking.room_id else None,
+        room_layout=booking.room_layout,
+        pricing_unit=booking.pricing_unit,
         customer_name=booking.customer_name,
         customer_email=booking.customer_email,
         customer_phone=booking.customer_phone,
@@ -1539,12 +1809,14 @@ async def check_availability(
     service_id: Optional[str] = None,
     employee_id: Optional[str] = None,
     car_id: Optional[str] = None,
+    room_id: Optional[str] = None,
     end_date: Optional[str] = None,
     end_time: Optional[str] = None
 ):
     """Check availability for a specific date and party size"""
     providers_col = get_providers_collection()
     tables_col = get_tables_collection()
+    rooms_col = get_rooms_collection()
     bookings_col = get_bookings_collection()
     services_col = get_services_collection()
     employees_col = get_employees_collection()
@@ -1593,6 +1865,84 @@ async def check_availability(
         return AvailabilityResponse(
             date=date,
             slots=[AvailabilitySlot(time=start_time or "00:00", available=available, tables_available=1 if available else 0)],
+            tables=[]
+        )
+
+    if booking_type == "space_based":
+        if not room_id:
+            raise HTTPException(status_code=400, detail="Room is required")
+        if not ObjectId.is_valid(room_id):
+            raise HTTPException(status_code=400, detail="Invalid room ID")
+
+        room = await rooms_col.find_one({
+            "_id": ObjectId(room_id),
+            "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
+            "status": "active"
+        })
+        if not room:
+            raise HTTPException(status_code=404, detail="Room not found")
+
+        party_size_value = party_size or 1
+        if room.get("capacity", 0) < party_size_value:
+            return AvailabilityResponse(date=date, slots=[], tables=[])
+
+        if not start_time:
+            raise HTTPException(status_code=400, detail="Start time is required")
+
+        try:
+            start_dt = datetime.strptime(f"{date} {start_time}", "%Y-%m-%d %H:%M")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date/time format")
+
+        if end_time:
+            try:
+                end_dt = datetime.strptime(f"{date} {end_time}", "%Y-%m-%d %H:%M")
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid end time format")
+        else:
+            duration_value = int(duration_minutes or 0)
+            if duration_value <= 0 or duration_value > 720:
+                raise HTTPException(status_code=400, detail="Invalid duration")
+            end_dt = start_dt + timedelta(minutes=duration_value)
+
+        if end_dt <= start_dt:
+            raise HTTPException(status_code=400, detail="End time must be after start time")
+
+        date_obj = datetime.strptime(date, "%Y-%m-%d")
+        day_name = date_obj.strftime("%A").lower()
+        working_day = next((wh for wh in provider.get("working_hours", []) if wh.get("day") == day_name), None)
+        if not working_day or working_day.get("is_closed"):
+            return AvailabilityResponse(date=date, slots=[], tables=[])
+
+        open_time = datetime.strptime(working_day["open_time"], "%H:%M").time()
+        close_time = datetime.strptime(working_day["close_time"], "%H:%M").time()
+        if not (open_time <= start_dt.time() and end_dt.time() <= close_time):
+            return AvailabilityResponse(date=date, slots=[], tables=[])
+
+        existing_room_bookings = await bookings_col.find({
+            "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
+            "room_id": {"$in": [ObjectId(room_id), room_id]},
+            "booking_date": date,
+            "status": "confirmed"
+        }).to_list(1000)
+
+        available = True
+        for booking in existing_room_bookings:
+            existing_start = datetime.strptime(
+                f"{booking['booking_date']} {booking['start_time']}",
+                "%Y-%m-%d %H:%M"
+            )
+            existing_end = datetime.strptime(
+                f"{booking['booking_date']} {booking['end_time']}",
+                "%Y-%m-%d %H:%M"
+            )
+            if existing_start < end_dt and start_dt < existing_end:
+                available = False
+                break
+
+        return AvailabilityResponse(
+            date=date,
+            slots=[AvailabilitySlot(time=start_time, available=available, tables_available=1 if available else 0)],
             tables=[]
         )
 

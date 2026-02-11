@@ -457,6 +457,54 @@ export const bookingsAPI = {
   },
 
   /**
+   * Add a room/hall to provider
+   */
+  createRoom: async (roomData) => {
+    try {
+      const response = await api.post('/bookings/rooms', roomData);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] createRoom error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to create room',
+      };
+    }
+  },
+
+  /**
+   * Get rooms for a provider
+   */
+  getRooms: async (providerId) => {
+    try {
+      const response = await api.get(`/bookings/rooms/${providerId}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] getRooms error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to get rooms',
+      };
+    }
+  },
+
+  /**
+   * Delete (deactivate) a room
+   */
+  deleteRoom: async (roomId) => {
+    try {
+      const response = await api.delete(`/bookings/rooms/${roomId}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] deleteRoom error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to delete room',
+      };
+    }
+  },
+
+  /**
    * Create a booking
    */
   createBooking: async (bookingData) => {
@@ -485,7 +533,8 @@ export const bookingsAPI = {
     employeeId,
     carId,
     endDate,
-    endTime
+    endTime,
+    roomId
   ) => {
     try {
       const response = await api.get(`/bookings/availability/${providerId}`, {
@@ -497,6 +546,7 @@ export const bookingsAPI = {
           service_id: serviceId || undefined,
           employee_id: employeeId || undefined,
           car_id: carId || undefined,
+          room_id: roomId || undefined,
           end_date: endDate || undefined,
           end_time: endTime || undefined,
         }
