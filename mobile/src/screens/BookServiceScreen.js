@@ -17,6 +17,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { bookingsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import MapView, { Marker } from 'react-native-maps';
 
 export default function BookServiceScreen({ navigation, route }) {
   const { provider } = route.params;
@@ -55,6 +56,38 @@ export default function BookServiceScreen({ navigation, route }) {
     const label = value.replace(/_/g, ' ');
     return label.charAt(0).toUpperCase() + label.slice(1);
   };
+
+  if (provider?.category === 'rent_a_car') {
+    return (
+      <View style={styles.container}>
+        <Appbar.Header>
+          <Appbar.BackAction onPress={() => navigation.goBack()} />
+          <Appbar.Content title="Rent-a-Car" />
+        </Appbar.Header>
+        <ScrollView style={styles.content}>
+          <Card style={styles.card}>
+            <Card.Content>
+              <Title>{provider?.name}</Title>
+              <Text style={{ marginTop: 8 }}>
+                Acest serviciu foloseste cereri directe. Vezi flota si contacteaza proprietarul.
+              </Text>
+              {provider?.phone && (
+                <Text style={{ marginTop: 8 }}>Telefon: {provider.phone}</Text>
+              )}
+              {provider?.email && (
+                <Text>Email: {provider.email}</Text>
+              )}
+            </Card.Content>
+            <Card.Actions>
+              <Button mode="outlined" onPress={() => navigation.navigate('ProviderDetail', { provider, isOwner: false })}>
+                Vezi flota
+              </Button>
+            </Card.Actions>
+          </Card>
+        </ScrollView>
+      </View>
+    );
+  }
 
   // Form fields
   const [customerName, setCustomerName] = useState(user?.username || '');
@@ -311,6 +344,9 @@ export default function BookServiceScreen({ navigation, route }) {
               >
                 {provider.booking_settings.auto_confirm ? 'Auto-confirm' : 'Manual'}
               </Chip>
+              <Chip icon="currency-usd" mode="outlined" style={styles.chip}>
+                {selectedService?.price} RON
+              </Chip>
             </View>
           </Card.Content>
         </Card>
@@ -384,6 +420,30 @@ export default function BookServiceScreen({ navigation, route }) {
                         {service.name} ({service.duration_minutes} min)
                       </Chip>
                     ))}
+                  </View>
+                )}
+
+                {selectedServiceId && provider?.latitude && provider?.longitude && (
+                  <View style={styles.mapContainer}>
+                    <Text style={styles.mapTitle}>Locatia serviciului pe harta</Text>
+                    <MapView
+                      style={styles.map}
+                      initialRegion={{
+                        latitude: provider.latitude,
+                        longitude: provider.longitude,
+                        latitudeDelta: 0.01,
+                        longitudeDelta: 0.01,
+                      }}
+                    >
+                      <Marker
+                        coordinate={{
+                          latitude: provider.latitude,
+                          longitude: provider.longitude,
+                        }}
+                        title={provider.name}
+                        description={selectedService?.name || 'Serviciu selectat'}
+                      />
+                    </MapView>
                   </View>
                 )}
 
@@ -894,6 +954,27 @@ const styles = StyleSheet.create({
   tableOptionChip: {
     marginRight: 6,
     marginTop: 4,
+  },
+  mapContainer: {
+    marginTop: 12,
+    marginBottom: 8,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#F7F7F7',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  mapTitle: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 6,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#424242',
+  },
+  map: {
+    width: '100%',
+    height: 160,
   },
   bookButton: {
     marginVertical: 20,

@@ -206,6 +206,22 @@ class BookingSettings(BaseModel):
     max_advance_days: int = 30  # Maximum days in advance
 
 
+class Car(BaseModel):
+    """Car entry for rent-a-car providers"""
+    brand: str
+    model: str
+    year: Optional[int] = None
+    seats: int
+    luggage: int
+    transmission: str
+    fuel: str
+    consumption: Optional[float] = None
+    price_per_day: float
+    price_weekend: Optional[float] = None
+    deposit: float
+    included_km_per_day: Optional[int] = None
+
+
 class Provider(BaseModel):
     """Service provider (restaurant, pub, etc.)"""
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
@@ -214,7 +230,7 @@ class Provider(BaseModel):
     
     category: str = "food_drinks"  # ex: "food_drinks"
     name: str
-    email: EmailStr
+    email: Optional[EmailStr] = None
     phone: str
     description: Optional[str] = None
     images: list[str] = []  # URLs to images
@@ -223,6 +239,7 @@ class Provider(BaseModel):
     longitude: Optional[float] = None
 
     facilities: Optional[dict] = None  # Facilități pentru restaurante/pub
+    cars: list[Car] = []
 
     booking_settings: BookingSettings
     working_hours: list[WorkingHours]

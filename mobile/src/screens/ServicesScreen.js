@@ -317,6 +317,7 @@ export default function ServicesScreen({ navigation }) {
             { key: 'barber', label: 'Frizerie / Barber' },
             { key: 'massage_spa', label: 'Masaj & Spa' },
             { key: 'beauty', label: 'Beauty' },
+            { key: 'rent_a_car', label: 'Rent-a-Car' },
           ].map((cat) => (
             <Chip
               key={cat.key}
@@ -342,6 +343,7 @@ export default function ServicesScreen({ navigation }) {
             .filter((provider) => selectedCategory === 'all' || provider.category === selectedCategory)
             .map((provider) => {
               const isOwner = user?.id && provider.user_id && String(user.id).trim() === String(provider.user_id).trim();
+              const isRentCar = provider.category === 'rent_a_car';
               return (
                 <Card
                   key={provider.id}
@@ -362,7 +364,7 @@ export default function ServicesScreen({ navigation }) {
                   <Card.Content>
                     <View style={styles.titleContainer}>
                       <MaterialCommunityIcons
-                        name={provider.booking_settings.type === 'table_based' ? 'silverware-fork-knife' : 'scissors-cutting'}
+                        name={isRentCar ? 'car' : (provider.booking_settings.type === 'table_based' ? 'silverware-fork-knife' : 'scissors-cutting')}
                         size={24}
                         color="#FF9800"
                       />
@@ -371,18 +373,27 @@ export default function ServicesScreen({ navigation }) {
                     {provider.description && (
                       <Paragraph numberOfLines={2}>{provider.description}</Paragraph>
                     )}
-                    <View style={styles.tagsContainer}>
-                      <Chip icon="clock" mode="outlined" style={styles.smallChip}>
-                        {provider.booking_settings.default_duration_minutes} min
-                      </Chip>
-                      <Chip
-                        icon={provider.booking_settings.auto_confirm ? 'check-circle' : 'timer-sand'}
-                        mode="outlined"
-                        style={styles.smallChip}
-                      >
-                        {provider.booking_settings.auto_confirm ? 'Auto-confirm' : 'Manual'}
-                      </Chip>
-                    </View>
+                    {!isRentCar && (
+                      <View style={styles.tagsContainer}>
+                        <Chip icon="clock" mode="outlined" style={styles.smallChip}>
+                          {provider.booking_settings.default_duration_minutes} min
+                        </Chip>
+                        <Chip
+                          icon={provider.booking_settings.auto_confirm ? 'check-circle' : 'timer-sand'}
+                          mode="outlined"
+                          style={styles.smallChip}
+                        >
+                          {provider.booking_settings.auto_confirm ? 'Auto-confirm' : 'Manual'}
+                        </Chip>
+                      </View>
+                    )}
+                    {isRentCar && (
+                      <View style={styles.tagsContainer}>
+                        <Chip icon="car" mode="outlined" style={styles.smallChip}>
+                          Flota: {(provider.cars || []).length} masini
+                        </Chip>
+                      </View>
+                    )}
                     {provider.facilities && (
                       <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
                         {Object.entries(provider.facilities)
@@ -394,13 +405,24 @@ export default function ServicesScreen({ navigation }) {
                     )}
                   </Card.Content>
                   <Card.Actions>
-                    <Button
-                      mode="outlined"
-                      icon="calendar-plus"
-                      onPress={() => navigation.navigate('BookService', { provider })}
-                    >
-                      Rezerva
-                    </Button>
+                    {!isRentCar && (
+                      <Button
+                        mode="outlined"
+                        icon="calendar-plus"
+                        onPress={() => navigation.navigate('BookService', { provider })}
+                      >
+                        Rezerva
+                      </Button>
+                    )}
+                    {isRentCar && (
+                      <Button
+                        mode="outlined"
+                        icon="car"
+                        onPress={() => navigation.navigate('ProviderDetail', { provider, isOwner })}
+                      >
+                        Vezi flota
+                      </Button>
+                    )}
                     {isOwner && (
                       <Button
                         mode="contained"

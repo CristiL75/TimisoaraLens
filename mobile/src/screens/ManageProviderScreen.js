@@ -33,6 +33,19 @@ const SERVICE_CATEGORIES = [
   { key: 'barber', label: 'Frizerie / Barber' },
   { key: 'massage_spa', label: 'Masaj & Spa' },
   { key: 'beauty', label: 'Beauty' },
+  { key: 'rent_a_car', label: 'Rent-a-Car' },
+];
+
+const TRANSMISSION_OPTIONS = [
+  { key: 'manual', label: 'Manuala' },
+  { key: 'automatic', label: 'Automata' },
+];
+
+const FUEL_OPTIONS = [
+  { key: 'gasoline', label: 'Benzina' },
+  { key: 'diesel', label: 'Diesel' },
+  { key: 'hybrid', label: 'Hibrid' },
+  { key: 'electric', label: 'Electric' },
 ];
 
 const DEFAULT_WORKING_HOURS = DAYS.map((day) => ({
@@ -58,6 +71,20 @@ export default function ManageProviderScreen({ navigation, route }) {
   const [latitude, setLatitude] = useState(existingProvider?.latitude || null);
   const [longitude, setLongitude] = useState(existingProvider?.longitude || null);
   const [images, setImages] = useState(existingProvider?.images || []);
+  const [cars, setCars] = useState(existingProvider?.cars || []);
+
+  const [carBrand, setCarBrand] = useState('');
+  const [carModel, setCarModel] = useState('');
+  const [carYear, setCarYear] = useState('');
+  const [carSeats, setCarSeats] = useState('');
+  const [carLuggage, setCarLuggage] = useState('');
+  const [carTransmission, setCarTransmission] = useState('manual');
+  const [carFuel, setCarFuel] = useState('gasoline');
+  const [carConsumption, setCarConsumption] = useState('');
+  const [carPriceDay, setCarPriceDay] = useState('');
+  const [carPriceWeekend, setCarPriceWeekend] = useState('');
+  const [carDeposit, setCarDeposit] = useState('');
+  const [carIncludedKm, setCarIncludedKm] = useState('');
 
   const [duration, setDuration] = useState(
     existingProvider?.booking_settings?.default_duration_minutes?.toString() || '90'
@@ -110,6 +137,13 @@ export default function ManageProviderScreen({ navigation, route }) {
     setAddress(location.address || '');
   };
 
+  useEffect(() => {
+    if (route?.params?.pickedLocation) {
+      handleLocationSelected(route.params.pickedLocation);
+      navigation.setParams({ pickedLocation: null });
+    }
+  }, [route?.params?.pickedLocation]);
+
   const takePhoto = async () => {
     try {
       const result = await ImagePicker.launchCameraAsync({
@@ -157,17 +191,73 @@ export default function ManageProviderScreen({ navigation, route }) {
     setImages((prev) => prev.filter((item) => item !== url));
   };
 
+  const resetCarForm = () => {
+    setCarBrand('');
+    setCarModel('');
+    setCarYear('');
+    setCarSeats('');
+    setCarLuggage('');
+    setCarTransmission('manual');
+    setCarFuel('gasoline');
+    setCarConsumption('');
+    setCarPriceDay('');
+    setCarPriceWeekend('');
+    setCarDeposit('');
+    setCarIncludedKm('');
+  };
+
+  const handleAddCar = () => {
+    if (!carBrand || !carModel || !carSeats || !carLuggage || !carPriceDay || !carDeposit) {
+      Alert.alert('Eroare', 'Completeaza marca, modelul, locurile, bagajele, pretul/zi si garantia.');
+      return;
+    }
+
+    const newCar = {
+      brand: carBrand.trim(),
+      model: carModel.trim(),
+      year: carYear ? parseInt(carYear, 10) : null,
+      seats: parseInt(carSeats, 10),
+      luggage: parseInt(carLuggage, 10),
+      transmission: carTransmission,
+      fuel: carFuel,
+      consumption: carConsumption ? parseFloat(carConsumption) : null,
+      price_per_day: parseFloat(carPriceDay),
+      price_weekend: carPriceWeekend ? parseFloat(carPriceWeekend) : null,
+      deposit: parseFloat(carDeposit),
+      included_km_per_day: carIncludedKm ? parseInt(carIncludedKm, 10) : null,
+    };
+
+    setCars((prev) => [newCar, ...prev]);
+    resetCarForm();
+  };
+
+  const handleRemoveCar = (index) => {
+    setCars((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
   const handleSave = async () => {
-    if (!name || !email || !phone) {
-      Alert.alert('Eroare', 'Completeaza numele, emailul si telefonul.');
+    if (!name || !phone) {
+      Alert.alert('Eroare', 'Completeaza numele si telefonul.');
+      return;
+    }
+
+    if (category === 'rent_a_car' && cars.length === 0) {
+      Alert.alert('Eroare', 'Adauga cel putin o masina in flota.');
       return;
     }
 
     setLoading(true);
+    const bookingType = category === 'food_drinks'
+      ? 'table_based'
+      : category === 'rent_a_car'
+        ? 'fleet_based'
+        : 'appointment_based';
+    const defaultDuration = category === 'rent_a_car' ? 0 : parseInt(duration, 10);
+    const defaultBuffer = category === 'rent_a_car' ? 0 : parseInt(buffer, 10);
     const providerData = {
       category,
       name,
-      email,
+      email: email?.trim() || null,
       phone,
       description: description || null,
       images,
@@ -176,10 +266,11 @@ export default function ManageProviderScreen({ navigation, route }) {
       longitude: longitude || null,
       facilities: category === 'food_drinks' ? facilities : null,
       tables: category === 'food_drinks' ? tables : null, // Add tables field for food_drinks category
+      cars: category === 'rent_a_car' ? cars : [],
       booking_settings: {
-        type: category === 'food_drinks' ? 'table_based' : 'appointment_based',
-        default_duration_minutes: parseInt(duration, 10),
-        buffer_minutes: parseInt(buffer, 10),
+        type: bookingType,
+        default_duration_minutes: defaultDuration,
+        buffer_minutes: defaultBuffer,
         advance_booking_hours: 2,
         max_advance_days: 30,
       },
@@ -244,7 +335,7 @@ export default function ManageProviderScreen({ navigation, route }) {
               ))}
             </View>
             <TextInput
-              label="Nume"
+              label="Email (optional)"
               value={name}
               onChangeText={setName}
               mode="outlined"
@@ -252,7 +343,7 @@ export default function ManageProviderScreen({ navigation, route }) {
             />
             <TextInput
               label="Email"
-              value={email}
+              label={category === 'rent_a_car' ? 'Oras / zona operare' : 'Adresa'}
               onChangeText={setEmail}
               mode="outlined"
               style={styles.input}
@@ -279,7 +370,7 @@ export default function ManageProviderScreen({ navigation, route }) {
                 icon="map-search"
                 onPress={() => navigation.navigate('LocationPicker', {
                   initialLocation: latitude && longitude ? { latitude, longitude, address } : null,
-                  onLocationSelected: handleLocationSelected,
+                  returnTo: 'ManageProvider',
                 })}
                 style={styles.locationButton}
               >
@@ -292,7 +383,7 @@ export default function ManageProviderScreen({ navigation, route }) {
               )}
             </View>
             <TextInput
-              label="Descriere"
+              label={category === 'rent_a_car' ? 'Descriere scurta' : 'Descriere'}
               value={description}
               onChangeText={setDescription}
               mode="outlined"
@@ -326,30 +417,171 @@ export default function ManageProviderScreen({ navigation, route }) {
           </Card.Content>
         </Card>
 
-        <Card style={styles.card}>
-          <Card.Content>
-            <Title>Setari Rezervari</Title>
-            <TextInput
-              label="Durata implicita (minute)"
-              value={duration}
-              onChangeText={setDuration}
-              mode="outlined"
-              style={styles.input}
-              keyboardType="numeric"
-            />
-            <TextInput
-              label="Buffer intre rezervari (minute)"
-              value={buffer}
-              onChangeText={setBuffer}
-              mode="outlined"
-              style={styles.input}
-              keyboardType="numeric"
-            />
-            <Text style={styles.noteText}>
-              Program implicit: 10:00 - 22:00, zilnic (editare program va fi adaugata ulterior).
-            </Text>
-          </Card.Content>
-        </Card>
+        {category === 'rent_a_car' && (
+          <Card style={styles.card}>
+            <Card.Content>
+              <Title>Flota</Title>
+              <Text style={styles.noteText}>Adauga masinile disponibile pentru inchiriere.</Text>
+              <TextInput
+                label="Marca"
+                value={carBrand}
+                onChangeText={setCarBrand}
+                mode="outlined"
+                style={styles.input}
+              />
+              <TextInput
+                label="Model"
+                value={carModel}
+                onChangeText={setCarModel}
+                mode="outlined"
+                style={styles.input}
+              />
+              <TextInput
+                label="An fabricatie (optional)"
+                value={carYear}
+                onChangeText={setCarYear}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <TextInput
+                label="Nr. locuri"
+                value={carSeats}
+                onChangeText={setCarSeats}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <TextInput
+                label="Nr. bagaje"
+                value={carLuggage}
+                onChangeText={setCarLuggage}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <Text style={styles.sectionTitle}>Cutie</Text>
+              <View style={styles.optionRow}>
+                {TRANSMISSION_OPTIONS.map((option) => (
+                  <Chip
+                    key={option.key}
+                    selected={carTransmission === option.key}
+                    onPress={() => setCarTransmission(option.key)}
+                    style={styles.optionChip}
+                  >
+                    {option.label}
+                  </Chip>
+                ))}
+              </View>
+              <Text style={styles.sectionTitle}>Combustibil</Text>
+              <View style={styles.optionRow}>
+                {FUEL_OPTIONS.map((option) => (
+                  <Chip
+                    key={option.key}
+                    selected={carFuel === option.key}
+                    onPress={() => setCarFuel(option.key)}
+                    style={styles.optionChip}
+                  >
+                    {option.label}
+                  </Chip>
+                ))}
+              </View>
+              <TextInput
+                label="Consum (optional)"
+                value={carConsumption}
+                onChangeText={setCarConsumption}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <TextInput
+                label="Pret / zi (lei)"
+                value={carPriceDay}
+                onChangeText={setCarPriceDay}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <TextInput
+                label="Pret / weekend (optional)"
+                value={carPriceWeekend}
+                onChangeText={setCarPriceWeekend}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <TextInput
+                label="Garantie (depozit)"
+                value={carDeposit}
+                onChangeText={setCarDeposit}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <TextInput
+                label="Km inclusi / zi (optional)"
+                value={carIncludedKm}
+                onChangeText={setCarIncludedKm}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <Button mode="outlined" icon="plus" onPress={handleAddCar}>
+                Adauga in flota
+              </Button>
+
+              {cars.length > 0 ? (
+                <View style={styles.carList}>
+                  {cars.map((car, index) => (
+                    <View key={`${car.brand}-${car.model}-${index}`} style={styles.carItem}>
+                      <View style={styles.carHeader}>
+                        <Text style={styles.carTitle}>{car.brand} {car.model}</Text>
+                        <Button mode="text" onPress={() => handleRemoveCar(index)}>
+                          Sterge
+                        </Button>
+                      </View>
+                      <Text style={styles.carMeta}>
+                        {car.seats} locuri • {car.luggage} bagaje • {car.transmission} • {car.fuel}
+                      </Text>
+                      <Text style={styles.carMeta}>
+                        {car.price_per_day} lei/zi • Garantie {car.deposit} lei
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.noteText}>Nu ai masini adaugate.</Text>
+              )}
+            </Card.Content>
+          </Card>
+        )}
+
+        {category !== 'rent_a_car' && (
+          <Card style={styles.card}>
+            <Card.Content>
+              <Title>Setari Rezervari</Title>
+              <TextInput
+                label="Durata implicita (minute)"
+                value={duration}
+                onChangeText={setDuration}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <TextInput
+                label="Buffer intre rezervari (minute)"
+                value={buffer}
+                onChangeText={setBuffer}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <Text style={styles.noteText}>
+                Program implicit: 10:00 - 22:00, zilnic (editare program va fi adaugata ulterior).
+              </Text>
+            </Card.Content>
+          </Card>
+        )}
 
         {category === 'food_drinks' && (
           <Card style={styles.card}>
@@ -382,7 +614,7 @@ export default function ManageProviderScreen({ navigation, route }) {
           </Card>
         )}
 
-        {isEdit && category !== 'food_drinks' && (
+        {isEdit && category !== 'food_drinks' && category !== 'rent_a_car' && (
           <Card style={styles.card}>
             <Card.Content>
               <Title>Servicii si Angajati</Title>
@@ -470,6 +702,15 @@ const styles = StyleSheet.create({
   categoryChip: {
     marginBottom: 8,
   },
+  optionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 12,
+  },
+  optionChip: {
+    marginRight: 8,
+    marginBottom: 8,
+  },
   noteText: {
     color: '#666',
     fontSize: 12,
@@ -495,6 +736,28 @@ const styles = StyleSheet.create({
   },
   facilityChip: {
     marginRight: 12,
+  },
+  carList: {
+    marginTop: 12,
+  },
+  carItem: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  carHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  carTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  carMeta: {
+    color: '#666',
+    fontSize: 12,
+    marginTop: 2,
   },
   saveButton: {
     marginVertical: 10,

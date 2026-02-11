@@ -25,6 +25,7 @@ from database_mongo import (
     Employee,
     BookingSettings,
     WorkingHours,
+    Car,
     PyObjectId,
 )
 from auth_utils import get_current_user, SECRET_KEY, ALGORITHM
@@ -68,7 +69,7 @@ class ProviderCreateRequest(BaseModel):
     """Request to create/update a provider"""
     category: str = "food_drinks"
     name: str
-    email: EmailStr
+    email: Optional[EmailStr] = None
     phone: str
     description: Optional[str] = None
     images: List[str] = []
@@ -77,6 +78,7 @@ class ProviderCreateRequest(BaseModel):
     longitude: Optional[float] = None
     listing_id: Optional[str] = None
     facilities: Optional[dict] = None
+    cars: List[Car] = []
     booking_settings: BookingSettings
     working_hours: List[WorkingHours]
 
@@ -87,7 +89,7 @@ class ProviderResponse(BaseModel):
     user_id: Optional[str] = None
     category: str
     name: str
-    email: str
+    email: Optional[str] = None
     phone: str
     description: Optional[str]
     images: List[str]
@@ -95,6 +97,7 @@ class ProviderResponse(BaseModel):
     latitude: Optional[float]
     longitude: Optional[float]
     facilities: Optional[dict] = None
+    cars: List[Car] = []
     booking_settings: BookingSettings
     working_hours: List[WorkingHours]
     status: str
@@ -351,7 +354,7 @@ async def get_my_providers(current_user=Depends(get_current_user)):
                 category=p.get("category", "food_drinks"),
                 reservation_type=p.get("reservation_type", "table_based"),
                 name=p["name"],
-                email=p["email"],
+                email=p.get("email"),
                 phone=p["phone"],
                 description=p.get("description"),
                 images=p.get("images", []),
@@ -359,6 +362,7 @@ async def get_my_providers(current_user=Depends(get_current_user)):
                 latitude=p.get("latitude"),
                 longitude=p.get("longitude"),
                 facilities=p.get("facilities"),
+                cars=p.get("cars", []),
                 booking_settings=BookingSettings(**p["booking_settings"]),
                 working_hours=[WorkingHours(**wh) for wh in p["working_hours"]],
                 status=p["status"]
@@ -450,6 +454,7 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
             latitude=request.latitude,
             longitude=request.longitude,
             facilities=request.facilities,
+            cars=request.cars,
             booking_settings=request.booking_settings,
             working_hours=request.working_hours,
             status="active"
@@ -469,6 +474,7 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
             latitude=provider.latitude,
             longitude=provider.longitude,
             facilities=provider.facilities,
+            cars=provider.cars,
             booking_settings=provider.booking_settings,
             working_hours=provider.working_hours,
             status=provider.status
@@ -494,7 +500,7 @@ async def list_providers():
                 category=p.get("category", "food_drinks"),
                 reservation_type=p.get("reservation_type", "table_based"),
                 name=p["name"],
-                email=p["email"],
+                email=p.get("email"),
                 phone=p["phone"],
                 description=p.get("description"),
                 images=p.get("images", []),
@@ -502,6 +508,7 @@ async def list_providers():
                 latitude=p.get("latitude"),
                 longitude=p.get("longitude"),
                 facilities=p.get("facilities"),
+                cars=p.get("cars", []),
                 booking_settings=BookingSettings(**p["booking_settings"]),
                 working_hours=[WorkingHours(**wh) for wh in p["working_hours"]],
                 status=p["status"]
@@ -530,13 +537,14 @@ async def get_provider(provider_id: str):
         user_id=provider.get("user_id", None),
         category=provider.get("category", "food_drinks"),
         name=provider["name"],
-        email=provider["email"],
+        email=provider.get("email"),
         phone=provider["phone"],
         description=provider.get("description"),
         images=provider.get("images", []),
         address=provider.get("address"),
         latitude=provider.get("latitude"),
         longitude=provider.get("longitude"),
+        cars=provider.get("cars", []),
         booking_settings=BookingSettings(**provider["booking_settings"]),
         working_hours=[WorkingHours(**wh) for wh in provider["working_hours"]],
         status=provider["status"]
@@ -578,6 +586,7 @@ async def update_provider(
         "latitude": request.latitude,
         "longitude": request.longitude,
         "facilities": request.facilities or {},  # Default to empty dict if missing
+        "cars": [car.model_dump() for car in request.cars],
         "booking_settings": request.booking_settings.model_dump(),
         "working_hours": [wh.model_dump() for wh in request.working_hours],
         "updated_at": datetime.utcnow()
@@ -603,7 +612,7 @@ async def update_provider(
         id=str(updated_provider["_id"]),
         category=updated_provider.get("category", "food_drinks"),
         name=updated_provider["name"],
-        email=updated_provider["email"],
+        email=updated_provider.get("email"),
         phone=updated_provider["phone"],
         description=updated_provider.get("description"),
         images=updated_provider.get("images", []),
@@ -611,6 +620,7 @@ async def update_provider(
         latitude=updated_provider.get("latitude"),
         longitude=updated_provider.get("longitude"),
         facilities=updated_provider.get("facilities"),
+        cars=updated_provider.get("cars", []),
         booking_settings=BookingSettings(**updated_provider["booking_settings"]),
         working_hours=[WorkingHours(**wh) for wh in updated_provider["working_hours"]],
         status=updated_provider["status"]
