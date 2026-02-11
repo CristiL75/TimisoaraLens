@@ -147,6 +147,13 @@ export default function CreateListingScreen({ navigation, route }) {
     setAddress(location.address);
   };
 
+  useEffect(() => {
+    if (route?.params?.pickedLocation) {
+      handleLocationSelected(route.params.pickedLocation);
+      navigation.setParams({ pickedLocation: null });
+    }
+  }, [route?.params?.pickedLocation]);
+
   const requestPermissions = async () => {
     const { status: locationStatus } = await Location.requestForegroundPermissionsAsync();
     const { status: imageStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -509,7 +516,7 @@ export default function CreateListingScreen({ navigation, route }) {
                 mode="contained"
                 onPress={() => navigation.navigate('LocationPicker', {
                   initialLocation: latitude && longitude ? { latitude, longitude, address } : null,
-                  onLocationSelected: handleLocationSelected
+                  returnTo: 'CreateListing'
                 })}
                 icon="map-search"
                 style={[styles.locationButton, { flex: 1 }]}

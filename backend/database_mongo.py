@@ -208,8 +208,14 @@ class BookingSettings(BaseModel):
 
 class Car(BaseModel):
     """Car entry for rent-a-car providers"""
+    id: Optional[str] = None
     brand: str
     model: str
+    images: list[str] = []
+    delivery_address: Optional[str] = None
+    delivery_latitude: Optional[float] = None
+    delivery_longitude: Optional[float] = None
+    delivery_radius_km: Optional[float] = None
     year: Optional[int] = None
     seats: int
     luggage: int
@@ -312,6 +318,7 @@ class Booking(BaseModel):
     table_id: Optional[PyObjectId] = None  # Can be null (auto-assign)
     service_id: Optional[PyObjectId] = None
     employee_id: Optional[PyObjectId] = None
+    car_id: Optional[str] = None
     
     # Customer info
     customer_name: str
@@ -323,6 +330,8 @@ class Booking(BaseModel):
     booking_date: str  # "2026-02-01"
     start_time: str  # "19:00"
     end_time: str  # "20:30"
+    rental_end_date: Optional[str] = None
+    rental_end_time: Optional[str] = None
     party_size: int  # Number of people
     party_adults: Optional[int] = 0  # Număr adulți
     party_children: Optional[int] = 0  # Număr copii
@@ -332,6 +341,9 @@ class Booking(BaseModel):
     special_occasion: Optional[str] = "nicio_ocazie"  # "nicio_ocazie", "zi_de_nastere", "aniversare", "business"
     
     notes: Optional[str] = None
+    delivery_address: Optional[str] = None
+    delivery_latitude: Optional[float] = None
+    delivery_longitude: Optional[float] = None
     
     status: str = "pending"  # "pending", "confirmed", "canceled", "completed"
     

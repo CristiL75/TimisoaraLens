@@ -84,9 +84,26 @@ export default function ProviderDetailScreen({ route, navigation }) {
                 {(provider.cars || []).map((car, index) => (
                   <View key={`${car.brand}-${car.model}-${index}`} style={styles.fleetItem}>
                     <Text style={styles.fleetTitle}>{car.brand} {car.model}</Text>
+                    {car.images && car.images.length > 0 && (
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.fleetImageRow}
+                      >
+                        {car.images.map((img) => (
+                          <Image key={img} source={{ uri: img }} style={styles.fleetImage} />
+                        ))}
+                      </ScrollView>
+                    )}
                     <Text style={styles.fleetMeta}>
                       {car.seats} locuri • {car.luggage} bagaje • {car.transmission} • {car.fuel}
                     </Text>
+                    {car.delivery_address && (
+                      <Text style={styles.fleetMeta}>Livrare: {car.delivery_address}</Text>
+                    )}
+                    {car.delivery_radius_km && (
+                      <Text style={styles.fleetMeta}>Raza livrare: {car.delivery_radius_km} km</Text>
+                    )}
                     <Text style={styles.fleetMeta}>
                       {car.price_per_day} lei/zi • Garantie {car.deposit} lei
                     </Text>
@@ -150,6 +167,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+  },
+  fleetImageRow: {
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  fleetImage: {
+    width: 140,
+    height: 90,
+    borderRadius: 8,
+    marginRight: 10,
   },
   fleetTitle: {
     fontSize: 14,

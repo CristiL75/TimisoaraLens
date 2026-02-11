@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException, Depends, status, Response, Body, R
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime, timedelta
+from uuid import uuid4
+import math
 import re
 from bson import ObjectId
 from jose import JWTError, jwt
@@ -185,6 +187,12 @@ class BookingCreateRequest(BaseModel):
     table_id: Optional[str] = None
     service_id: Optional[str] = None
     employee_id: Optional[str] = None
+    car_id: Optional[str] = None
+    rental_end_date: Optional[str] = None
+    rental_end_time: Optional[str] = None
+    delivery_address: Optional[str] = None
+    delivery_latitude: Optional[float] = None
+    delivery_longitude: Optional[float] = None
 
 
 class BookingResponse(BaseModel):
@@ -194,6 +202,7 @@ class BookingResponse(BaseModel):
     table_id: Optional[str]
     service_id: Optional[str]
     employee_id: Optional[str]
+    car_id: Optional[str] = None
     customer_name: str
     customer_email: str
     customer_phone: str
@@ -208,6 +217,11 @@ class BookingResponse(BaseModel):
     notes: Optional[str]
     status: str
     created_at: str
+    rental_end_date: Optional[str] = None
+    rental_end_time: Optional[str] = None
+    delivery_address: Optional[str] = None
+    delivery_latitude: Optional[float] = None
+    delivery_longitude: Optional[float] = None
 
 
 # Confirm/Reject booking endpoint
@@ -228,6 +242,36 @@ async def update_booking_status(booking_id: str, payload: dict = Body(...), curr
         raise HTTPException(status_code=400, detail="Invalid status")
 
     if status == "confirmed":
+        if provider.get("booking_settings", {}).get("type") == "fleet_based" and booking.get("car_id"):
+            if not booking.get("rental_end_date") or not booking.get("rental_end_time"):
+                raise HTTPException(status_code=400, detail="Missing rental end date/time")
+
+            start_dt = datetime.strptime(
+                f"{booking['booking_date']} {booking['start_time']}", "%Y-%m-%d %H:%M"
+            )
+            end_dt = datetime.strptime(
+                f"{booking['rental_end_date']} {booking['rental_end_time']}", "%Y-%m-%d %H:%M"
+            )
+
+            existing_car_bookings = await bookings_col.find({
+                "_id": {"$ne": ObjectId(booking_id)},
+                "provider_id": {"$in": [ObjectId(str(booking["provider_id"])), str(booking["provider_id"])]},
+                "car_id": str(booking.get("car_id")),
+                "status": "confirmed"
+            }).to_list(1000)
+
+            for existing in existing_car_bookings:
+                if not existing.get("rental_end_date") or not existing.get("rental_end_time"):
+                    continue
+                existing_start = datetime.strptime(
+                    f"{existing['booking_date']} {existing['start_time']}", "%Y-%m-%d %H:%M"
+                )
+                existing_end = datetime.strptime(
+                    f"{existing['rental_end_date']} {existing['rental_end_time']}", "%Y-%m-%d %H:%M"
+                )
+                if existing_start < end_dt and start_dt < existing_end:
+                    raise HTTPException(status_code=409, detail="Car already booked for this period")
+
         if provider.get("booking_settings", {}).get("type") == "table_based" and not booking.get("table_id"):
             raise HTTPException(status_code=400, detail="Table selection required")
 
@@ -291,18 +335,24 @@ async def get_provider_bookings(current_user=Depends(get_current_user)):
                 table_id=str(b["table_id"]) if b.get("table_id") else None,
                 service_id=str(b.get("service_id")) if b.get("service_id") else None,
                 employee_id=str(b.get("employee_id")) if b.get("employee_id") else None,
+                car_id=b.get("car_id"),
                 customer_name=b["customer_name"],
                 customer_email=b["customer_email"],
                 customer_phone=b["customer_phone"],
                 booking_date=b["booking_date"],
                 start_time=b["start_time"],
                 end_time=b["end_time"],
+                rental_end_date=b.get("rental_end_date"),
+                rental_end_time=b.get("rental_end_time"),
                 party_size=b["party_size"],
                 party_adults=b.get("party_adults", 0),
                 party_children=b.get("party_children", 0),
                 table_preference=b.get("table_preference", "fara_preferinta"),
                 special_occasion=b.get("special_occasion", "nicio_ocazie"),
                 notes=b.get("notes"),
+                delivery_address=b.get("delivery_address"),
+                delivery_latitude=b.get("delivery_latitude"),
+                delivery_longitude=b.get("delivery_longitude"),
                 status=b["status"],
                 created_at=b["created_at"].isoformat() if hasattr(b["created_at"], 'isoformat') else str(b["created_at"])
             )
@@ -348,6 +398,7 @@ async def get_my_providers(current_user=Depends(get_current_user)):
     result = []
     for p in providers:
         try:
+            cars = await ensure_car_ids(p, providers_col)
             provider = ProviderResponse(
                 id=str(p["_id"]),
                 user_id=p.get("user_id", None),
@@ -362,7 +413,7 @@ async def get_my_providers(current_user=Depends(get_current_user)):
                 latitude=p.get("latitude"),
                 longitude=p.get("longitude"),
                 facilities=p.get("facilities"),
-                cars=p.get("cars", []),
+                cars=cars,
                 booking_settings=BookingSettings(**p["booking_settings"]),
                 working_hours=[WorkingHours(**wh) for wh in p["working_hours"]],
                 status=p["status"]
@@ -403,18 +454,24 @@ async def get_my_bookings(current_user=Depends(get_current_user)):
                 table_id=str(b["table_id"]) if b.get("table_id") else None,
                 service_id=str(b.get("service_id")) if b.get("service_id") else None,
                 employee_id=str(b.get("employee_id")) if b.get("employee_id") else None,
+                car_id=b.get("car_id"),
                 customer_name=b["customer_name"],
                 customer_email=b["customer_email"],
                 customer_phone=b["customer_phone"],
                 booking_date=b["booking_date"],
                 start_time=b["start_time"],
                 end_time=b["end_time"],
+                rental_end_date=b.get("rental_end_date"),
+                rental_end_time=b.get("rental_end_time"),
                 party_size=b["party_size"],
                 party_adults=b.get("party_adults", 0),
                 party_children=b.get("party_children", 0),
                 table_preference=b.get("table_preference", "fara_preferinta"),
                 special_occasion=b.get("special_occasion", "nicio_ocazie"),
                 notes=b.get("notes"),
+                delivery_address=b.get("delivery_address"),
+                delivery_latitude=b.get("delivery_latitude"),
+                delivery_longitude=b.get("delivery_longitude"),
                 status=b["status"],
                 created_at=b["created_at"].isoformat() if hasattr(b["created_at"], "isoformat") else str(b["created_at"])
             )
@@ -427,6 +484,38 @@ async def get_my_bookings(current_user=Depends(get_current_user)):
 # ============================================================
 # PROVIDER ENDPOINTS
 # ============================================================
+
+def normalize_cars(cars: Optional[List[Car]]) -> List[dict]:
+    normalized = []
+    for car in cars or []:
+        car_data = car.model_dump() if hasattr(car, "model_dump") else dict(car)
+        if not car_data.get("id"):
+            car_data["id"] = str(uuid4())
+        normalized.append(car_data)
+    return normalized
+
+def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    radius = 6371.0
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    d_phi = math.radians(lat2 - lat1)
+    d_lambda = math.radians(lon2 - lon1)
+    a = math.sin(d_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(d_lambda / 2) ** 2
+    return 2 * radius * math.asin(math.sqrt(a))
+
+async def ensure_car_ids(provider_doc: dict, providers_col) -> List[dict]:
+    cars = provider_doc.get("cars", [])
+    normalized = []
+    changed = False
+    for car in cars:
+        car_data = dict(car)
+        if not car_data.get("id"):
+            car_data["id"] = str(uuid4())
+            changed = True
+        normalized.append(car_data)
+    if changed:
+        await providers_col.update_one({"_id": provider_doc["_id"]}, {"$set": {"cars": normalized}})
+    return normalized
 
 @router.post("/providers", response_model=ProviderResponse, status_code=status.HTTP_201_CREATED)
 async def create_provider(request: ProviderCreateRequest, current_user: dict = Depends(get_current_user)):
@@ -441,6 +530,7 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
     try:
         # Acceptă atât 'id' cât și 'sub' ca identificator user
         user_id_val = current_user.get("id") or current_user.get("sub")
+        cars_data = normalize_cars(request.cars)
         provider = Provider(
                 user_id=str(user_id_val) if user_id_val else "",
             listing_id=PyObjectId(request.listing_id) if request.listing_id else None,
@@ -454,7 +544,7 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
             latitude=request.latitude,
             longitude=request.longitude,
             facilities=request.facilities,
-            cars=request.cars,
+            cars=cars_data,
             booking_settings=request.booking_settings,
             working_hours=request.working_hours,
             status="active"
@@ -494,6 +584,7 @@ async def list_providers():
     result = []
     for p in providers:
         try:
+            cars = await ensure_car_ids(p, providers_col)
             provider = ProviderResponse(
                 id=str(p["_id"]),
                 user_id=p.get("user_id", None),
@@ -508,7 +599,7 @@ async def list_providers():
                 latitude=p.get("latitude"),
                 longitude=p.get("longitude"),
                 facilities=p.get("facilities"),
-                cars=p.get("cars", []),
+                cars=cars,
                 booking_settings=BookingSettings(**p["booking_settings"]),
                 working_hours=[WorkingHours(**wh) for wh in p["working_hours"]],
                 status=p["status"]
@@ -532,6 +623,7 @@ async def get_provider(provider_id: str):
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
     
+    cars = await ensure_car_ids(provider, providers_col)
     return ProviderResponse(
         id=str(provider["_id"]),
         user_id=provider.get("user_id", None),
@@ -544,7 +636,7 @@ async def get_provider(provider_id: str):
         address=provider.get("address"),
         latitude=provider.get("latitude"),
         longitude=provider.get("longitude"),
-        cars=provider.get("cars", []),
+        cars=cars,
         booking_settings=BookingSettings(**provider["booking_settings"]),
         working_hours=[WorkingHours(**wh) for wh in provider["working_hours"]],
         status=provider["status"]
@@ -586,7 +678,7 @@ async def update_provider(
         "latitude": request.latitude,
         "longitude": request.longitude,
         "facilities": request.facilities or {},  # Default to empty dict if missing
-        "cars": [car.model_dump() for car in request.cars],
+        "cars": normalize_cars(request.cars),
         "booking_settings": request.booking_settings.model_dump(),
         "working_hours": [wh.model_dump() for wh in request.working_hours],
         "updated_at": datetime.utcnow()
@@ -1115,7 +1207,65 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
     
     booking_type = provider.get("booking_settings", {}).get("type", "table_based")
 
-    if booking_type == "appointment_based":
+    if booking_type == "fleet_based":
+        if not request.car_id:
+            raise HTTPException(status_code=400, detail="Car selection is required")
+        if not request.rental_end_date or not request.rental_end_time:
+            raise HTTPException(status_code=400, detail="Rental end date/time is required")
+
+        try:
+            start_dt = datetime.strptime(f"{request.booking_date} {request.start_time}", "%Y-%m-%d %H:%M")
+            end_dt = datetime.strptime(f"{request.rental_end_date} {request.rental_end_time}", "%Y-%m-%d %H:%M")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date/time format")
+
+        if end_dt <= start_dt:
+            raise HTTPException(status_code=400, detail="Rental end must be after start")
+
+        provider_cars = provider.get("cars", [])
+        selected_car = next((car for car in provider_cars if str(car.get("id")) == str(request.car_id)), None)
+        if not selected_car:
+            raise HTTPException(status_code=404, detail="Car not found")
+
+        if request.delivery_latitude is not None and request.delivery_longitude is not None:
+            car_lat = selected_car.get("delivery_latitude")
+            car_lng = selected_car.get("delivery_longitude")
+            if car_lat is None or car_lng is None:
+                raise HTTPException(status_code=400, detail="Car does not support delivery area")
+            radius_km = selected_car.get("delivery_radius_km") or 10.0
+            distance_km = haversine_km(
+                float(car_lat),
+                float(car_lng),
+                float(request.delivery_latitude),
+                float(request.delivery_longitude)
+            )
+            if distance_km > float(radius_km):
+                raise HTTPException(status_code=400, detail="Delivery address outside allowed radius")
+
+        existing_car_bookings = await bookings_col.find({
+            "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
+            "car_id": str(request.car_id),
+            "status": "confirmed"
+        }).to_list(1000)
+
+        for booking in existing_car_bookings:
+            if not booking.get("rental_end_date") or not booking.get("rental_end_time"):
+                continue
+            existing_start = datetime.strptime(
+                f"{booking['booking_date']} {booking['start_time']}",
+                "%Y-%m-%d %H:%M"
+            )
+            existing_end = datetime.strptime(
+                f"{booking['rental_end_date']} {booking['rental_end_time']}",
+                "%Y-%m-%d %H:%M"
+            )
+            if existing_start < end_dt and start_dt < existing_end:
+                raise HTTPException(status_code=409, detail="Car already booked for this period")
+
+        end_time = request.rental_end_time
+        party_size_value = request.party_size or 1
+
+    elif booking_type == "appointment_based":
         services_col = get_services_collection()
         employees_col = get_employees_collection()
 
@@ -1158,6 +1308,7 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
         end_dt = start_dt + timedelta(minutes=duration)
         end_with_buffer = end_dt + timedelta(minutes=int(buffer_minutes or 0))
         end_time = end_dt.strftime("%H:%M")
+        party_size_value = request.party_size or 1
 
         day_name = start_dt.strftime("%A").lower()
         working_day = next((wh for wh in employee.get("working_hours", []) if wh.get("day") == day_name), None)
@@ -1204,6 +1355,7 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
         start_dt = datetime.strptime(f"{request.booking_date} {request.start_time}", "%Y-%m-%d %H:%M")
         end_dt = start_dt + timedelta(minutes=duration)
         end_time = end_dt.strftime("%H:%M")
+        party_size_value = request.party_size
 
         # Validate selected table if provided
         if request.table_id:
@@ -1248,6 +1400,7 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
         table_id=PyObjectId(request.table_id) if request.table_id else None,
         service_id=PyObjectId(request.service_id) if request.service_id else None,
         employee_id=PyObjectId(request.employee_id) if request.employee_id else None,
+        car_id=request.car_id,
         customer_name=request.customer_name,
         customer_email=current_user["email"] if current_user else request.customer_email,
         customer_phone=request.customer_phone,
@@ -1255,12 +1408,17 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
         booking_date=request.booking_date,
         start_time=request.start_time,
         end_time=end_time,
-        party_size=request.party_size,
+        rental_end_date=request.rental_end_date,
+        rental_end_time=request.rental_end_time,
+        party_size=party_size_value,
         party_adults=request.party_adults or 0,
         party_children=request.party_children or 0,
         table_preference=request.table_preference or "fara_preferinta",
         special_occasion=request.special_occasion or "nicio_ocazie",
         notes=request.notes,
+        delivery_address=request.delivery_address,
+        delivery_latitude=request.delivery_latitude,
+        delivery_longitude=request.delivery_longitude,
         status="pending"
     )
     
@@ -1274,18 +1432,24 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
         table_id=str(booking.table_id) if booking.table_id else None,
         service_id=str(booking.service_id) if booking.service_id else None,
         employee_id=str(booking.employee_id) if booking.employee_id else None,
+        car_id=booking.car_id,
         customer_name=booking.customer_name,
         customer_email=booking.customer_email,
         customer_phone=booking.customer_phone,
         booking_date=booking.booking_date,
         start_time=booking.start_time,
         end_time=booking.end_time,
+        rental_end_date=booking.rental_end_date,
+        rental_end_time=booking.rental_end_time,
         party_size=booking.party_size,
         party_adults=booking.party_adults,
         party_children=booking.party_children,
         table_preference=booking.table_preference,
         special_occasion=booking.special_occasion,
         notes=booking.notes,
+        delivery_address=booking.delivery_address,
+        delivery_latitude=booking.delivery_latitude,
+        delivery_longitude=booking.delivery_longitude,
         status=booking.status,
         created_at=booking.created_at.isoformat()
     )
@@ -1299,7 +1463,10 @@ async def check_availability(
     start_time: Optional[str] = None,
     duration_minutes: Optional[int] = None,
     service_id: Optional[str] = None,
-    employee_id: Optional[str] = None
+    employee_id: Optional[str] = None,
+    car_id: Optional[str] = None,
+    end_date: Optional[str] = None,
+    end_time: Optional[str] = None
 ):
     """Check availability for a specific date and party size"""
     providers_col = get_providers_collection()
@@ -1316,6 +1483,45 @@ async def check_availability(
         raise HTTPException(status_code=404, detail="Provider not found")
 
     booking_type = provider.get("booking_settings", {}).get("type", "table_based")
+
+    if booking_type == "fleet_based":
+        if not car_id or not start_time or not end_date or not end_time:
+            raise HTTPException(status_code=400, detail="Car, start time and end time are required")
+
+        try:
+            start_dt = datetime.strptime(f"{date} {start_time}", "%Y-%m-%d %H:%M")
+            end_dt = datetime.strptime(f"{end_date} {end_time}", "%Y-%m-%d %H:%M")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date/time format")
+
+        if end_dt <= start_dt:
+            raise HTTPException(status_code=400, detail="Rental end must be after start")
+
+        existing_car_bookings = await bookings_col.find({
+            "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
+            "car_id": str(car_id),
+            "status": "confirmed"
+        }).to_list(1000)
+
+        available = True
+        for booking in existing_car_bookings:
+            if not booking.get("rental_end_date") or not booking.get("rental_end_time"):
+                continue
+            existing_start = datetime.strptime(
+                f"{booking['booking_date']} {booking['start_time']}", "%Y-%m-%d %H:%M"
+            )
+            existing_end = datetime.strptime(
+                f"{booking['rental_end_date']} {booking['rental_end_time']}", "%Y-%m-%d %H:%M"
+            )
+            if existing_start < end_dt and start_dt < existing_end:
+                available = False
+                break
+
+        return AvailabilityResponse(
+            date=date,
+            slots=[AvailabilitySlot(time=start_time, available=available, tables_available=1 if available else 0)],
+            tables=[]
+        )
 
     if booking_type == "appointment_based":
         if not service_id or not employee_id:
@@ -1574,14 +1780,20 @@ async def get_booking(booking_id: str):
         table_id=str(booking["table_id"]) if booking.get("table_id") else None,
         service_id=str(booking.get("service_id")) if booking.get("service_id") else None,
         employee_id=str(booking.get("employee_id")) if booking.get("employee_id") else None,
+        car_id=booking.get("car_id"),
         customer_name=booking["customer_name"],
         customer_email=booking["customer_email"],
         customer_phone=booking["customer_phone"],
         booking_date=booking["booking_date"],
         start_time=booking["start_time"],
         end_time=booking["end_time"],
+        rental_end_date=booking.get("rental_end_date"),
+        rental_end_time=booking.get("rental_end_time"),
         party_size=booking["party_size"],
         notes=booking.get("notes"),
+        delivery_address=booking.get("delivery_address"),
+        delivery_latitude=booking.get("delivery_latitude"),
+        delivery_longitude=booking.get("delivery_longitude"),
         status=booking["status"],
         created_at=booking["created_at"].isoformat()
     )

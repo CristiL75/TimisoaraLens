@@ -150,6 +150,13 @@ export default function ServicesScreen({ navigation }) {
     return map[value] || value || '-';
   };
 
+  const getCarLabel = (booking) => {
+    if (!booking?.car_id) return null;
+    const provider = providers.find((item) => String(item.id) === String(booking.provider_id));
+    const car = provider?.cars?.find((item) => String(item.id) === String(booking.car_id));
+    return car ? `${car.brand} ${car.model}` : null;
+  };
+
   const onRefresh = () => {
     setRefreshing(true);
     loadProviders();
@@ -224,6 +231,17 @@ export default function ServicesScreen({ navigation }) {
                       <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
                       <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
                       <Paragraph>Email: {booking.customer_email}</Paragraph>
+                      {booking.car_id && (
+                        <Paragraph>Masina: {getCarLabel(booking) || booking.car_id}</Paragraph>
+                      )}
+                      {booking.rental_end_date && booking.rental_end_time && (
+                        <Paragraph>
+                          Perioada: {booking.booking_date} {booking.start_time} - {booking.rental_end_date} {booking.rental_end_time}
+                        </Paragraph>
+                      )}
+                      {booking.delivery_address && (
+                        <Paragraph>Livrare: {booking.delivery_address}</Paragraph>
+                      )}
                       {booking.service_id && serviceById[String(booking.service_id)] && (
                         <Paragraph>Serviciu: {serviceById[String(booking.service_id)].name}</Paragraph>
                       )}
@@ -294,6 +312,17 @@ export default function ServicesScreen({ navigation }) {
                       <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
                       <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
                       <Paragraph>Email: {booking.customer_email}</Paragraph>
+                      {booking.car_id && (
+                        <Paragraph>Masina: {getCarLabel(booking) || booking.car_id}</Paragraph>
+                      )}
+                      {booking.rental_end_date && booking.rental_end_time && (
+                        <Paragraph>
+                          Perioada: {booking.booking_date} {booking.start_time} - {booking.rental_end_date} {booking.rental_end_time}
+                        </Paragraph>
+                      )}
+                      {booking.delivery_address && (
+                        <Paragraph>Livrare: {booking.delivery_address}</Paragraph>
+                      )}
                       {booking.service_id && serviceById[String(booking.service_id)] && (
                         <Paragraph>Serviciu: {serviceById[String(booking.service_id)].name}</Paragraph>
                       )}

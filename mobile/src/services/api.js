@@ -482,7 +482,10 @@ export const bookingsAPI = {
     startTime,
     durationMinutes,
     serviceId,
-    employeeId
+    employeeId,
+    carId,
+    endDate,
+    endTime
   ) => {
     try {
       const response = await api.get(`/bookings/availability/${providerId}`, {
@@ -493,6 +496,9 @@ export const bookingsAPI = {
           duration_minutes: durationMinutes || undefined,
           service_id: serviceId || undefined,
           employee_id: employeeId || undefined,
+          car_id: carId || undefined,
+          end_date: endDate || undefined,
+          end_time: endTime || undefined,
         }
       });
       return { success: true, data: response.data };

@@ -72,6 +72,11 @@ export default function ManageProviderScreen({ navigation, route }) {
   const [longitude, setLongitude] = useState(existingProvider?.longitude || null);
   const [images, setImages] = useState(existingProvider?.images || []);
   const [cars, setCars] = useState(existingProvider?.cars || []);
+  const [carImages, setCarImages] = useState([]);
+  const [carDeliveryAddress, setCarDeliveryAddress] = useState('');
+  const [carDeliveryLatitude, setCarDeliveryLatitude] = useState(null);
+  const [carDeliveryLongitude, setCarDeliveryLongitude] = useState(null);
+  const [carDeliveryRadius, setCarDeliveryRadius] = useState('');
 
   const [carBrand, setCarBrand] = useState('');
   const [carModel, setCarModel] = useState('');
@@ -139,10 +144,16 @@ export default function ManageProviderScreen({ navigation, route }) {
 
   useEffect(() => {
     if (route?.params?.pickedLocation) {
-      handleLocationSelected(route.params.pickedLocation);
-      navigation.setParams({ pickedLocation: null });
+      if (route.params.pickedLocationTarget === 'car_delivery') {
+        setCarDeliveryAddress(route.params.pickedLocation.address || '');
+        setCarDeliveryLatitude(route.params.pickedLocation.latitude || null);
+        setCarDeliveryLongitude(route.params.pickedLocation.longitude || null);
+      } else {
+        handleLocationSelected(route.params.pickedLocation);
+      }
+      navigation.setParams({ pickedLocation: null, pickedLocationTarget: null });
     }
-  }, [route?.params?.pickedLocation]);
+  }, [route?.params?.pickedLocation, route?.params?.pickedLocationTarget]);
 
   const takePhoto = async () => {
     try {
@@ -191,9 +202,61 @@ export default function ManageProviderScreen({ navigation, route }) {
     setImages((prev) => prev.filter((item) => item !== url));
   };
 
+  const takeCarPhoto = async () => {
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        allowsEditing: true,
+        aspect: [4, 3],
+      });
+
+      if (!result.canceled) {
+        setCarImages((prev) => [...prev, result.assets[0].uri]);
+      }
+    } catch (error) {
+      Alert.alert('Eroare', 'Nu s-a putut face poza');
+    }
+  };
+
+  const pickCarImages = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        quality: 0.8,
+        allowsEditing: false,
+      });
+
+      if (!result.canceled) {
+        const imageUris = result.assets.map((asset) => asset.uri);
+        setCarImages((prev) => [...prev, ...imageUris]);
+      }
+    } catch (error) {
+      Alert.alert('Eroare', 'Nu s-au putut selecta imaginile');
+    }
+  };
+
+  const showCarImageOptions = () => {
+    Alert.alert('Adauga poze masina', 'Alege sursa imaginilor', [
+      { text: 'Fa o poza', onPress: takeCarPhoto },
+      { text: 'Galerie foto', onPress: pickCarImages },
+      { text: 'Anuleaza', style: 'cancel' },
+    ]);
+  };
+
+  const handleRemoveCarImage = (url) => {
+    setCarImages((prev) => prev.filter((item) => item !== url));
+  };
+
   const resetCarForm = () => {
     setCarBrand('');
     setCarModel('');
+    setCarImages([]);
+    setCarDeliveryAddress('');
+    setCarDeliveryLatitude(null);
+    setCarDeliveryLongitude(null);
+    setCarDeliveryRadius('');
     setCarYear('');
     setCarSeats('');
     setCarLuggage('');
@@ -215,6 +278,11 @@ export default function ManageProviderScreen({ navigation, route }) {
     const newCar = {
       brand: carBrand.trim(),
       model: carModel.trim(),
+      images: carImages,
+      delivery_address: carDeliveryAddress || null,
+      delivery_latitude: carDeliveryLatitude || null,
+      delivery_longitude: carDeliveryLongitude || null,
+      delivery_radius_km: carDeliveryRadius ? parseFloat(carDeliveryRadius) : null,
       year: carYear ? parseInt(carYear, 10) : null,
       seats: parseInt(carSeats, 10),
       luggage: parseInt(carLuggage, 10),
@@ -436,6 +504,59 @@ export default function ManageProviderScreen({ navigation, route }) {
                 mode="outlined"
                 style={styles.input}
               />
+              <Text style={styles.noteText}>Poze masina (optional)</Text>
+              <Button mode="outlined" onPress={showCarImageOptions} style={styles.addImageButton}>
+                Adauga poze masina
+              </Button>
+              {carImages.length > 0 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.carImageRow}>
+                  {carImages.map((img) => (
+                    <View key={img} style={styles.carImageItem}>
+                      <Image source={{ uri: img }} style={styles.carImagePreview} />
+                      <Button mode="text" onPress={() => handleRemoveCarImage(img)}>
+                        Sterge
+                      </Button>
+                    </View>
+                  ))}
+                </ScrollView>
+              ) : (
+                <Text style={styles.noteText}>Nu sunt poze adaugate.</Text>
+              )}
+              <Text style={styles.sectionTitle}>Zona livrare (optional)</Text>
+              <View style={styles.locationRow}>
+                <Button
+                  mode="outlined"
+                  icon="map-search"
+                  onPress={() => navigation.navigate('LocationPicker', {
+                    initialLocation: carDeliveryLatitude && carDeliveryLongitude
+                      ? { latitude: carDeliveryLatitude, longitude: carDeliveryLongitude, address: carDeliveryAddress }
+                      : null,
+                    returnTo: 'ManageProvider',
+                    locationTarget: 'car_delivery',
+                  })}
+                  style={styles.locationButton}
+                >
+                  Alege zona livrare
+                </Button>
+                {carDeliveryLatitude && carDeliveryLongitude && (
+                  <Text style={styles.locationMeta}>
+                    {carDeliveryLatitude.toFixed(6)}, {carDeliveryLongitude.toFixed(6)}
+                  </Text>
+                )}
+              </View>
+              {carDeliveryAddress ? (
+                <Text style={styles.noteText}>{carDeliveryAddress}</Text>
+              ) : (
+                <Text style={styles.noteText}>Nu este setata o zona de livrare.</Text>
+              )}
+              <TextInput
+                label="Raza livrare (km, optional)"
+                value={carDeliveryRadius}
+                onChangeText={setCarDeliveryRadius}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
               <TextInput
                 label="An fabricatie (optional)"
                 value={carYear}
@@ -540,6 +661,23 @@ export default function ManageProviderScreen({ navigation, route }) {
                           Sterge
                         </Button>
                       </View>
+                      {car.images && car.images.length > 0 && (
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          style={styles.carImageRow}
+                        >
+                          {car.images.map((img) => (
+                            <Image key={img} source={{ uri: img }} style={styles.carImagePreview} />
+                          ))}
+                        </ScrollView>
+                      )}
+                      {car.delivery_address && (
+                        <Text style={styles.carMeta}>Livrare: {car.delivery_address}</Text>
+                      )}
+                      {car.delivery_radius_km && (
+                        <Text style={styles.carMeta}>Raza livrare: {car.delivery_radius_km} km</Text>
+                      )}
                       <Text style={styles.carMeta}>
                         {car.seats} locuri • {car.luggage} bagaje • {car.transmission} • {car.fuel}
                       </Text>
@@ -688,6 +826,20 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 8,
     marginBottom: 4,
+  },
+  carImageRow: {
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  carImageItem: {
+    marginRight: 12,
+    alignItems: 'center',
+  },
+  carImagePreview: {
+    width: 120,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 8,
   },
   sectionTitle: {
     fontSize: 16,

@@ -14,7 +14,7 @@ if (Platform.OS !== 'web') {
 import * as Location from 'expo-location';
 
 const LocationPickerScreen = ({ navigation, route }) => {
-  const { initialLocation } = route.params || {};
+  const { initialLocation, returnTo, locationTarget } = route.params || {};
   
   // State pentru locație selectată
   const [selectedLocation, setSelectedLocation] = useState(
@@ -194,16 +194,21 @@ const LocationPickerScreen = ({ navigation, route }) => {
 
     console.log('LocationPicker: Saving location:', selectedLocation);
 
-    // Apelează callback-ul dacă există
-    if (route.params?.onLocationSelected) {
-      route.params.onLocationSelected({
-        latitude: selectedLocation.latitude,
-        longitude: selectedLocation.longitude,
-        address: selectedLocation.address
+    const payload = {
+      latitude: selectedLocation.latitude,
+      longitude: selectedLocation.longitude,
+      address: selectedLocation.address,
+    };
+
+    if (returnTo) {
+      navigation.navigate({
+        name: returnTo,
+        params: { pickedLocation: payload, pickedLocationTarget: locationTarget || null },
+        merge: true,
       });
+      return;
     }
 
-    // Întoarce-te la ecranul anterior
     navigation.goBack();
   };
 

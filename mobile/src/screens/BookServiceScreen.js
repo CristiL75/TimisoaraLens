@@ -1,7 +1,7 @@
 /**
  * Book Service Screen - Make a reservation at a provider
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import {
   Appbar,
@@ -13,11 +13,18 @@ import {
   Chip,
   ActivityIndicator,
   List,
+  Portal,
+  Dialog,
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { bookingsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import MapView, { Marker } from 'react-native-maps';
+import { Calendar } from 'react-native-calendars';
+
+const TIME_OPTIONS = Array.from({ length: 24 }).flatMap((hour) => (
+  [0, 30].map((minute) => `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`)
+));
 
 export default function BookServiceScreen({ navigation, route }) {
   const { provider } = route.params;
@@ -25,6 +32,7 @@ export default function BookServiceScreen({ navigation, route }) {
 
   const isAppointment = provider?.booking_settings?.type === 'appointment_based';
   const isRestaurant = provider?.category === 'food_drinks';
+  const isRentCar = provider?.category === 'rent_a_car';
 
   const [loading, setLoading] = useState(false);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
@@ -38,9 +46,27 @@ export default function BookServiceScreen({ navigation, route }) {
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
+  const [selectedCarId, setSelectedCarId] = useState(null);
+  const [rentalStartDate, setRentalStartDate] = useState('');
+  const [rentalStartTime, setRentalStartTime] = useState('');
+  const [rentalEndDate, setRentalEndDate] = useState('');
+  const [rentalEndTime, setRentalEndTime] = useState('');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryLatitude, setDeliveryLatitude] = useState(null);
+  const [deliveryLongitude, setDeliveryLongitude] = useState(null);
+  const [checkingCarAvailability, setCheckingCarAvailability] = useState(false);
+  const [carAvailability, setCarAvailability] = useState(null);
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const selectedTable = (availability?.tables || tables).find((t) => t.id === selectedTableId) || null;
   const selectedService = services.find((s) => s.id === selectedServiceId) || null;
   const selectedEmployee = employees.find((e) => e.id === selectedEmployeeId) || null;
+  const selectedCar = useMemo(
+    () => (provider?.cars || []).find((car) => String(car.id) === String(selectedCarId)) || null,
+    [provider?.cars, selectedCarId]
+  );
   const filteredEmployees = selectedServiceId
     ? employees.filter((e) => (e.service_ids || []).includes(selectedServiceId))
     : employees;
@@ -56,38 +82,6 @@ export default function BookServiceScreen({ navigation, route }) {
     const label = value.replace(/_/g, ' ');
     return label.charAt(0).toUpperCase() + label.slice(1);
   };
-
-  if (provider?.category === 'rent_a_car') {
-    return (
-      <View style={styles.container}>
-        <Appbar.Header>
-          <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title="Rent-a-Car" />
-        </Appbar.Header>
-        <ScrollView style={styles.content}>
-          <Card style={styles.card}>
-            <Card.Content>
-              <Title>{provider?.name}</Title>
-              <Text style={{ marginTop: 8 }}>
-                Acest serviciu foloseste cereri directe. Vezi flota si contacteaza proprietarul.
-              </Text>
-              {provider?.phone && (
-                <Text style={{ marginTop: 8 }}>Telefon: {provider.phone}</Text>
-              )}
-              {provider?.email && (
-                <Text>Email: {provider.email}</Text>
-              )}
-            </Card.Content>
-            <Card.Actions>
-              <Button mode="outlined" onPress={() => navigation.navigate('ProviderDetail', { provider, isOwner: false })}>
-                Vezi flota
-              </Button>
-            </Card.Actions>
-          </Card>
-        </ScrollView>
-      </View>
-    );
-  }
 
   // Form fields
   const [customerName, setCustomerName] = useState(user?.username || '');
@@ -109,7 +103,22 @@ export default function BookServiceScreen({ navigation, route }) {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     setBookingDate(tomorrow.toISOString().split('T')[0]);
-  }, []);
+    if (isRentCar) {
+      const endDate = new Date(tomorrow);
+      endDate.setDate(endDate.getDate() + 1);
+      setRentalStartDate(tomorrow.toISOString().split('T')[0]);
+      setRentalEndDate(endDate.toISOString().split('T')[0]);
+    }
+  }, [isRentCar]);
+
+  useEffect(() => {
+    if (route?.params?.pickedLocation && route.params.pickedLocationTarget === 'rental_delivery') {
+      setDeliveryAddress(route.params.pickedLocation.address || '');
+      setDeliveryLatitude(route.params.pickedLocation.latitude || null);
+      setDeliveryLongitude(route.params.pickedLocation.longitude || null);
+      navigation.setParams({ pickedLocation: null, pickedLocationTarget: null });
+    }
+  }, [route?.params?.pickedLocation, route?.params?.pickedLocationTarget]);
 
   useEffect(() => {
     if (user?.email) {
@@ -315,6 +324,121 @@ export default function BookServiceScreen({ navigation, route }) {
     }
   };
 
+  const getDistanceKm = (lat1, lon1, lat2, lon2) => {
+    const toRad = (value) => (value * Math.PI) / 180;
+    const radius = 6371;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2
+      + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return 2 * radius * Math.asin(Math.sqrt(a));
+  };
+
+  const handleCheckCarAvailability = async () => {
+    if (!selectedCarId || !rentalStartDate || !rentalStartTime || !rentalEndDate || !rentalEndTime) {
+      Alert.alert('Eroare', 'Completeaza masina si perioada de inchiriere');
+      return;
+    }
+
+    setCheckingCarAvailability(true);
+    setCarAvailability(null);
+
+    try {
+      const result = await bookingsAPI.checkAvailability(
+        provider.id,
+        rentalStartDate,
+        1,
+        rentalStartTime,
+        null,
+        null,
+        null,
+        selectedCarId,
+        rentalEndDate,
+        rentalEndTime
+      );
+
+      if (result.success) {
+        const available = result.data?.slots?.[0]?.available ?? false;
+        setCarAvailability(available);
+      } else {
+        Alert.alert('Eroare', result.error);
+      }
+    } catch (error) {
+      Alert.alert('Eroare', 'A aparut o eroare la verificarea disponibilitatii');
+    } finally {
+      setCheckingCarAvailability(false);
+    }
+  };
+
+  const handleRentCarBooking = async () => {
+    if (!customerName || !customerEmail || !customerPhone) {
+      Alert.alert('Eroare', 'Completeaza datele de contact');
+      return;
+    }
+
+    if (!selectedCarId || !rentalStartDate || !rentalStartTime || !rentalEndDate || !rentalEndTime) {
+      Alert.alert('Eroare', 'Completeaza masina si perioada de inchiriere');
+      return;
+    }
+
+    if (deliveryLatitude != null && deliveryLongitude != null) {
+      const carLat = selectedCar?.delivery_latitude;
+      const carLng = selectedCar?.delivery_longitude;
+      if (carLat == null || carLng == null) {
+        Alert.alert('Eroare', 'Masina selectata nu accepta livrare la adresa aleasa.');
+        return;
+      }
+      const radiusKm = selectedCar?.delivery_radius_km || 10;
+      const distanceKm = getDistanceKm(
+        Number(carLat),
+        Number(carLng),
+        Number(deliveryLatitude),
+        Number(deliveryLongitude)
+      );
+      if (distanceKm > radiusKm) {
+        Alert.alert('Eroare', `Adresa de livrare depaseste raza de ${radiusKm} km.`);
+        return;
+      }
+    }
+
+    setLoading(true);
+    const effectiveEmail = user?.email || customerEmail;
+
+    const bookingData = {
+      provider_id: provider.id,
+      car_id: selectedCarId,
+      customer_name: customerName,
+      customer_email: effectiveEmail,
+      customer_phone: customerPhone,
+      booking_date: rentalStartDate,
+      start_time: rentalStartTime,
+      rental_end_date: rentalEndDate,
+      rental_end_time: rentalEndTime,
+      party_size: 1,
+      delivery_address: deliveryAddress || null,
+      delivery_latitude: deliveryLatitude || null,
+      delivery_longitude: deliveryLongitude || null,
+      notes: notes || null,
+    };
+
+    try {
+      const result = await bookingsAPI.createBooking(bookingData);
+      if (result.success) {
+        Alert.alert(
+          'Cerere trimisa',
+          `Cererea ta de inchiriere la ${provider.name} a fost inregistrata si asteapta confirmare.`,
+          [{ text: 'OK', onPress: () => navigation.navigate('Services') }]
+        );
+      } else {
+        Alert.alert('Eroare', result.error);
+      }
+    } catch (error) {
+      Alert.alert('Eroare', 'A aparut o eroare la trimiterea cererii');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Appbar.Header>
@@ -323,33 +447,207 @@ export default function BookServiceScreen({ navigation, route }) {
       </Appbar.Header>
 
       <ScrollView style={styles.content}>
-        {/* Provider Info */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <View style={styles.titleContainer}>
-              <MaterialCommunityIcons name="store" size={28} color="#4CAF50" />
-              <Title style={styles.titleText}>{provider.name}</Title>
-            </View>
-            {provider.description && (
-              <Text style={styles.description}>{provider.description}</Text>
-            )}
-            <View style={styles.infoRow}>
-              <Chip icon="clock" mode="outlined" style={styles.chip}>
-                {provider.booking_settings.default_duration_minutes} min
-              </Chip>
-              <Chip
-                icon={provider.booking_settings.auto_confirm ? 'check-circle' : 'timer-sand'}
-                mode="outlined"
-                style={styles.chip}
-              >
-                {provider.booking_settings.auto_confirm ? 'Auto-confirm' : 'Manual'}
-              </Chip>
-              <Chip icon="currency-usd" mode="outlined" style={styles.chip}>
-                {selectedService?.price} RON
-              </Chip>
-            </View>
-          </Card.Content>
-        </Card>
+        {isRentCar ? (
+          <>
+            <Card style={styles.card}>
+              <Card.Content>
+                <View style={styles.titleContainer}>
+                  <MaterialCommunityIcons name="car" size={28} color="#4CAF50" />
+                  <Title style={styles.titleText}>{provider.name}</Title>
+                </View>
+                {provider.description && (
+                  <Text style={styles.description}>{provider.description}</Text>
+                )}
+                {(provider.cars || []).length === 0 ? (
+                  <Text style={styles.emptyText}>Nu exista masini disponibile.</Text>
+                ) : (
+                  <View style={styles.slotsGrid}>
+                    {(provider.cars || []).map((car) => (
+                      <Chip
+                        key={car.id || `${car.brand}-${car.model}`}
+                        selected={selectedCarId === (car.id || null)}
+                        onPress={() => setSelectedCarId(car.id || null)}
+                        mode="outlined"
+                        style={styles.slotChip}
+                      >
+                        {car.brand} {car.model}
+                      </Chip>
+                    ))}
+                  </View>
+                )}
+                {selectedCarId && (
+                  <Text style={styles.noteText}>
+                    {(() => {
+                      return selectedCar?.delivery_address
+                        ? `Zona livrare: ${selectedCar.delivery_address}`
+                        : 'Nu este setata o zona de livrare pentru aceasta masina.';
+                    })()}
+                  </Text>
+                )}
+                {selectedCar?.delivery_radius_km && (
+                  <Text style={styles.noteText}>Raza livrare: {selectedCar.delivery_radius_km} km</Text>
+                )}
+              </Card.Content>
+            </Card>
+
+            <Card style={styles.card}>
+              <Card.Content>
+                <Title style={styles.sectionTitle}>Datele Tale</Title>
+                <TextInput
+                  label="Nume *"
+                  value={customerName}
+                  onChangeText={setCustomerName}
+                  mode="outlined"
+                  style={styles.input}
+                />
+                <TextInput
+                  label="Email *"
+                  value={customerEmail}
+                  onChangeText={setCustomerEmail}
+                  mode="outlined"
+                  style={styles.input}
+                  keyboardType="email-address"
+                  editable={!user?.email}
+                />
+                <TextInput
+                  label="Telefon *"
+                  value={customerPhone}
+                  onChangeText={setCustomerPhone}
+                  mode="outlined"
+                  style={styles.input}
+                  keyboardType="phone-pad"
+                  placeholder="+40 ..."
+                />
+              </Card.Content>
+            </Card>
+
+            <Card style={styles.card}>
+              <Card.Content>
+                <Title style={styles.sectionTitle}>Perioada Inchiriere</Title>
+                <TextInput
+                  label="Data inceput *"
+                  value={rentalStartDate}
+                  mode="outlined"
+                  style={styles.input}
+                  placeholder="YYYY-MM-DD"
+                  editable={false}
+                  right={<TextInput.Icon icon="calendar" onPress={() => setShowStartDatePicker(true)} />}
+                />
+                <TextInput
+                  label="Ora inceput *"
+                  value={rentalStartTime}
+                  mode="outlined"
+                  style={styles.input}
+                  placeholder="HH:MM"
+                  editable={false}
+                  right={<TextInput.Icon icon="clock-outline" onPress={() => setShowStartTimePicker(true)} />}
+                />
+                <TextInput
+                  label="Data sfarsit *"
+                  value={rentalEndDate}
+                  mode="outlined"
+                  style={styles.input}
+                  placeholder="YYYY-MM-DD"
+                  editable={false}
+                  right={<TextInput.Icon icon="calendar" onPress={() => setShowEndDatePicker(true)} />}
+                />
+                <TextInput
+                  label="Ora sfarsit *"
+                  value={rentalEndTime}
+                  mode="outlined"
+                  style={styles.input}
+                  placeholder="HH:MM"
+                  editable={false}
+                  right={<TextInput.Icon icon="clock-outline" onPress={() => setShowEndTimePicker(true)} />}
+                />
+                <Button
+                  mode="outlined"
+                  onPress={handleCheckCarAvailability}
+                  loading={checkingCarAvailability}
+                  style={styles.checkButton}
+                >
+                  Verifica disponibilitate
+                </Button>
+                {carAvailability !== null && (
+                  <Text style={carAvailability ? styles.availableText : styles.unavailableText}>
+                    {carAvailability ? 'Masina este disponibila.' : 'Masina nu este disponibila.'}
+                  </Text>
+                )}
+              </Card.Content>
+            </Card>
+
+            <Card style={styles.card}>
+              <Card.Content>
+                <Title style={styles.sectionTitle}>Livrare (optional)</Title>
+                <Button
+                  mode="outlined"
+                  icon="map-search"
+                  onPress={() => navigation.navigate('LocationPicker', {
+                    initialLocation: deliveryLatitude && deliveryLongitude
+                      ? { latitude: deliveryLatitude, longitude: deliveryLongitude, address: deliveryAddress }
+                      : null,
+                    returnTo: 'BookService',
+                    locationTarget: 'rental_delivery',
+                  })}
+                  style={styles.locationButton}
+                >
+                  Alege adresa de livrare
+                </Button>
+                {deliveryAddress ? (
+                  <Text style={styles.noteText}>{deliveryAddress}</Text>
+                ) : (
+                  <Text style={styles.noteText}>Nu ai setat o adresa de livrare.</Text>
+                )}
+                <TextInput
+                  label="Observatii (optional)"
+                  value={notes}
+                  onChangeText={setNotes}
+                  mode="outlined"
+                  style={styles.input}
+                  multiline
+                />
+              </Card.Content>
+            </Card>
+
+            <Button
+              mode="contained"
+              onPress={handleRentCarBooking}
+              loading={loading}
+              disabled={loading || carAvailability === false}
+              style={styles.bookButton}
+            >
+              Trimite cerere inchiriere
+            </Button>
+          </>
+        ) : (
+          <>
+            {/* Provider Info */}
+            <Card style={styles.card}>
+              <Card.Content>
+                <View style={styles.titleContainer}>
+                  <MaterialCommunityIcons name="store" size={28} color="#4CAF50" />
+                  <Title style={styles.titleText}>{provider.name}</Title>
+                </View>
+                {provider.description && (
+                  <Text style={styles.description}>{provider.description}</Text>
+                )}
+                <View style={styles.infoRow}>
+                  <Chip icon="clock" mode="outlined" style={styles.chip}>
+                    {provider.booking_settings.default_duration_minutes} min
+                  </Chip>
+                  <Chip
+                    icon={provider.booking_settings.auto_confirm ? 'check-circle' : 'timer-sand'}
+                    mode="outlined"
+                    style={styles.chip}
+                  >
+                    {provider.booking_settings.auto_confirm ? 'Auto-confirm' : 'Manual'}
+                  </Chip>
+                  <Chip icon="currency-usd" mode="outlined" style={styles.chip}>
+                    {selectedService?.price} RON
+                  </Chip>
+                </View>
+              </Card.Content>
+            </Card>
 
         {/* Customer Info */}
         <Card style={styles.card}>
@@ -820,6 +1118,80 @@ export default function BookServiceScreen({ navigation, route }) {
         >
           Confirmă Rezervarea
         </Button>
+          </>
+        )}
+
+        <Portal>
+          <Dialog visible={showStartDatePicker} onDismiss={() => setShowStartDatePicker(false)}>
+            <Dialog.Title>Alege data de inceput</Dialog.Title>
+            <Dialog.Content>
+              <Calendar
+                onDayPress={(day) => {
+                  setRentalStartDate(day.dateString);
+                  setShowStartDatePicker(false);
+                }}
+                markedDates={rentalStartDate ? { [rentalStartDate]: { selected: true } } : {}}
+                enableSwipeMonths={true}
+              />
+            </Dialog.Content>
+          </Dialog>
+
+          <Dialog visible={showEndDatePicker} onDismiss={() => setShowEndDatePicker(false)}>
+            <Dialog.Title>Alege data de sfarsit</Dialog.Title>
+            <Dialog.Content>
+              <Calendar
+                onDayPress={(day) => {
+                  setRentalEndDate(day.dateString);
+                  setShowEndDatePicker(false);
+                }}
+                markedDates={rentalEndDate ? { [rentalEndDate]: { selected: true } } : {}}
+                enableSwipeMonths={true}
+              />
+            </Dialog.Content>
+          </Dialog>
+
+          <Dialog visible={showStartTimePicker} onDismiss={() => setShowStartTimePicker(false)}>
+            <Dialog.Title>Alege ora de inceput</Dialog.Title>
+            <Dialog.Content>
+              <View style={styles.timeGrid}>
+                {TIME_OPTIONS.map((time) => (
+                  <Chip
+                    key={time}
+                    selected={rentalStartTime === time}
+                    onPress={() => {
+                      setRentalStartTime(time);
+                      setShowStartTimePicker(false);
+                    }}
+                    style={styles.timeChip}
+                  >
+                    {time}
+                  </Chip>
+                ))}
+              </View>
+            </Dialog.Content>
+          </Dialog>
+
+          <Dialog visible={showEndTimePicker} onDismiss={() => setShowEndTimePicker(false)}>
+            <Dialog.Title>Alege ora de sfarsit</Dialog.Title>
+            <Dialog.Content>
+              <View style={styles.timeGrid}>
+                {TIME_OPTIONS.map((time) => (
+                  <Chip
+                    key={time}
+                    selected={rentalEndTime === time}
+                    onPress={() => {
+                      setRentalEndTime(time);
+                      setShowEndTimePicker(false);
+                    }}
+                    style={styles.timeChip}
+                  >
+                    {time}
+                  </Chip>
+                ))}
+              </View>
+            </Dialog.Content>
+          </Dialog>
+        </Portal>
       </ScrollView>
     </View>
   );
@@ -865,6 +1237,24 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 12,
+  },
+  noteText: {
+    color: '#666',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  availableText: {
+    color: '#2E7D32',
+    fontWeight: '600',
+    marginTop: 8,
+  },
+  unavailableText: {
+    color: '#C62828',
+    fontWeight: '600',
+    marginTop: 8,
+  },
+  locationButton: {
+    marginBottom: 8,
   },
   checkButton: {
     marginTop: 8,
@@ -954,6 +1344,14 @@ const styles = StyleSheet.create({
   tableOptionChip: {
     marginRight: 6,
     marginTop: 4,
+  },
+  timeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  timeChip: {
+    marginRight: 8,
+    marginBottom: 8,
   },
   mapContainer: {
     marginTop: 12,
