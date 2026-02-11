@@ -98,9 +98,6 @@ export default function ProviderDetailScreen({ route, navigation }) {
                     <Text style={styles.fleetMeta}>
                       {car.seats} locuri • {car.luggage} bagaje • {car.transmission} • {car.fuel}
                     </Text>
-                    {car.delivery_address && (
-                      <Text style={styles.fleetMeta}>Livrare: {car.delivery_address}</Text>
-                    )}
                     {car.delivery_radius_km && (
                       <Text style={styles.fleetMeta}>Raza livrare: {car.delivery_radius_km} km</Text>
                     )}

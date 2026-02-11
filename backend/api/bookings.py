@@ -1228,14 +1228,14 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
             raise HTTPException(status_code=404, detail="Car not found")
 
         if request.delivery_latitude is not None and request.delivery_longitude is not None:
-            car_lat = selected_car.get("delivery_latitude")
-            car_lng = selected_car.get("delivery_longitude")
-            if car_lat is None or car_lng is None:
-                raise HTTPException(status_code=400, detail="Car does not support delivery area")
+            provider_lat = provider.get("latitude")
+            provider_lng = provider.get("longitude")
+            if provider_lat is None or provider_lng is None:
+                raise HTTPException(status_code=400, detail="Provider location not set for delivery validation")
             radius_km = selected_car.get("delivery_radius_km") or 10.0
             distance_km = haversine_km(
-                float(car_lat),
-                float(car_lng),
+                float(provider_lat),
+                float(provider_lng),
                 float(request.delivery_latitude),
                 float(request.delivery_longitude)
             )

@@ -382,16 +382,16 @@ export default function BookServiceScreen({ navigation, route }) {
     }
 
     if (deliveryLatitude != null && deliveryLongitude != null) {
-      const carLat = selectedCar?.delivery_latitude;
-      const carLng = selectedCar?.delivery_longitude;
-      if (carLat == null || carLng == null) {
-        Alert.alert('Eroare', 'Masina selectata nu accepta livrare la adresa aleasa.');
+      const providerLat = provider?.latitude;
+      const providerLng = provider?.longitude;
+      if (providerLat == null || providerLng == null) {
+        Alert.alert('Eroare', 'Providerul nu are locatie setata pentru validarea livrarii.');
         return;
       }
       const radiusKm = selectedCar?.delivery_radius_km || 10;
       const distanceKm = getDistanceKm(
-        Number(carLat),
-        Number(carLng),
+        Number(providerLat),
+        Number(providerLng),
         Number(deliveryLatitude),
         Number(deliveryLongitude)
       );
@@ -474,15 +474,6 @@ export default function BookServiceScreen({ navigation, route }) {
                       </Chip>
                     ))}
                   </View>
-                )}
-                {selectedCarId && (
-                  <Text style={styles.noteText}>
-                    {(() => {
-                      return selectedCar?.delivery_address
-                        ? `Zona livrare: ${selectedCar.delivery_address}`
-                        : 'Nu este setata o zona de livrare pentru aceasta masina.';
-                    })()}
-                  </Text>
                 )}
                 {selectedCar?.delivery_radius_km && (
                   <Text style={styles.noteText}>Raza livrare: {selectedCar.delivery_radius_km} km</Text>

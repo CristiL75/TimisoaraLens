@@ -73,10 +73,8 @@ export default function ManageProviderScreen({ navigation, route }) {
   const [images, setImages] = useState(existingProvider?.images || []);
   const [cars, setCars] = useState(existingProvider?.cars || []);
   const [carImages, setCarImages] = useState([]);
-  const [carDeliveryAddress, setCarDeliveryAddress] = useState('');
-  const [carDeliveryLatitude, setCarDeliveryLatitude] = useState(null);
-  const [carDeliveryLongitude, setCarDeliveryLongitude] = useState(null);
   const [carDeliveryRadius, setCarDeliveryRadius] = useState('');
+  const [editingCarIndex, setEditingCarIndex] = useState(null);
 
   const [carBrand, setCarBrand] = useState('');
   const [carModel, setCarModel] = useState('');
@@ -144,13 +142,7 @@ export default function ManageProviderScreen({ navigation, route }) {
 
   useEffect(() => {
     if (route?.params?.pickedLocation) {
-      if (route.params.pickedLocationTarget === 'car_delivery') {
-        setCarDeliveryAddress(route.params.pickedLocation.address || '');
-        setCarDeliveryLatitude(route.params.pickedLocation.latitude || null);
-        setCarDeliveryLongitude(route.params.pickedLocation.longitude || null);
-      } else {
-        handleLocationSelected(route.params.pickedLocation);
-      }
+      handleLocationSelected(route.params.pickedLocation);
       navigation.setParams({ pickedLocation: null, pickedLocationTarget: null });
     }
   }, [route?.params?.pickedLocation, route?.params?.pickedLocationTarget]);
@@ -253,9 +245,6 @@ export default function ManageProviderScreen({ navigation, route }) {
     setCarBrand('');
     setCarModel('');
     setCarImages([]);
-    setCarDeliveryAddress('');
-    setCarDeliveryLatitude(null);
-    setCarDeliveryLongitude(null);
     setCarDeliveryRadius('');
     setCarYear('');
     setCarSeats('');
@@ -267,9 +256,10 @@ export default function ManageProviderScreen({ navigation, route }) {
     setCarPriceWeekend('');
     setCarDeposit('');
     setCarIncludedKm('');
+    setEditingCarIndex(null);
   };
 
-  const handleAddCar = () => {
+  const handleSaveCar = () => {
     if (!carBrand || !carModel || !carSeats || !carLuggage || !carPriceDay || !carDeposit) {
       Alert.alert('Eroare', 'Completeaza marca, modelul, locurile, bagajele, pretul/zi si garantia.');
       return;
@@ -279,9 +269,6 @@ export default function ManageProviderScreen({ navigation, route }) {
       brand: carBrand.trim(),
       model: carModel.trim(),
       images: carImages,
-      delivery_address: carDeliveryAddress || null,
-      delivery_latitude: carDeliveryLatitude || null,
-      delivery_longitude: carDeliveryLongitude || null,
       delivery_radius_km: carDeliveryRadius ? parseFloat(carDeliveryRadius) : null,
       year: carYear ? parseInt(carYear, 10) : null,
       seats: parseInt(carSeats, 10),
@@ -295,13 +282,43 @@ export default function ManageProviderScreen({ navigation, route }) {
       included_km_per_day: carIncludedKm ? parseInt(carIncludedKm, 10) : null,
     };
 
-    setCars((prev) => [newCar, ...prev]);
+    if (editingCarIndex !== null) {
+      setCars((prev) => prev.map((car, idx) => (
+        idx === editingCarIndex ? { ...car, ...newCar } : car
+      )));
+    } else {
+      setCars((prev) => [newCar, ...prev]);
+    }
     resetCarForm();
   };
 
   const handleRemoveCar = (index) => {
     setCars((prev) => prev.filter((_, idx) => idx !== index));
   };
+
+  const handleEditCar = (index) => {
+    const car = cars[index];
+    if (!car) {
+      return;
+    }
+    setEditingCarIndex(index);
+    setCarBrand(car.brand || '');
+    setCarModel(car.model || '');
+    setCarImages(car.images || []);
+    setCarDeliveryRadius(car.delivery_radius_km ? String(car.delivery_radius_km) : '');
+    setCarYear(car.year ? String(car.year) : '');
+    setCarSeats(car.seats ? String(car.seats) : '');
+    setCarLuggage(car.luggage ? String(car.luggage) : '');
+    setCarTransmission(car.transmission || 'manual');
+    setCarFuel(car.fuel || 'gasoline');
+    setCarConsumption(car.consumption ? String(car.consumption) : '');
+    setCarPriceDay(car.price_per_day ? String(car.price_per_day) : '');
+    setCarPriceWeekend(car.price_weekend ? String(car.price_weekend) : '');
+    setCarDeposit(car.deposit ? String(car.deposit) : '');
+    setCarIncludedKm(car.included_km_per_day ? String(car.included_km_per_day) : '');
+  };
+
+  const isEditingCar = editingCarIndex !== null;
 
   const handleSave = async () => {
     if (!name || !phone) {
@@ -522,33 +539,10 @@ export default function ManageProviderScreen({ navigation, route }) {
               ) : (
                 <Text style={styles.noteText}>Nu sunt poze adaugate.</Text>
               )}
-              <Text style={styles.sectionTitle}>Zona livrare (optional)</Text>
-              <View style={styles.locationRow}>
-                <Button
-                  mode="outlined"
-                  icon="map-search"
-                  onPress={() => navigation.navigate('LocationPicker', {
-                    initialLocation: carDeliveryLatitude && carDeliveryLongitude
-                      ? { latitude: carDeliveryLatitude, longitude: carDeliveryLongitude, address: carDeliveryAddress }
-                      : null,
-                    returnTo: 'ManageProvider',
-                    locationTarget: 'car_delivery',
-                  })}
-                  style={styles.locationButton}
-                >
-                  Alege zona livrare
-                </Button>
-                {carDeliveryLatitude && carDeliveryLongitude && (
-                  <Text style={styles.locationMeta}>
-                    {carDeliveryLatitude.toFixed(6)}, {carDeliveryLongitude.toFixed(6)}
-                  </Text>
-                )}
-              </View>
-              {carDeliveryAddress ? (
-                <Text style={styles.noteText}>{carDeliveryAddress}</Text>
-              ) : (
-                <Text style={styles.noteText}>Nu este setata o zona de livrare.</Text>
-              )}
+              <Text style={styles.sectionTitle}>Livrare (optional)</Text>
+              <Text style={styles.noteText}>
+                Clientul alege adresa de livrare, iar raza ta limita se aplica la validare.
+              </Text>
               <TextInput
                 label="Raza livrare (km, optional)"
                 value={carDeliveryRadius}
@@ -647,9 +641,18 @@ export default function ManageProviderScreen({ navigation, route }) {
                 style={styles.input}
                 keyboardType="numeric"
               />
-              <Button mode="outlined" icon="plus" onPress={handleAddCar}>
-                Adauga in flota
+              <Button
+                mode="outlined"
+                icon={isEditingCar ? 'content-save' : 'plus'}
+                onPress={handleSaveCar}
+              >
+                {isEditingCar ? 'Salveaza modificari' : 'Adauga in flota'}
               </Button>
+              {isEditingCar && (
+                <Button mode="text" onPress={resetCarForm}>
+                  Anuleaza editare
+                </Button>
+              )}
 
               {cars.length > 0 ? (
                 <View style={styles.carList}>
@@ -657,9 +660,14 @@ export default function ManageProviderScreen({ navigation, route }) {
                     <View key={`${car.brand}-${car.model}-${index}`} style={styles.carItem}>
                       <View style={styles.carHeader}>
                         <Text style={styles.carTitle}>{car.brand} {car.model}</Text>
-                        <Button mode="text" onPress={() => handleRemoveCar(index)}>
-                          Sterge
-                        </Button>
+                        <View style={styles.carActions}>
+                          <Button mode="text" onPress={() => handleEditCar(index)}>
+                            Editeaza
+                          </Button>
+                          <Button mode="text" onPress={() => handleRemoveCar(index)}>
+                            Sterge
+                          </Button>
+                        </View>
                       </View>
                       {car.images && car.images.length > 0 && (
                         <ScrollView
@@ -671,9 +679,6 @@ export default function ManageProviderScreen({ navigation, route }) {
                             <Image key={img} source={{ uri: img }} style={styles.carImagePreview} />
                           ))}
                         </ScrollView>
-                      )}
-                      {car.delivery_address && (
-                        <Text style={styles.carMeta}>Livrare: {car.delivery_address}</Text>
                       )}
                       {car.delivery_radius_km && (
                         <Text style={styles.carMeta}>Raza livrare: {car.delivery_radius_km} km</Text>
@@ -901,6 +906,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  carActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   carTitle: {
     fontSize: 14,

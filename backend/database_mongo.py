@@ -212,9 +212,6 @@ class Car(BaseModel):
     brand: str
     model: str
     images: list[str] = []
-    delivery_address: Optional[str] = None
-    delivery_latitude: Optional[float] = None
-    delivery_longitude: Optional[float] = None
     delivery_radius_km: Optional[float] = None
     year: Optional[int] = None
     seats: int
