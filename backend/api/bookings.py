@@ -1216,10 +1216,12 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
         try:
             start_dt = datetime.strptime(f"{request.booking_date} {request.start_time}", "%Y-%m-%d %H:%M")
             end_dt = datetime.strptime(f"{request.rental_end_date} {request.rental_end_time}", "%Y-%m-%d %H:%M")
+            start_date = datetime.strptime(request.booking_date, "%Y-%m-%d").date()
+            end_date = datetime.strptime(request.rental_end_date, "%Y-%m-%d").date()
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date/time format")
 
-        if end_dt <= start_dt:
+        if end_dt <= start_dt or end_date < start_date:
             raise HTTPException(status_code=400, detail="Rental end must be after start")
 
         provider_cars = provider.get("cars", [])
@@ -1249,17 +1251,14 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
         }).to_list(1000)
 
         for booking in existing_car_bookings:
-            if not booking.get("rental_end_date") or not booking.get("rental_end_time"):
+            if not booking.get("rental_end_date"):
                 continue
-            existing_start = datetime.strptime(
-                f"{booking['booking_date']} {booking['start_time']}",
-                "%Y-%m-%d %H:%M"
-            )
-            existing_end = datetime.strptime(
-                f"{booking['rental_end_date']} {booking['rental_end_time']}",
-                "%Y-%m-%d %H:%M"
-            )
-            if existing_start < end_dt and start_dt < existing_end:
+            try:
+                existing_start_date = datetime.strptime(booking["booking_date"], "%Y-%m-%d").date()
+                existing_end_date = datetime.strptime(booking["rental_end_date"], "%Y-%m-%d").date()
+            except ValueError:
+                continue
+            if existing_start_date <= end_date and start_date <= existing_end_date:
                 raise HTTPException(status_code=409, detail="Car already booked for this period")
 
         end_time = request.rental_end_time
@@ -1485,16 +1484,16 @@ async def check_availability(
     booking_type = provider.get("booking_settings", {}).get("type", "table_based")
 
     if booking_type == "fleet_based":
-        if not car_id or not start_time or not end_date or not end_time:
-            raise HTTPException(status_code=400, detail="Car, start time and end time are required")
+        if not car_id or not end_date:
+            raise HTTPException(status_code=400, detail="Car and end date are required")
 
         try:
-            start_dt = datetime.strptime(f"{date} {start_time}", "%Y-%m-%d %H:%M")
-            end_dt = datetime.strptime(f"{end_date} {end_time}", "%Y-%m-%d %H:%M")
+            start_date = datetime.strptime(date, "%Y-%m-%d").date()
+            end_date_value = datetime.strptime(end_date, "%Y-%m-%d").date()
         except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date/time format")
+            raise HTTPException(status_code=400, detail="Invalid date format")
 
-        if end_dt <= start_dt:
+        if end_date_value < start_date:
             raise HTTPException(status_code=400, detail="Rental end must be after start")
 
         existing_car_bookings = await bookings_col.find({
@@ -1505,21 +1504,20 @@ async def check_availability(
 
         available = True
         for booking in existing_car_bookings:
-            if not booking.get("rental_end_date") or not booking.get("rental_end_time"):
+            if not booking.get("rental_end_date"):
                 continue
-            existing_start = datetime.strptime(
-                f"{booking['booking_date']} {booking['start_time']}", "%Y-%m-%d %H:%M"
-            )
-            existing_end = datetime.strptime(
-                f"{booking['rental_end_date']} {booking['rental_end_time']}", "%Y-%m-%d %H:%M"
-            )
-            if existing_start < end_dt and start_dt < existing_end:
+            try:
+                existing_start = datetime.strptime(booking["booking_date"], "%Y-%m-%d").date()
+                existing_end = datetime.strptime(booking["rental_end_date"], "%Y-%m-%d").date()
+            except ValueError:
+                continue
+            if existing_start <= end_date_value and start_date <= existing_end:
                 available = False
                 break
 
         return AvailabilityResponse(
             date=date,
-            slots=[AvailabilitySlot(time=start_time, available=available, tables_available=1 if available else 0)],
+            slots=[AvailabilitySlot(time=start_time or "00:00", available=available, tables_available=1 if available else 0)],
             tables=[]
         )
 

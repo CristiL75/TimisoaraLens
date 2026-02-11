@@ -22,10 +22,6 @@ import { useAuth } from '../context/AuthContext';
 import MapView, { Marker } from 'react-native-maps';
 import { Calendar } from 'react-native-calendars';
 
-const TIME_OPTIONS = Array.from({ length: 24 }).flatMap((hour) => (
-  [0, 30].map((minute) => `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`)
-));
-
 export default function BookServiceScreen({ navigation, route }) {
   const { provider } = route.params;
   const { user } = useAuth();
@@ -58,8 +54,6 @@ export default function BookServiceScreen({ navigation, route }) {
   const [carAvailability, setCarAvailability] = useState(null);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
-  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
-  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const selectedTable = (availability?.tables || tables).find((t) => t.id === selectedTableId) || null;
   const selectedService = services.find((s) => s.id === selectedServiceId) || null;
   const selectedEmployee = employees.find((e) => e.id === selectedEmployeeId) || null;
@@ -81,6 +75,14 @@ export default function BookServiceScreen({ navigation, route }) {
     if (!value) return '';
     const label = value.replace(/_/g, ' ');
     return label.charAt(0).toUpperCase() + label.slice(1);
+  };
+
+  const normalizeTimeInput = (value) => {
+    const digits = value.replace(/\D/g, '').slice(0, 4);
+    if (digits.length <= 2) {
+      return digits;
+    }
+    return `${digits.slice(0, 2)}:${digits.slice(2, 4)}`;
   };
 
   // Form fields
@@ -335,7 +337,7 @@ export default function BookServiceScreen({ navigation, route }) {
   };
 
   const handleCheckCarAvailability = async () => {
-    if (!selectedCarId || !rentalStartDate || !rentalStartTime || !rentalEndDate || !rentalEndTime) {
+    if (!selectedCarId || !rentalStartDate || !rentalEndDate) {
       Alert.alert('Eroare', 'Completeaza masina si perioada de inchiriere');
       return;
     }
@@ -348,13 +350,13 @@ export default function BookServiceScreen({ navigation, route }) {
         provider.id,
         rentalStartDate,
         1,
-        rentalStartTime,
+        null,
         null,
         null,
         null,
         selectedCarId,
         rentalEndDate,
-        rentalEndTime
+        null
       );
 
       if (result.success) {
@@ -462,9 +464,9 @@ export default function BookServiceScreen({ navigation, route }) {
                   <Text style={styles.emptyText}>Nu exista masini disponibile.</Text>
                 ) : (
                   <View style={styles.slotsGrid}>
-                    {(provider.cars || []).map((car) => (
+                    {(provider.cars || []).map((car, carIndex) => (
                       <Chip
-                        key={car.id || `${car.brand}-${car.model}`}
+                        key={`${car.id || `${car.brand}-${car.model}`}-${carIndex}`}
                         selected={selectedCarId === (car.id || null)}
                         onPress={() => setSelectedCarId(car.id || null)}
                         mode="outlined"
@@ -527,11 +529,11 @@ export default function BookServiceScreen({ navigation, route }) {
                 <TextInput
                   label="Ora inceput *"
                   value={rentalStartTime}
+                  onChangeText={(value) => setRentalStartTime(normalizeTimeInput(value))}
                   mode="outlined"
                   style={styles.input}
                   placeholder="HH:MM"
-                  editable={false}
-                  right={<TextInput.Icon icon="clock-outline" onPress={() => setShowStartTimePicker(true)} />}
+                  keyboardType="numbers-and-punctuation"
                 />
                 <TextInput
                   label="Data sfarsit *"
@@ -545,11 +547,11 @@ export default function BookServiceScreen({ navigation, route }) {
                 <TextInput
                   label="Ora sfarsit *"
                   value={rentalEndTime}
+                  onChangeText={(value) => setRentalEndTime(normalizeTimeInput(value))}
                   mode="outlined"
                   style={styles.input}
                   placeholder="HH:MM"
-                  editable={false}
-                  right={<TextInput.Icon icon="clock-outline" onPress={() => setShowEndTimePicker(true)} />}
+                  keyboardType="numbers-and-punctuation"
                 />
                 <Button
                   mode="outlined"
@@ -886,8 +888,8 @@ export default function BookServiceScreen({ navigation, route }) {
                   </Text>
                   {selectedTable.special_options && selectedTable.special_options.length > 0 && (
                     <View style={styles.tableOptions}>
-                      {selectedTable.special_options.map((opt) => (
-                        <Chip key={opt} style={styles.tableOptionChip}>
+                      {selectedTable.special_options.map((opt, optIndex) => (
+                        <Chip key={`${opt}-${optIndex}`} style={styles.tableOptionChip}>
                           {formatTableLabel(opt)}
                         </Chip>
                       ))}
@@ -906,9 +908,9 @@ export default function BookServiceScreen({ navigation, route }) {
                   <View style={styles.slotsGrid}>
                     {availability.slots
                       .filter((s) => s.available)
-                      .map((slot) => (
+                      .map((slot, slotIndex) => (
                         <Chip
-                          key={slot.time}
+                          key={`${slot.time}-${slotIndex}`}
                           selected={selectedTime === slot.time}
                           onPress={() => setSelectedTime(slot.time)}
                           mode="outlined"
@@ -982,8 +984,8 @@ export default function BookServiceScreen({ navigation, route }) {
                                 )}
                                 {table.special_options && table.special_options.length > 0 && (
                                   <View style={styles.tableOptions}>
-                                    {table.special_options.map((opt) => (
-                                      <Chip key={opt} style={styles.tableOptionChip}>
+                                    {table.special_options.map((opt, optIndex) => (
+                                      <Chip key={`${opt}-${optIndex}`} style={styles.tableOptionChip}>
                                         {opt}
                                       </Chip>
                                     ))}
@@ -1001,9 +1003,9 @@ export default function BookServiceScreen({ navigation, route }) {
                             <View style={styles.slotsGrid}>
                               {availability.slots
                                 .filter((s) => s.available)
-                                .map((slot) => (
+                                .map((slot, slotIndex) => (
                                   <Chip
-                                    key={slot.time}
+                                    key={`${slot.time}-${slotIndex}`}
                                     selected={selectedTime === slot.time}
                                     onPress={() => setSelectedTime(slot.time)}
                                     mode="outlined"
@@ -1045,8 +1047,8 @@ export default function BookServiceScreen({ navigation, route }) {
                             )}
                             {table.special_options && table.special_options.length > 0 && (
                               <View style={styles.tableOptions}>
-                                {table.special_options.map((opt) => (
-                                  <Chip key={opt} style={styles.tableOptionChip}>
+                                {table.special_options.map((opt, optIndex) => (
+                                  <Chip key={`${opt}-${optIndex}`} style={styles.tableOptionChip}>
                                     {opt}
                                   </Chip>
                                 ))}
@@ -1141,47 +1143,6 @@ export default function BookServiceScreen({ navigation, route }) {
             </Dialog.Content>
           </Dialog>
 
-          <Dialog visible={showStartTimePicker} onDismiss={() => setShowStartTimePicker(false)}>
-            <Dialog.Title>Alege ora de inceput</Dialog.Title>
-            <Dialog.Content>
-              <View style={styles.timeGrid}>
-                {TIME_OPTIONS.map((time) => (
-                  <Chip
-                    key={time}
-                    selected={rentalStartTime === time}
-                    onPress={() => {
-                      setRentalStartTime(time);
-                      setShowStartTimePicker(false);
-                    }}
-                    style={styles.timeChip}
-                  >
-                    {time}
-                  </Chip>
-                ))}
-              </View>
-            </Dialog.Content>
-          </Dialog>
-
-          <Dialog visible={showEndTimePicker} onDismiss={() => setShowEndTimePicker(false)}>
-            <Dialog.Title>Alege ora de sfarsit</Dialog.Title>
-            <Dialog.Content>
-              <View style={styles.timeGrid}>
-                {TIME_OPTIONS.map((time) => (
-                  <Chip
-                    key={time}
-                    selected={rentalEndTime === time}
-                    onPress={() => {
-                      setRentalEndTime(time);
-                      setShowEndTimePicker(false);
-                    }}
-                    style={styles.timeChip}
-                  >
-                    {time}
-                  </Chip>
-                ))}
-              </View>
-            </Dialog.Content>
-          </Dialog>
         </Portal>
       </ScrollView>
     </View>

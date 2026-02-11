@@ -90,8 +90,12 @@ export default function ProviderDetailScreen({ route, navigation }) {
                         showsHorizontalScrollIndicator={false}
                         style={styles.fleetImageRow}
                       >
-                        {car.images.map((img) => (
-                          <Image key={img} source={{ uri: img }} style={styles.fleetImage} />
+                        {car.images.map((img, imgIndex) => (
+                          <Image
+                            key={`${img}-${imgIndex}`}
+                            source={{ uri: img }}
+                            style={styles.fleetImage}
+                          />
                         ))}
                       </ScrollView>
                     )}
@@ -110,6 +114,18 @@ export default function ProviderDetailScreen({ route, navigation }) {
             )}
           </Card.Content>
         </Card>
+        {!isOwner && (
+          <View style={styles.ownerActions}>
+            <Button
+              mode="contained"
+              icon={isRentCar ? 'car' : 'calendar-plus'}
+              onPress={() => navigation.navigate('BookService', { provider })}
+              style={styles.actionBtn}
+            >
+              {isRentCar ? 'Inchiriaza' : 'Rezerva'}
+            </Button>
+          </View>
+        )}
         {isOwner && (
           <View style={styles.ownerActions}>
             <Button mode="contained" icon="calendar" onPress={() => navigation.navigate('BookingCalendar', { provider })} style={styles.actionBtn}>

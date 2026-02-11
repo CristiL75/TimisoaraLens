@@ -487,8 +487,8 @@ export default function ManageProviderScreen({ navigation, route }) {
             </Button>
             {images.length > 0 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageScroll}>
-                {images.map((img) => (
-                  <View key={img} style={styles.imageItem}>
+                {images.map((img, imgIndex) => (
+                  <View key={`${img}-${imgIndex}`} style={styles.imageItem}>
                     <Image source={{ uri: img }} style={styles.imagePreview} />
                     <Button mode="text" onPress={() => handleRemoveImage(img)}>
                       Sterge
@@ -527,8 +527,8 @@ export default function ManageProviderScreen({ navigation, route }) {
               </Button>
               {carImages.length > 0 ? (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.carImageRow}>
-                  {carImages.map((img) => (
-                    <View key={img} style={styles.carImageItem}>
+                  {carImages.map((img, imgIndex) => (
+                    <View key={`${img}-${imgIndex}`} style={styles.carImageItem}>
                       <Image source={{ uri: img }} style={styles.carImagePreview} />
                       <Button mode="text" onPress={() => handleRemoveCarImage(img)}>
                         Sterge
@@ -675,8 +675,12 @@ export default function ManageProviderScreen({ navigation, route }) {
                           showsHorizontalScrollIndicator={false}
                           style={styles.carImageRow}
                         >
-                          {car.images.map((img) => (
-                            <Image key={img} source={{ uri: img }} style={styles.carImagePreview} />
+                          {car.images.map((img, imgIndex) => (
+                            <Image
+                              key={`${img}-${imgIndex}`}
+                              source={{ uri: img }}
+                              style={styles.carImagePreview}
+                            />
                           ))}
                         </ScrollView>
                       )}
