@@ -30,6 +30,8 @@ from database_mongo import (
     BookingSettings,
     WorkingHours,
     Car,
+    EventSettings,
+    ReservationType,
     PyObjectId,
 )
 from auth_utils import get_current_user, SECRET_KEY, ALGORITHM
@@ -91,6 +93,8 @@ class ProviderCreateRequest(BaseModel):
     listing_id: Optional[str] = None
     facilities: Optional[dict] = None
     cars: List[Car] = []
+    event_settings: Optional[EventSettings] = None
+    reservation_types: List[ReservationType] = []
     booking_settings: BookingSettings
     working_hours: List[WorkingHours]
 
@@ -110,6 +114,8 @@ class ProviderResponse(BaseModel):
     longitude: Optional[float]
     facilities: Optional[dict] = None
     cars: List[Car] = []
+    event_settings: Optional[EventSettings] = None
+    reservation_types: List[ReservationType] = []
     booking_settings: BookingSettings
     working_hours: List[WorkingHours]
     status: str
@@ -123,6 +129,8 @@ class TableCreateRequest(BaseModel):
     zone: Optional[str] = None
     special_options: List[str] = []
     location: Optional[str] = None
+    minimum_consumption: Optional[float] = None
+    reservation_fee: Optional[float] = None
 
 
 class TableResponse(BaseModel):
@@ -134,6 +142,8 @@ class TableResponse(BaseModel):
     zone: Optional[str] = None
     special_options: List[str] = []
     location: Optional[str] = None
+    minimum_consumption: Optional[float] = None
+    reservation_fee: Optional[float] = None
     status: str
 
 
@@ -175,6 +185,7 @@ class ServiceCreateRequest(BaseModel):
     price: float
     buffer_minutes: Optional[int] = None
     category: Optional[str] = None
+    images: List[str] = []
 
 
 class ServiceResponse(BaseModel):
@@ -186,6 +197,7 @@ class ServiceResponse(BaseModel):
     price: float
     buffer_minutes: Optional[int] = None
     category: Optional[str] = None
+    images: List[str] = []
     status: str
 
 
@@ -237,6 +249,11 @@ class BookingCreateRequest(BaseModel):
     delivery_address: Optional[str] = None
     delivery_latitude: Optional[float] = None
     delivery_longitude: Optional[float] = None
+    reservation_type_id: Optional[str] = None
+    booking_type: Optional[str] = "table"
+    event_type: Optional[str] = None
+    estimated_budget: Optional[float] = None
+    requirements: List[str] = []
 
 
 class BookingResponse(BaseModel):
@@ -269,6 +286,11 @@ class BookingResponse(BaseModel):
     delivery_address: Optional[str] = None
     delivery_latitude: Optional[float] = None
     delivery_longitude: Optional[float] = None
+    reservation_type_id: Optional[str] = None
+    booking_type: Optional[str] = "table"
+    event_type: Optional[str] = None
+    estimated_budget: Optional[float] = None
+    requirements: List[str] = []
 
 
 # Confirm/Reject booking endpoint
@@ -501,6 +523,8 @@ async def get_my_providers(current_user=Depends(get_current_user)):
                 longitude=p.get("longitude"),
                 facilities=p.get("facilities"),
                 cars=cars,
+                event_settings=p.get("event_settings"),
+                reservation_types=p.get("reservation_types", []),
                 booking_settings=BookingSettings(**p["booking_settings"]),
                 working_hours=[WorkingHours(**wh) for wh in p["working_hours"]],
                 status=p["status"]
@@ -635,6 +659,8 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
             longitude=request.longitude,
             facilities=request.facilities,
             cars=cars_data,
+            event_settings=request.event_settings,
+            reservation_types=request.reservation_types,
             booking_settings=request.booking_settings,
             working_hours=request.working_hours,
             status="active"
@@ -684,6 +710,8 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
             longitude=provider.longitude,
             facilities=provider.facilities,
             cars=provider.cars,
+            event_settings=provider.event_settings,
+            reservation_types=provider.reservation_types,
             booking_settings=provider.booking_settings,
             working_hours=provider.working_hours,
             status=provider.status
@@ -719,6 +747,8 @@ async def list_providers():
                 longitude=p.get("longitude"),
                 facilities=p.get("facilities"),
                 cars=cars,
+                event_settings=p.get("event_settings"),
+                reservation_types=p.get("reservation_types", []),
                 booking_settings=BookingSettings(**p["booking_settings"]),
                 working_hours=[WorkingHours(**wh) for wh in p["working_hours"]],
                 status=p["status"]
@@ -756,6 +786,8 @@ async def get_provider(provider_id: str):
         latitude=provider.get("latitude"),
         longitude=provider.get("longitude"),
         cars=cars,
+        event_settings=provider.get("event_settings"),
+        reservation_types=provider.get("reservation_types", []),
         booking_settings=BookingSettings(**provider["booking_settings"]),
         working_hours=[WorkingHours(**wh) for wh in provider["working_hours"]],
         status=provider["status"]
@@ -798,6 +830,8 @@ async def update_provider(
         "longitude": request.longitude,
         "facilities": request.facilities or {},  # Default to empty dict if missing
         "cars": normalize_cars(request.cars),
+        "event_settings": request.event_settings.model_dump() if request.event_settings else None,
+        "reservation_types": [rt.model_dump() for rt in request.reservation_types] if request.reservation_types else [],
         "booking_settings": request.booking_settings.model_dump(),
         "working_hours": [wh.model_dump() for wh in request.working_hours],
         "updated_at": datetime.utcnow()
@@ -832,6 +866,8 @@ async def update_provider(
         longitude=updated_provider.get("longitude"),
         facilities=updated_provider.get("facilities"),
         cars=updated_provider.get("cars", []),
+        event_settings=updated_provider.get("event_settings"),
+        reservation_types=updated_provider.get("reservation_types", []),
         booking_settings=BookingSettings(**updated_provider["booking_settings"]),
         working_hours=[WorkingHours(**wh) for wh in updated_provider["working_hours"]],
         status=updated_provider["status"]
@@ -886,6 +922,8 @@ async def create_table(request: TableCreateRequest, current_user: dict = Depends
         zone=request.zone,
         special_options=request.special_options,
         location=request.location,
+        minimum_consumption=request.minimum_consumption,
+        reservation_fee=request.reservation_fee,
         status="active"
     )
     
@@ -899,6 +937,8 @@ async def create_table(request: TableCreateRequest, current_user: dict = Depends
         zone=table.zone,
         special_options=table.special_options,
         location=table.location,
+        minimum_consumption=table.minimum_consumption,
+        reservation_fee=table.reservation_fee,
         status=table.status
     )
 
@@ -925,6 +965,8 @@ async def list_tables(provider_id: str):
             zone=t.get("zone"),
             special_options=t.get("special_options", []),
             location=t.get("location"),
+            minimum_consumption=t.get("minimum_consumption"),
+            reservation_fee=t.get("reservation_fee"),
             status=t["status"]
         )
         for t in tables
@@ -1165,6 +1207,7 @@ async def create_service(request: ServiceCreateRequest, current_user: dict = Dep
         price=request.price,
         buffer_minutes=request.buffer_minutes,
         category=request.category,
+        images=request.images or [],
         status="active"
     )
 
@@ -1178,6 +1221,7 @@ async def create_service(request: ServiceCreateRequest, current_user: dict = Dep
         price=service.price,
         buffer_minutes=service.buffer_minutes,
         category=service.category,
+        images=service.images,
         status=service.status
     )
 
@@ -1204,6 +1248,7 @@ async def list_services(provider_id: str):
             price=s["price"],
             buffer_minutes=s.get("buffer_minutes"),
             category=s.get("category"),
+            images=s.get("images", []),
             status=s.get("status", "active")
         )
         for s in services
@@ -1233,6 +1278,7 @@ async def update_service(service_id: str, request: ServiceCreateRequest, current
             "price": request.price,
             "buffer_minutes": request.buffer_minutes,
             "category": request.category,
+            "images": request.images or [],
             "updated_at": datetime.utcnow()
         }}
     )
@@ -1249,6 +1295,7 @@ async def update_service(service_id: str, request: ServiceCreateRequest, current
         price=updated["price"],
         buffer_minutes=updated.get("buffer_minutes"),
         category=updated.get("category"),
+        images=updated.get("images", []),
         status=updated.get("status", "active")
     )
 
@@ -1901,6 +1948,11 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
         delivery_address=request.delivery_address,
         delivery_latitude=request.delivery_latitude,
         delivery_longitude=request.delivery_longitude,
+        reservation_type_id=request.reservation_type_id,
+        booking_type=request.booking_type or "table",
+        event_type=request.event_type,
+        estimated_budget=request.estimated_budget,
+        requirements=request.requirements or [],
         status="pending"
     )
     
@@ -1935,6 +1987,11 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
         delivery_address=booking.delivery_address,
         delivery_latitude=booking.delivery_latitude,
         delivery_longitude=booking.delivery_longitude,
+        reservation_type_id=booking.reservation_type_id,
+        booking_type=booking.booking_type or "table",
+        event_type=booking.event_type,
+        estimated_budget=booking.estimated_budget,
+        requirements=booking.requirements or [],
         status=booking.status,
         created_at=booking.created_at.isoformat()
     )

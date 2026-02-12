@@ -35,6 +35,8 @@ export default function ProviderDetailScreen({ route, navigation }) {
     loadRooms();
   }, [isLocationSpace, provider?.id]);
 
+  const isClub = provider?.category === 'club_nightlife';
+
   return (
     <View style={styles.container}>
       <Appbar.Header>
@@ -182,12 +184,22 @@ export default function ProviderDetailScreen({ route, navigation }) {
           <View style={styles.ownerActions}>
             <Button
               mode="contained"
-              icon={isRentCar ? 'car' : 'calendar-plus'}
+              icon={isRentCar ? 'car' : isClub ? 'table-chair' : 'calendar-plus'}
               onPress={() => navigation.navigate('BookService', { provider })}
               style={styles.actionBtn}
             >
-              {isRentCar ? 'Inchiriaza' : isLocationSpace ? 'Rezerva spatiu' : 'Rezerva'}
+              {isRentCar ? 'Inchiriaza' : isLocationSpace ? 'Rezerva spatiu' : isClub ? 'Rezervă masă' : 'Rezerva'}
             </Button>
+            {isClub && (
+              <Button
+                mode="contained"
+                icon="party-popper"
+                onPress={() => navigation.navigate('BookEvent', { provider })}
+                style={[styles.actionBtn, { backgroundColor: '#9C27B0' }]}
+              >
+                Eveniment
+              </Button>
+            )}
           </View>
         )}
         {isOwner && (

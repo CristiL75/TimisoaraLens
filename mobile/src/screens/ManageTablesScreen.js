@@ -22,6 +22,7 @@ import { bookingsAPI } from '../services/api';
 
 export default function ManageTablesScreen({ navigation, route }) {
   const { provider } = route.params;
+  const isClub = provider?.category === 'club_nightlife';
   const [tables, setTables] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogVisible, setDialogVisible] = useState(false);
@@ -32,6 +33,8 @@ export default function ManageTablesScreen({ navigation, route }) {
   const [seats, setSeats] = useState('');
   const [zone, setZone] = useState('interior');
   const [specialOptions, setSpecialOptions] = useState([]);
+  const [minimumConsumption, setMinimumConsumption] = useState('');
+  const [reservationFee, setReservationFee] = useState('');
 
   useEffect(() => {
     loadTables();
@@ -53,6 +56,10 @@ export default function ManageTablesScreen({ navigation, route }) {
   const handleAddTable = () => {
     setTableName('');
     setSeats('');
+    setZone(isClub ? 'dancefloor' : 'interior');
+    setSpecialOptions([]);
+    setMinimumConsumption('');
+    setReservationFee('');
     setDialogVisible(true);
   };
 
@@ -70,6 +77,8 @@ export default function ManageTablesScreen({ navigation, route }) {
       seats: parseInt(seats),
       zone,
       special_options: specialOptions,
+      minimum_consumption: minimumConsumption ? parseFloat(minimumConsumption) : null,
+      reservation_fee: reservationFee ? parseFloat(reservationFee) : null,
     };
 
     try {
@@ -159,7 +168,7 @@ export default function ManageTablesScreen({ navigation, route }) {
             <Card key={table.id} style={styles.card}>
               <List.Item
                 title={table.name}
-                description={`${table.seats} locuri • ${table.location || 'interior'}`}
+                description={`${table.seats} locuri • ${table.zone || table.location || 'interior'}${table.minimum_consumption ? ` • Min: ${table.minimum_consumption} lei` : ''}${table.reservation_fee ? ` • Taxa: ${table.reservation_fee} lei` : ''}`}
                 left={props => (
                   <MaterialCommunityIcons
                     {...props}
@@ -220,13 +229,28 @@ export default function ManageTablesScreen({ navigation, route }) {
             />
             <Title style={styles.locationTitle}>Zonă</Title>
             <View style={styles.locationButtons}>
-              <Chip selected={zone === 'interior'} onPress={() => setZone('interior')} style={styles.locationChip}>Interior</Chip>
-              <Chip selected={zone === 'terasa'} onPress={() => setZone('terasa')} style={styles.locationChip}>Terasă</Chip>
-              <Chip selected={zone === 'bar'} onPress={() => setZone('bar')} style={styles.locationChip}>Bar</Chip>
+              {isClub ? (
+                <>
+                  <Chip selected={zone === 'dancefloor'} onPress={() => setZone('dancefloor')} style={styles.locationChip}>Dancefloor</Chip>
+                  <Chip selected={zone === 'vip'} onPress={() => setZone('vip')} style={styles.locationChip}>VIP</Chip>
+                  <Chip selected={zone === 'lounge'} onPress={() => setZone('lounge')} style={styles.locationChip}>Lounge</Chip>
+                  <Chip selected={zone === 'terasa'} onPress={() => setZone('terasa')} style={styles.locationChip}>Terasă</Chip>
+                  <Chip selected={zone === 'bar'} onPress={() => setZone('bar')} style={styles.locationChip}>Bar</Chip>
+                </>
+              ) : (
+                <>
+                  <Chip selected={zone === 'interior'} onPress={() => setZone('interior')} style={styles.locationChip}>Interior</Chip>
+                  <Chip selected={zone === 'terasa'} onPress={() => setZone('terasa')} style={styles.locationChip}>Terasă</Chip>
+                  <Chip selected={zone === 'bar'} onPress={() => setZone('bar')} style={styles.locationChip}>Bar</Chip>
+                </>
+              )}
             </View>
             <Title style={styles.locationTitle}>Opțiuni Speciale</Title>
             <View style={styles.locationButtons}>
-              {['nefumători', 'lângă geam', 'VIP'].map(opt => (
+              {(isClub
+                ? ['VIP', 'bottle_service', 'birthday_spot', 'near_dj', 'private']
+                : ['nefumători', 'lângă geam', 'VIP']
+              ).map(opt => (
                 <Chip
                   key={opt}
                   selected={specialOptions.includes(opt)}
@@ -237,6 +261,28 @@ export default function ManageTablesScreen({ navigation, route }) {
                 </Chip>
               ))}
             </View>
+            {isClub && (
+              <>
+                <TextInput
+                  label="Consumatie minima (lei, optional)"
+                  value={minimumConsumption}
+                  onChangeText={setMinimumConsumption}
+                  mode="outlined"
+                  style={styles.input}
+                  keyboardType="numeric"
+                  placeholder="ex: 500"
+                />
+                <TextInput
+                  label="Taxa rezervare (lei, optional)"
+                  value={reservationFee}
+                  onChangeText={setReservationFee}
+                  mode="outlined"
+                  style={styles.input}
+                  keyboardType="numeric"
+                  placeholder="ex: 100"
+                />
+              </>
+            )}
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setDialogVisible(false)}>Anulează</Button>

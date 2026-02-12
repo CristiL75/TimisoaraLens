@@ -236,6 +236,27 @@ class Car(BaseModel):
     included_km_per_day: Optional[int] = None
 
 
+class EventSettings(BaseModel):
+    """Event configuration for club/nightlife providers"""
+    max_capacity: Optional[int] = None
+    rental_price_per_night: Optional[float] = None
+    minimum_event_consumption: Optional[float] = None
+    catering_available: bool = False
+    dj_available: bool = False
+    decor_available: bool = False
+    event_types: list[str] = []  # "petrecere_privata", "aniversare", "team_building"
+
+
+class ReservationType(BaseModel):
+    """Reservation type for club/nightlife providers"""
+    id: Optional[str] = None
+    name: str  # "Masa standard", "Masa VIP", "Birthday package", "Bottle service"
+    type_key: str  # "standard", "vip", "birthday", "bottle_service"
+    price: Optional[float] = None
+    minimum_consumption: Optional[float] = None
+    benefits: list[str] = []  # ["Loc rezervat", "Welcome drink", etc.]
+
+
 class Provider(BaseModel):
     """Service provider (restaurant, pub, etc.)"""
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
@@ -254,6 +275,8 @@ class Provider(BaseModel):
 
     facilities: Optional[dict] = None  # Facilități pentru restaurante/pub
     cars: list[Car] = []
+    event_settings: Optional[EventSettings] = None  # Setari evenimente pt cluburi
+    reservation_types: list[ReservationType] = []  # Tipuri de rezervare pt cluburi
 
     booking_settings: BookingSettings
     working_hours: list[WorkingHours]
@@ -268,15 +291,17 @@ class Provider(BaseModel):
 
 
 class Table(BaseModel):
-    """Table resource for restaurant/pub"""
+    """Table resource for restaurant/pub/club"""
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     provider_id: PyObjectId
     
     name: str  # "Masa 1", "Table A", etc.
     seats: int  # Number of seats
-    zone: Optional[str] = None  # "interior", "terasa", "bar"
+    zone: Optional[str] = None  # "interior", "terasa", "bar", "dancefloor", "vip", "lounge"
     special_options: list[str] = []  # ex: ["nefumători", "lângă geam", "VIP"]
     location: Optional[str] = None  # compatibilitate veche
+    minimum_consumption: Optional[float] = None  # Consumatie minima (lei) - pt cluburi
+    reservation_fee: Optional[float] = None  # Taxa de rezervare (lei) - pt cluburi
     
     status: str = "active"  # "active", "inactive"
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -318,6 +343,7 @@ class Service(BaseModel):
     price: float
     buffer_minutes: Optional[int] = None
     category: Optional[str] = None
+    images: list[str] = []  # URLs to service images
     status: str = "active"
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -377,6 +403,11 @@ class Booking(BaseModel):
     room_id: Optional[PyObjectId] = None
     room_layout: Optional[str] = None
     pricing_unit: Optional[str] = None
+    reservation_type_id: Optional[str] = None  # For club reservation types
+    booking_type: Optional[str] = "table"  # "table" or "event"
+    event_type: Optional[str] = None  # petrecere_privata, aniversare, team_building, etc.
+    estimated_budget: Optional[float] = None
+    requirements: list[str] = []  # ["dj", "catering", "decor"]
     
     # Customer info
     customer_name: str

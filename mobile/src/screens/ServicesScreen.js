@@ -383,6 +383,7 @@ export default function ServicesScreen({ navigation }) {
           {[
             { key: 'all', label: 'Toate' },
             { key: 'food_drinks', label: 'Restaurant / Pub' },
+            { key: 'club_nightlife', label: 'Club / Nightlife' },
             { key: 'barber', label: 'Frizerie / Barber' },
             { key: 'massage_spa', label: 'Masaj & Spa' },
             { key: 'beauty', label: 'Beauty' },
@@ -419,6 +420,7 @@ export default function ServicesScreen({ navigation }) {
               const isOwner = user?.id && provider.user_id && String(user.id).trim() === String(provider.user_id).trim();
               const isRentCar = provider.category === 'rent_a_car';
               const isLocationSpace = provider.category === 'location_space';
+              const isClub = provider.category === 'club_nightlife';
               return (
                 <Card
                   key={provider.id}
@@ -439,7 +441,7 @@ export default function ServicesScreen({ navigation }) {
                   <Card.Content>
                     <View style={styles.titleContainer}>
                       <MaterialCommunityIcons
-                        name={isRentCar ? 'car' : isLocationSpace ? 'office-building' : (provider.booking_settings.type === 'table_based' ? 'silverware-fork-knife' : 'scissors-cutting')}
+                        name={isRentCar ? 'car' : isLocationSpace ? 'office-building' : isClub ? 'music' : (provider.booking_settings.type === 'table_based' ? 'silverware-fork-knife' : 'scissors-cutting')}
                         size={24}
                         color="#FF9800"
                       />
@@ -487,7 +489,7 @@ export default function ServicesScreen({ navigation }) {
                     )}
                   </Card.Content>
                   <Card.Actions>
-                    {!isRentCar && !isLocationSpace && (
+                    {!isRentCar && !isLocationSpace && !isClub && (
                       <Button
                         mode="outlined"
                         icon="calendar-plus"
@@ -495,6 +497,27 @@ export default function ServicesScreen({ navigation }) {
                       >
                         Rezerva
                       </Button>
+                    )}
+                    {isClub && (
+                      <>
+                        <Button
+                          mode="outlined"
+                          icon="table-chair"
+                          onPress={() => navigation.navigate('BookService', { provider })}
+                        >
+                          Rezervă masă
+                        </Button>
+                        {(provider.event_settings || provider.event_settings?.event_types?.length > 0) && (
+                          <Button
+                            mode="outlined"
+                            icon="party-popper"
+                            style={{ marginLeft: 4 }}
+                            onPress={() => navigation.navigate('BookEvent', { provider })}
+                          >
+                            Eveniment
+                          </Button>
+                        )}
+                      </>
                     )}
                     {isLocationSpace && (
                       <Button

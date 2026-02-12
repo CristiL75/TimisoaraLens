@@ -2,6 +2,7 @@
  * Book Service Screen - Make a reservation at a provider
  */
 import React, { useState, useEffect, useMemo } from 'react';
+import { CommonActions } from '@react-navigation/native';
 import { View, StyleSheet, ScrollView, Alert, Image } from 'react-native';
 import {
   Appbar,
@@ -54,6 +55,7 @@ export default function BookServiceScreen({ navigation, route }) {
   const isRestaurant = provider?.category === 'food_drinks';
   const isRentCar = provider?.category === 'rent_a_car';
   const isLocationSpace = provider?.category === 'location_space';
+  const isClub = provider?.category === 'club_nightlife';
   const isNoEmployeeCategory = NO_EMPLOYEE_CATEGORIES.includes(provider?.category);
 
   const [loading, setLoading] = useState(false);
@@ -74,6 +76,8 @@ export default function BookServiceScreen({ navigation, route }) {
   const [selectedRoomId, setSelectedRoomId] = useState(null);
   const [selectedLayout, setSelectedLayout] = useState('');
   const [pricingUnit, setPricingUnit] = useState('hour');
+  const [selectedReservationTypeId, setSelectedReservationTypeId] = useState(null);
+  const [selectedZone, setSelectedZone] = useState(null);
   const [spaceEndTime, setSpaceEndTime] = useState('');
   const [spaceAvailability, setSpaceAvailability] = useState(null);
   const [rentalStartDate, setRentalStartDate] = useState('');
@@ -98,6 +102,9 @@ export default function BookServiceScreen({ navigation, route }) {
     [provider?.cars, selectedCarId]
   );
   const selectedRoom = rooms.find((room) => String(room.id) === String(selectedRoomId)) || null;
+  const selectedReservationType = (provider?.reservation_types || []).find(
+    (rt) => rt.id === selectedReservationTypeId
+  ) || null;
   const filteredEmployees = selectedServiceId
     ? employees.filter((e) => (e.service_ids || []).includes(selectedServiceId))
     : employees;
@@ -107,6 +114,29 @@ export default function BookServiceScreen({ navigation, route }) {
         (table) => table.available_slots && table.available_slots.length > 0
       )
     : false;
+
+  // Club-specific computed values
+  const clubZones = useMemo(() => {
+    const zones = new Set();
+    tables.forEach((t) => {
+      if (t.zone) zones.add(t.zone);
+    });
+    return Array.from(zones);
+  }, [tables]);
+
+  const clubFilteredTables = useMemo(() => {
+    const partySizeValue = parseInt(partySize || '0', 10);
+    const availTables = availability?.tables || [];
+    const base = availTables.length > 0 ? availTables : tables;
+    let filtered = base;
+    if (selectedZone) {
+      filtered = filtered.filter((t) => t.zone === selectedZone);
+    }
+    if (partySizeValue > 0) {
+      filtered = filtered.filter((t) => t.seats >= partySizeValue);
+    }
+    return filtered;
+  }, [tables, availability, selectedZone, partySize]);
 
   const formatTableLabel = (value) => {
     if (!value) return '';
@@ -508,7 +538,12 @@ export default function BookServiceScreen({ navigation, route }) {
           [
             {
               text: 'OK',
-              onPress: () => navigation.navigate('Services'),
+              onPress: () => navigation.dispatch(
+                CommonActions.reset({
+                  index: 0,
+                  routes: [{ name: 'Services' }],
+                })
+              ),
             },
           ]
         );
@@ -604,13 +639,89 @@ export default function BookServiceScreen({ navigation, route }) {
         Alert.alert(
           'Cerere trimisa',
           `Cererea ta la ${provider.name} a fost inregistrata si asteapta confirmare.`,
-          [{ text: 'OK', onPress: () => navigation.navigate('Services') }]
+          [{
+            text: 'OK',
+            onPress: () => navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'Services' }],
+              })
+            ),
+          }]
         );
       } else {
         Alert.alert('Eroare', result.error);
       }
     } catch (error) {
       Alert.alert('Eroare', 'A aparut o eroare la trimiterea cererii');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClubBooking = async () => {
+    if (!customerName || !customerPhone) {
+      Alert.alert('Eroare', 'Completează numele și telefonul');
+      return;
+    }
+    if (!bookingDate) {
+      Alert.alert('Eroare', 'Alege data rezervării');
+      return;
+    }
+    if (!selectedTableId) {
+      Alert.alert('Eroare', 'Alege o masă disponibilă');
+      return;
+    }
+    if (!selectedTime) {
+      Alert.alert('Eroare', 'Alege un slot orar');
+      return;
+    }
+    if (!partySize || parseInt(partySize, 10) <= 0) {
+      Alert.alert('Eroare', 'Completează numărul de persoane');
+      return;
+    }
+
+    setLoading(true);
+    const effectiveEmail = user?.email || customerEmail;
+    const durationValue = parseInt(durationMinutes, 10) || 120;
+
+    const bookingData = {
+      provider_id: provider.id,
+      table_id: selectedTableId,
+      customer_name: customerName,
+      customer_email: effectiveEmail,
+      customer_phone: customerPhone,
+      booking_date: bookingDate,
+      start_time: selectedTime,
+      duration_minutes: durationValue,
+      party_size: parseInt(partySize, 10),
+      special_occasion: specialOccasion !== 'nicio_ocazie' ? specialOccasion : null,
+      reservation_type_id: selectedReservationTypeId || null,
+      booking_type: 'table',
+      notes: notes || null,
+    };
+
+    try {
+      const result = await bookingsAPI.createBooking(bookingData);
+      if (result.success) {
+        const tableName = selectedTable?.name || '';
+        Alert.alert(
+          'Rezervare Confirmată!',
+          `Rezervarea ta la ${provider.name} (${tableName}) pentru ${bookingDate} la ora ${selectedTime} a fost ${
+            provider.booking_settings.auto_confirm ? 'confirmată' : 'înregistrată și așteaptă confirmare'
+          }.`,
+          [{
+            text: 'OK',
+            onPress: () => navigation.dispatch(
+              CommonActions.reset({ index: 0, routes: [{ name: 'Services' }] })
+            ),
+          }]
+        );
+      } else {
+        Alert.alert('Eroare', result.error);
+      }
+    } catch (error) {
+      Alert.alert('Eroare', 'A apărut o eroare la crearea rezervării');
     } finally {
       setLoading(false);
     }
@@ -673,7 +784,15 @@ export default function BookServiceScreen({ navigation, route }) {
         Alert.alert(
           'Cerere trimisa',
           `Cererea ta de inchiriere la ${provider.name} a fost inregistrata si asteapta confirmare.`,
-          [{ text: 'OK', onPress: () => navigation.navigate('Services') }]
+          [{
+            text: 'OK',
+            onPress: () => navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'Services' }],
+              })
+            ),
+          }]
         );
       } else {
         Alert.alert('Eroare', result.error);
@@ -1087,6 +1206,297 @@ export default function BookServiceScreen({ navigation, route }) {
               Trimite cerere
             </Button>
           </>
+        ) : isClub ? (
+          <>
+            {/* 1. Club Info */}
+            <Card style={styles.card}>
+              <Card.Content>
+                <View style={styles.titleContainer}>
+                  <MaterialCommunityIcons name="music" size={28} color="#9C27B0" />
+                  <Title style={styles.titleText}>{provider.name}</Title>
+                </View>
+                {provider.description && (
+                  <Text style={styles.description}>{provider.description}</Text>
+                )}
+                <View style={styles.infoRow}>
+                  <Chip icon={provider.booking_settings.auto_confirm ? 'check-circle' : 'timer-sand'} mode="outlined" style={styles.chip}>
+                    {provider.booking_settings.auto_confirm ? 'Auto-confirm' : 'Manual'}
+                  </Chip>
+                </View>
+              </Card.Content>
+            </Card>
+
+            {/* 2. Alege Data */}
+            <Card style={styles.card}>
+              <Card.Content>
+                <Title style={styles.sectionTitle}>Alege Data</Title>
+                <TextInput
+                  label="Data rezervare *"
+                  value={bookingDate}
+                  onChangeText={setBookingDate}
+                  mode="outlined"
+                  style={styles.input}
+                  placeholder="YYYY-MM-DD"
+                />
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TextInput
+                    label="Ora *"
+                    value={selectedTime}
+                    onChangeText={(v) => setSelectedTime(normalizeTimeInput(v))}
+                    mode="outlined"
+                    style={[styles.input, { flex: 1 }]}
+                    placeholder="HH:MM"
+                    keyboardType="numbers-and-punctuation"
+                  />
+                  <TextInput
+                    label="Durata (min)"
+                    value={durationMinutes}
+                    onChangeText={setDurationMinutes}
+                    mode="outlined"
+                    style={[styles.input, { flex: 1 }]}
+                    keyboardType="numeric"
+                    placeholder="ex: 120"
+                  />
+                </View>
+                <Button
+                  mode="contained"
+                  onPress={handleCheckAvailability}
+                  loading={checkingAvailability}
+                  disabled={checkingAvailability}
+                  icon="calendar-search"
+                  style={styles.checkButton}
+                >
+                  Verifica Disponibilitate
+                </Button>
+              </Card.Content>
+            </Card>
+
+            {/* 3. Alege Zona */}
+            {clubZones.length > 0 && (
+              <Card style={styles.card}>
+                <Card.Content>
+                  <Title style={styles.sectionTitle}>Alege Zona</Title>
+                  <View style={styles.slotsGrid}>
+                    <Chip
+                      selected={!selectedZone}
+                      onPress={() => setSelectedZone(null)}
+                      mode="outlined"
+                      style={styles.slotChip}
+                      icon={!selectedZone ? 'check' : 'apps'}
+                    >
+                      Toate
+                    </Chip>
+                    {clubZones.map((zone) => (
+                      <Chip
+                        key={zone}
+                        selected={selectedZone === zone}
+                        onPress={() => setSelectedZone(zone)}
+                        mode="outlined"
+                        style={styles.slotChip}
+                        icon={selectedZone === zone ? 'check' : 'map-marker'}
+                      >
+                        {formatTableLabel(zone)}
+                      </Chip>
+                    ))}
+                  </View>
+                </Card.Content>
+              </Card>
+            )}
+
+            {/* 4. Alege Masa Disponibila */}
+            <Card style={styles.card}>
+              <Card.Content>
+                <Title style={styles.sectionTitle}>Alege Masa</Title>
+                {loadingTables ? (
+                  <ActivityIndicator size="small" color="#9C27B0" />
+                ) : !availability ? (
+                  <Text style={styles.emptyText}>Verifică disponibilitatea pentru a vedea mesele libere.</Text>
+                ) : clubFilteredTables.length === 0 ? (
+                  <Text style={styles.emptyText}>Nu sunt mese disponibile pentru criteriile alese.</Text>
+                ) : (
+                  <View style={styles.tablesGrid}>
+                    {clubFilteredTables.map((table) => (
+                      <Card
+                        key={table.id}
+                        style={[
+                          styles.tableCard,
+                          selectedTableId === table.id && { borderColor: '#9C27B0', borderWidth: 2 },
+                        ]}
+                        onPress={() => setSelectedTableId(table.id)}
+                      >
+                        <Card.Content>
+                          <View style={styles.tableHeader}>
+                            <Title style={styles.tableTitle}>{table.name}</Title>
+                            <Chip mode={selectedTableId === table.id ? 'flat' : 'outlined'}>
+                              {table.seats} locuri
+                            </Chip>
+                          </View>
+                          <Text style={styles.tableMeta}>
+                            Zona: {formatTableLabel(table.zone || 'interior')}
+                          </Text>
+                          {table.minimum_consumption != null && (
+                            <Text style={[styles.tableMeta, { color: '#9C27B0' }]}>
+                              Consumatie minima: {table.minimum_consumption} lei
+                            </Text>
+                          )}
+                          {table.reservation_fee != null && (
+                            <Text style={styles.tableMeta}>
+                              Taxa rezervare: {table.reservation_fee} lei
+                            </Text>
+                          )}
+                          {table.special_options && table.special_options.length > 0 && (
+                            <View style={styles.tableOptions}>
+                              {table.special_options.map((opt, oi) => (
+                                <Chip key={`${opt}-${oi}`} style={styles.tableOptionChip}>
+                                  {formatTableLabel(opt)}
+                                </Chip>
+                              ))}
+                            </View>
+                          )}
+                          {table.available_slots && table.available_slots.length > 0 ? (
+                            <View style={styles.tableSlots}>
+                              {table.available_slots.map((slot) => (
+                                <Chip
+                                  key={`${table.id}-${slot}`}
+                                  selected={selectedTime === slot && selectedTableId === table.id}
+                                  onPress={() => {
+                                    setSelectedTableId(table.id);
+                                    setSelectedTime(slot);
+                                  }}
+                                  mode="outlined"
+                                  style={styles.slotChip}
+                                  icon={selectedTime === slot && selectedTableId === table.id ? 'check' : 'clock-outline'}
+                                >
+                                  {slot}
+                                </Chip>
+                              ))}
+                            </View>
+                          ) : (
+                            <Text style={styles.emptyText}>Nu sunt ore libere.</Text>
+                          )}
+                        </Card.Content>
+                      </Card>
+                    ))}
+                  </View>
+                )}
+              </Card.Content>
+            </Card>
+
+            {/* Selected table summary */}
+            {selectedTable && (
+              <Card style={[styles.selectedTableCard, { backgroundColor: '#F3E5F5' }]}>
+                <Card.Content>
+                  <Title style={styles.selectedTableTitle}>Masa selectată</Title>
+                  <Text style={styles.tableMeta}>Nume: {selectedTable.name}</Text>
+                  <Text style={styles.tableMeta}>Locuri: {selectedTable.seats}</Text>
+                  <Text style={styles.tableMeta}>Zona: {formatTableLabel(selectedTable.zone || 'interior')}</Text>
+                  {selectedTable.minimum_consumption != null && (
+                    <Text style={[styles.tableMeta, { color: '#9C27B0', fontWeight: '600' }]}>
+                      Consumatie minima: {selectedTable.minimum_consumption} lei
+                    </Text>
+                  )}
+                  {selectedTable.reservation_fee != null && (
+                    <Text style={styles.tableMeta}>Taxa rezervare: {selectedTable.reservation_fee} lei</Text>
+                  )}
+                </Card.Content>
+              </Card>
+            )}
+
+            {/* 5. Nr. Persoane */}
+            <Card style={styles.card}>
+              <Card.Content>
+                <Title style={styles.sectionTitle}>Nr. Persoane</Title>
+                <TextInput
+                  label="Număr persoane *"
+                  value={partySize}
+                  onChangeText={setPartySize}
+                  mode="outlined"
+                  style={styles.input}
+                  keyboardType="numeric"
+                />
+              </Card.Content>
+            </Card>
+
+            {/* 6. Contact */}
+            <Card style={styles.card}>
+              <Card.Content>
+                <Title style={styles.sectionTitle}>Date Contact</Title>
+                <TextInput
+                  label="Nume *"
+                  value={customerName}
+                  onChangeText={setCustomerName}
+                  mode="outlined"
+                  style={styles.input}
+                />
+                <TextInput
+                  label="Telefon *"
+                  value={customerPhone}
+                  onChangeText={setCustomerPhone}
+                  mode="outlined"
+                  style={styles.input}
+                  keyboardType="phone-pad"
+                  placeholder="+40 ..."
+                />
+                <TextInput
+                  label="Email"
+                  value={customerEmail}
+                  onChangeText={setCustomerEmail}
+                  mode="outlined"
+                  style={styles.input}
+                  keyboardType="email-address"
+                  editable={!user?.email}
+                />
+              </Card.Content>
+            </Card>
+
+            {/* 7. Optional: Ocazie / Mesaj */}
+            <Card style={styles.card}>
+              <Card.Content>
+                <Title style={styles.sectionTitle}>Opțional</Title>
+                <Text style={[styles.slotsTitle, { marginBottom: 8 }]}>Ocazie specială</Text>
+                <View style={styles.slotsGrid}>
+                  {[
+                    { key: 'nicio_ocazie', label: 'Niciuna', icon: 'calendar-blank' },
+                    { key: 'zi_de_nastere', label: 'Zi de naștere', icon: 'cake-variant' },
+                    { key: 'aniversare', label: 'Aniversare', icon: 'heart' },
+                    { key: 'business', label: 'Business', icon: 'briefcase' },
+                  ].map((occ) => (
+                    <Chip
+                      key={occ.key}
+                      selected={specialOccasion === occ.key}
+                      onPress={() => setSpecialOccasion(occ.key)}
+                      mode="outlined"
+                      style={styles.slotChip}
+                      icon={occ.icon}
+                    >
+                      {occ.label}
+                    </Chip>
+                  ))}
+                </View>
+                <TextInput
+                  label="Mesaj / Observații"
+                  value={notes}
+                  onChangeText={setNotes}
+                  mode="outlined"
+                  style={[styles.input, { marginTop: 8 }]}
+                  multiline
+                  numberOfLines={3}
+                  placeholder="ex: Aniversare 30 ani, 5 persoane VIP..."
+                />
+              </Card.Content>
+            </Card>
+
+            <Button
+              mode="contained"
+              onPress={handleClubBooking}
+              loading={loading}
+              disabled={loading || !selectedTableId || !selectedTime}
+              style={[styles.bookButton, { backgroundColor: '#9C27B0' }]}
+              icon="calendar-check"
+            >
+              Confirmă Rezervarea
+            </Button>
+          </>
         ) : (
           <>
             {/* Provider Info */}
@@ -1190,6 +1600,21 @@ export default function BookServiceScreen({ navigation, route }) {
                             {service.name} ({service.duration_minutes} min)
                           </Chip>
                         ))}
+                      </View>
+                    )}
+
+                    {selectedServiceId && selectedService?.images?.length > 0 && (
+                      <View style={{ marginTop: 8, marginBottom: 12 }}>
+                        <Text style={styles.slotsTitle}>Poze serviciu</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                          {selectedService.images.map((img, idx) => (
+                            <Image
+                              key={`svc-img-${idx}`}
+                              source={{ uri: img }}
+                              style={{ width: 160, height: 110, borderRadius: 8, marginRight: 8 }}
+                            />
+                          ))}
+                        </ScrollView>
                       </View>
                     )}
 
@@ -1376,27 +1801,31 @@ export default function BookServiceScreen({ navigation, route }) {
                 />
               </List.Section>
             )}
-            <Button
-              mode="contained"
-              onPress={handleCheckAvailability}
-              loading={checkingAvailability}
-              disabled={checkingAvailability}
-              icon="calendar-search"
-              style={styles.checkButton}
-            >
-              Verifică Disponibilitate
-            </Button>
+            {!isNoEmployeeCategory && (
+              <>
+                <Button
+                  mode="contained"
+                  onPress={handleCheckAvailability}
+                  loading={checkingAvailability}
+                  disabled={checkingAvailability}
+                  icon="calendar-search"
+                  style={styles.checkButton}
+                >
+                  Verifică Disponibilitate
+                </Button>
 
-            {/* Available Time Slots for appointment-based providers */}
-            {availability && provider?.booking_settings?.type === 'appointment_based' && (
-              <View style={styles.slotsContainer}>
-                <Text style={styles.slotsTitle}>Disponibilitate:</Text>
-                {availability.slots.filter(s => s.available).length === 0 ? (
-                  <Text style={styles.emptyText}>Nu există disponibilitate pentru intervalul ales</Text>
-                ) : (
-                  <Text style={styles.tableHint}>Alege ora din sloturile disponibile.</Text>
+                {/* Available Time Slots for appointment-based providers */}
+                {availability && provider?.booking_settings?.type === 'appointment_based' && (
+                  <View style={styles.slotsContainer}>
+                    <Text style={styles.slotsTitle}>Disponibilitate:</Text>
+                    {availability.slots.filter(s => s.available).length === 0 ? (
+                      <Text style={styles.emptyText}>Nu există disponibilitate pentru intervalul ales</Text>
+                    ) : (
+                      <Text style={styles.tableHint}>Alege ora din sloturile disponibile.</Text>
+                    )}
+                  </View>
                 )}
-              </View>
+              </>
             )}
 
             {selectedTime && (
@@ -1417,6 +1846,12 @@ export default function BookServiceScreen({ navigation, route }) {
                   <Text style={styles.tableMeta}>
                     Zona: {formatTableLabel(selectedTable.zone || selectedTable.location || 'interior')}
                   </Text>
+                  {selectedTable.minimum_consumption != null && (
+                    <Text style={styles.tableMeta}>Consumatie minima: {selectedTable.minimum_consumption} lei</Text>
+                  )}
+                  {selectedTable.reservation_fee != null && (
+                    <Text style={styles.tableMeta}>Taxa rezervare: {selectedTable.reservation_fee} lei</Text>
+                  )}
                   {selectedTable.special_options && selectedTable.special_options.length > 0 && (
                     <View style={styles.tableOptions}>
                       {selectedTable.special_options.map((opt, optIndex) => (
@@ -1430,7 +1865,7 @@ export default function BookServiceScreen({ navigation, route }) {
               </Card>
             )}
 
-            {isAppointment && availability && (
+            {!isNoEmployeeCategory && isAppointment && availability && (
               <View style={styles.slotsContainer}>
                 <Text style={styles.slotsTitle}>Sloturi disponibile:</Text>
                 {availability.slots.filter((s) => s.available).length === 0 ? (
@@ -1522,6 +1957,12 @@ export default function BookServiceScreen({ navigation, route }) {
                                     ))}
                                   </View>
                                 )}
+                                {table.minimum_consumption != null && (
+                                  <Text style={styles.tableMeta}>Consumatie minima: {table.minimum_consumption} lei</Text>
+                                )}
+                                {table.reservation_fee != null && (
+                                  <Text style={styles.tableMeta}>Taxa rezervare: {table.reservation_fee} lei</Text>
+                                )}
                               </Card.Content>
                             </Card>
                           ))}
@@ -1584,6 +2025,12 @@ export default function BookServiceScreen({ navigation, route }) {
                                   </Chip>
                                 ))}
                               </View>
+                            )}
+                            {table.minimum_consumption != null && (
+                              <Text style={styles.tableMeta}>Consumatie minima: {table.minimum_consumption} lei</Text>
+                            )}
+                            {table.reservation_fee != null && (
+                              <Text style={styles.tableMeta}>Taxa rezervare: {table.reservation_fee} lei</Text>
                             )}
                             {table.available_slots && table.available_slots.length > 0 ? (
                               <View style={styles.tableSlots}>

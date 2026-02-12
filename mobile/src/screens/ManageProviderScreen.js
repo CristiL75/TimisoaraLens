@@ -32,6 +32,7 @@ const DAYS = [
 
 const SERVICE_CATEGORIES = [
   { key: 'food_drinks', label: 'Restaurant / Pub' },
+  { key: 'club_nightlife', label: 'Club / Nightlife' },
   { key: 'barber', label: 'Frizerie / Barber' },
   { key: 'massage_spa', label: 'Masaj & Spa' },
   { key: 'beauty', label: 'Beauty' },
@@ -86,6 +87,27 @@ const LAYOUTS = [
   { key: 'u_shape', label: 'U-shape' },
   { key: 'boardroom', label: 'Boardroom' },
   { key: 'standing', label: 'Standing event' },
+];
+
+const CLUB_ZONES = [
+  { key: 'dancefloor', label: 'Dancefloor' },
+  { key: 'vip', label: 'VIP' },
+  { key: 'lounge', label: 'Lounge' },
+  { key: 'terasa', label: 'Terasă' },
+  { key: 'bar', label: 'Bar' },
+];
+
+const RESERVATION_TYPE_KEYS = [
+  { key: 'standard', label: 'Masă standard' },
+  { key: 'vip', label: 'Masă VIP' },
+  { key: 'birthday', label: 'Birthday package' },
+  { key: 'bottle_service', label: 'Bottle service' },
+];
+
+const EVENT_TYPE_OPTIONS = [
+  { key: 'petrecere_privata', label: 'Petreceri private' },
+  { key: 'aniversare', label: 'Aniversări' },
+  { key: 'team_building', label: 'Team building' },
 ];
 
 const DEFAULT_WORKING_HOURS = DAYS.map((day) => ({
@@ -171,6 +193,30 @@ export default function ManageProviderScreen({ navigation, route }) {
     existingProvider?.working_hours || DEFAULT_WORKING_HOURS
   );
 
+  // Club / Nightlife state
+  const [eventSettings, setEventSettings] = useState(
+    existingProvider?.event_settings || {
+      max_capacity: null,
+      rental_price_per_night: null,
+      minimum_event_consumption: null,
+      catering_available: false,
+      dj_available: false,
+      decor_available: false,
+      event_types: [],
+    }
+  );
+  const [reservationTypes, setReservationTypes] = useState(
+    existingProvider?.reservation_types || []
+  );
+  const [rtDialogVisible, setRtDialogVisible] = useState(false);
+  const [rtName, setRtName] = useState('');
+  const [rtTypeKey, setRtTypeKey] = useState('standard');
+  const [rtPrice, setRtPrice] = useState('');
+  const [rtMinConsumption, setRtMinConsumption] = useState('');
+  const [rtBenefits, setRtBenefits] = useState('');
+
+  const isClub = category === 'club_nightlife';
+
   const isNoPriceEmployeeCategory = NO_PRICE_EMPLOYEE_CATEGORIES.includes(category);
 
   useEffect(() => {
@@ -229,6 +275,8 @@ export default function ManageProviderScreen({ navigation, route }) {
     facilities,
     tables,
     workingHours,
+    eventSettings,
+    reservationTypes,
   });
 
   const applyFormDraft = (draft) => {
@@ -273,6 +321,8 @@ export default function ManageProviderScreen({ navigation, route }) {
     if (draft.facilities !== undefined) setFacilities(draft.facilities);
     if (draft.tables !== undefined) setTables(draft.tables);
     if (draft.workingHours !== undefined) setWorkingHours(draft.workingHours);
+    if (draft.eventSettings !== undefined) setEventSettings(draft.eventSettings);
+    if (draft.reservationTypes !== undefined) setReservationTypes(draft.reservationTypes);
   };
 
   const handleLocationSelected = (location) => {
@@ -499,6 +549,55 @@ export default function ManageProviderScreen({ navigation, route }) {
     setRoomsDraft((prev) => prev.filter((_, idx) => idx !== index));
   };
 
+  // Club reservation type helpers
+  const resetRtForm = () => {
+    setRtName('');
+    setRtTypeKey('standard');
+    setRtPrice('');
+    setRtMinConsumption('');
+    setRtBenefits('');
+  };
+
+  const handleAddReservationType = () => {
+    resetRtForm();
+    setRtDialogVisible(true);
+  };
+
+  const handleSaveReservationType = () => {
+    if (!rtName) {
+      Alert.alert('Eroare', 'Completeaza numele tipului de rezervare.');
+      return;
+    }
+    const rt = {
+      id: `rt_${Date.now()}`,
+      name: rtName.trim(),
+      type_key: rtTypeKey,
+      price: rtPrice ? parseFloat(rtPrice) : null,
+      minimum_consumption: rtMinConsumption ? parseFloat(rtMinConsumption) : null,
+      benefits: rtBenefits ? rtBenefits.split(',').map((b) => b.trim()).filter(Boolean) : [],
+    };
+    setReservationTypes((prev) => [...prev, rt]);
+    setRtDialogVisible(false);
+  };
+
+  const handleRemoveReservationType = (index) => {
+    setReservationTypes((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const toggleEventType = (key) => {
+    setEventSettings((prev) => {
+      const types = prev.event_types || [];
+      return {
+        ...prev,
+        event_types: types.includes(key) ? types.filter((t) => t !== key) : [...types, key],
+      };
+    });
+  };
+
+  const toggleEventSetting = (key) => {
+    setEventSettings((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const saveRoomsToProvider = async (providerId) => {
     if (!providerId || roomsDraft.length === 0) {
       return { created: 0, failed: 0 };
@@ -589,11 +688,13 @@ export default function ManageProviderScreen({ navigation, route }) {
     setLoading(true);
     const bookingType = category === 'food_drinks'
       ? 'table_based'
-      : category === 'rent_a_car'
-        ? 'fleet_based'
-        : category === 'location_space'
-          ? 'space_based'
-          : 'appointment_based';
+      : category === 'club_nightlife'
+        ? 'table_based'
+        : category === 'rent_a_car'
+          ? 'fleet_based'
+          : category === 'location_space'
+            ? 'space_based'
+            : 'appointment_based';
     const defaultDuration = (category === 'rent_a_car' || category === 'location_space')
       ? 0
       : parseInt(duration, 10);
@@ -610,9 +711,11 @@ export default function ManageProviderScreen({ navigation, route }) {
       address: address || null,
       latitude: latitude || null,
       longitude: longitude || null,
-      facilities: category === 'food_drinks' ? facilities : null,
-      tables: category === 'food_drinks' ? tables : null, // Add tables field for food_drinks category
+      facilities: (category === 'food_drinks' || category === 'club_nightlife') ? facilities : null,
+      tables: (category === 'food_drinks' || category === 'club_nightlife') ? tables : null,
       cars: category === 'rent_a_car' ? cars : [],
+      event_settings: category === 'club_nightlife' ? eventSettings : null,
+      reservation_types: category === 'club_nightlife' ? reservationTypes : [],
       booking_settings: {
         type: bookingType,
         default_duration_minutes: defaultDuration,
@@ -728,8 +831,11 @@ export default function ManageProviderScreen({ navigation, route }) {
                 icon="map-search"
                 onPress={() => navigation.navigate('LocationPicker', {
                   initialLocation: latitude && longitude ? { latitude, longitude, address } : null,
-                  returnTo: 'ManageProvider',
-                  formDraft: buildFormDraft(),
+                  onLocationPicked: (location) => {
+                    setLatitude(location.latitude);
+                    setLongitude(location.longitude);
+                    setAddress(location.address || '');
+                  },
                 })}
                 style={styles.locationButton}
               >
@@ -1035,7 +1141,7 @@ export default function ManageProviderScreen({ navigation, route }) {
           </Card>
         )}
 
-        {category === 'food_drinks' && (
+        {(category === 'food_drinks' || category === 'club_nightlife') && (
           <Card style={styles.card}>
             <Card.Content>
               <Title>Facilitati</Title>
@@ -1049,7 +1155,7 @@ export default function ManageProviderScreen({ navigation, route }) {
           </Card>
         )}
 
-        {isEdit && category === 'food_drinks' && (
+        {isEdit && (category === 'food_drinks' || category === 'club_nightlife') && (
           <Card style={styles.card}>
             <Card.Content>
               <Title>Mese</Title>
@@ -1066,7 +1172,104 @@ export default function ManageProviderScreen({ navigation, route }) {
           </Card>
         )}
 
-        {isEdit && category !== 'food_drinks' && category !== 'rent_a_car' && category !== 'location_space' && !isNoPriceEmployeeCategory && (
+        {category === 'club_nightlife' && (
+          <Card style={styles.card}>
+            <Card.Content>
+              <Title>Tipuri de Rezervare</Title>
+              <Text style={styles.noteText}>
+                Defineste tipurile de rezervare (Standard, VIP, Birthday, Bottle service).
+              </Text>
+              <Button mode="outlined" icon="plus" onPress={handleAddReservationType} style={{ marginVertical: 8 }}>
+                Adauga tip rezervare
+              </Button>
+              {reservationTypes.length > 0 ? (
+                <View style={styles.roomList}>
+                  {reservationTypes.map((rt, index) => (
+                    <View key={rt.id || `rt-${index}`} style={styles.roomItem}>
+                      <View style={styles.roomHeader}>
+                        <Text style={styles.roomTitle}>{rt.name}</Text>
+                        <Button mode="text" onPress={() => handleRemoveReservationType(index)}>Sterge</Button>
+                      </View>
+                      <Text style={styles.roomMeta}>
+                        Tip: {RESERVATION_TYPE_KEYS.find((k) => k.key === rt.type_key)?.label || rt.type_key}
+                        {rt.price ? ` • Pret: ${rt.price} lei` : ''}
+                        {rt.minimum_consumption ? ` • Consum min: ${rt.minimum_consumption} lei` : ''}
+                      </Text>
+                      {rt.benefits && rt.benefits.length > 0 && (
+                        <Text style={styles.roomMeta}>
+                          Beneficii: {rt.benefits.join(', ')}
+                        </Text>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.noteText}>Nu ai tipuri de rezervare adaugate.</Text>
+              )}
+            </Card.Content>
+          </Card>
+        )}
+
+        {category === 'club_nightlife' && (
+          <Card style={styles.card}>
+            <Card.Content>
+              <Title>Organizare Evenimente</Title>
+              <Text style={styles.noteText}>Setari pentru organizarea de evenimente private.</Text>
+              <TextInput
+                label="Capacitate maxima eveniment"
+                value={eventSettings.max_capacity ? String(eventSettings.max_capacity) : ''}
+                onChangeText={(v) => setEventSettings((prev) => ({ ...prev, max_capacity: v ? parseInt(v, 10) : null }))}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <TextInput
+                label="Pret inchiriere / noapte (lei)"
+                value={eventSettings.rental_price_per_night ? String(eventSettings.rental_price_per_night) : ''}
+                onChangeText={(v) => setEventSettings((prev) => ({ ...prev, rental_price_per_night: v ? parseFloat(v) : null }))}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <TextInput
+                label="Consumatie minima eveniment (lei)"
+                value={eventSettings.minimum_event_consumption ? String(eventSettings.minimum_event_consumption) : ''}
+                onChangeText={(v) => setEventSettings((prev) => ({ ...prev, minimum_event_consumption: v ? parseFloat(v) : null }))}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <Text style={styles.sectionTitle}>Servicii disponibile</Text>
+              <View style={styles.facilityRow}>
+                <Chip style={styles.facilityChip}>Catering</Chip>
+                <Switch value={!!eventSettings.catering_available} onValueChange={() => toggleEventSetting('catering_available')} />
+              </View>
+              <View style={styles.facilityRow}>
+                <Chip style={styles.facilityChip}>DJ</Chip>
+                <Switch value={!!eventSettings.dj_available} onValueChange={() => toggleEventSetting('dj_available')} />
+              </View>
+              <View style={styles.facilityRow}>
+                <Chip style={styles.facilityChip}>Decor</Chip>
+                <Switch value={!!eventSettings.decor_available} onValueChange={() => toggleEventSetting('decor_available')} />
+              </View>
+              <Text style={styles.sectionTitle}>Tipuri de evenimente</Text>
+              <View style={styles.optionRow}>
+                {EVENT_TYPE_OPTIONS.map((option) => (
+                  <Chip
+                    key={option.key}
+                    selected={(eventSettings.event_types || []).includes(option.key)}
+                    onPress={() => toggleEventType(option.key)}
+                    style={styles.optionChip}
+                  >
+                    {option.label}
+                  </Chip>
+                ))}
+              </View>
+            </Card.Content>
+          </Card>
+        )}
+
+        {isEdit && category !== 'food_drinks' && category !== 'club_nightlife' && category !== 'rent_a_car' && category !== 'location_space' && !isNoPriceEmployeeCategory && (
           <Card style={styles.card}>
             <Card.Content>
               <Title>Servicii si Angajati</Title>
@@ -1233,6 +1436,73 @@ export default function ManageProviderScreen({ navigation, route }) {
             <View style={styles.roomModalActions}>
               <Button onPress={() => setRoomDialogVisible(false)}>Anuleaza</Button>
               <Button onPress={handleSaveRoomDraft}>Salveaza</Button>
+            </View>
+          </View>
+        </Modal>
+        <Modal
+          visible={rtDialogVisible}
+          onDismiss={() => setRtDialogVisible(false)}
+          contentContainerStyle={styles.roomModalContainer}
+        >
+          <View style={styles.roomModalCard}>
+            <View style={styles.roomModalHeader}>
+              <Title>Adauga Tip Rezervare</Title>
+            </View>
+            <ScrollView
+              style={styles.roomModalBody}
+              contentContainerStyle={styles.roomModalContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              <TextInput
+                label="Nume tip rezervare *"
+                value={rtName}
+                onChangeText={setRtName}
+                mode="outlined"
+                style={styles.input}
+                placeholder="ex: Masa VIP"
+              />
+              <Text style={styles.sectionTitle}>Tip</Text>
+              <View style={styles.optionRow}>
+                {RESERVATION_TYPE_KEYS.map((option) => (
+                  <Chip
+                    key={option.key}
+                    selected={rtTypeKey === option.key}
+                    onPress={() => setRtTypeKey(option.key)}
+                    style={styles.optionChip}
+                  >
+                    {option.label}
+                  </Chip>
+                ))}
+              </View>
+              <TextInput
+                label="Pret (lei, optional)"
+                value={rtPrice}
+                onChangeText={setRtPrice}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <TextInput
+                label="Consumatie minima (lei, optional)"
+                value={rtMinConsumption}
+                onChangeText={setRtMinConsumption}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <TextInput
+                label="Beneficii (separate prin virgula)"
+                value={rtBenefits}
+                onChangeText={setRtBenefits}
+                mode="outlined"
+                style={styles.input}
+                placeholder="ex: Loc rezervat, Welcome drink, Playlist personalizat"
+                multiline
+              />
+            </ScrollView>
+            <View style={styles.roomModalActions}>
+              <Button onPress={() => setRtDialogVisible(false)}>Anuleaza</Button>
+              <Button onPress={handleSaveReservationType}>Salveaza</Button>
             </View>
           </View>
         </Modal>
