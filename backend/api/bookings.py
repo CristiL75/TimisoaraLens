@@ -1708,19 +1708,23 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
         employees_col = get_employees_collection()
         is_no_employee_category = provider.get("category") in NO_EMPLOYEE_CATEGORIES
 
-        if not request.service_id or (not is_no_employee_category and not request.employee_id):
+        if not is_no_employee_category and (not request.service_id or not request.employee_id):
             raise HTTPException(status_code=400, detail="Service and employee are required")
 
-        if not ObjectId.is_valid(request.service_id) or (not is_no_employee_category and not ObjectId.is_valid(request.employee_id)):
-            raise HTTPException(status_code=400, detail="Invalid service or employee ID")
+        service = None
+        if request.service_id:
+            if not ObjectId.is_valid(request.service_id):
+                raise HTTPException(status_code=400, detail="Invalid service ID")
+            service = await services_col.find_one({
+                "_id": ObjectId(request.service_id),
+                "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
+                "status": "active"
+            })
+            if not service:
+                raise HTTPException(status_code=404, detail="Service not found")
 
-        service = await services_col.find_one({
-            "_id": ObjectId(request.service_id),
-            "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
-            "status": "active"
-        })
-        if not service:
-            raise HTTPException(status_code=404, detail="Service not found")
+        if not is_no_employee_category and not ObjectId.is_valid(request.employee_id):
+            raise HTTPException(status_code=400, detail="Invalid employee ID")
 
         employee = None
         if not is_no_employee_category:
@@ -1737,7 +1741,10 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
             if service_id_str not in employee_services:
                 raise HTTPException(status_code=400, detail="Employee does not offer this service")
 
-        duration = int(service.get("duration_minutes", 0))
+        if service:
+            duration = int(service.get("duration_minutes", 0))
+        else:
+            duration = int(provider.get("booking_settings", {}).get("default_duration_minutes") or 60)
         buffer_minutes = service.get("buffer_minutes")
         if buffer_minutes is None:
             buffer_minutes = provider.get("booking_settings", {}).get("buffer_minutes", 0)
@@ -2082,19 +2089,23 @@ async def check_availability(
     if booking_type == "appointment_based":
         is_no_employee_category = provider.get("category") in NO_EMPLOYEE_CATEGORIES
 
-        if not service_id or (not is_no_employee_category and not employee_id):
+        if not is_no_employee_category and (not service_id or not employee_id):
             raise HTTPException(status_code=400, detail="Service and employee are required")
 
-        if not ObjectId.is_valid(service_id) or (not is_no_employee_category and not ObjectId.is_valid(employee_id)):
-            raise HTTPException(status_code=400, detail="Invalid service or employee ID")
+        service = None
+        if service_id:
+            if not ObjectId.is_valid(service_id):
+                raise HTTPException(status_code=400, detail="Invalid service ID")
+            service = await services_col.find_one({
+                "_id": ObjectId(service_id),
+                "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
+                "status": "active"
+            })
+            if not service:
+                raise HTTPException(status_code=404, detail="Service not found")
 
-        service = await services_col.find_one({
-            "_id": ObjectId(service_id),
-            "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
-            "status": "active"
-        })
-        if not service:
-            raise HTTPException(status_code=404, detail="Service not found")
+        if not is_no_employee_category and not ObjectId.is_valid(employee_id):
+            raise HTTPException(status_code=400, detail="Invalid employee ID")
 
         employee = None
         if not is_no_employee_category:
@@ -2110,7 +2121,10 @@ async def check_availability(
             if str(service["_id"]) not in employee_services:
                 raise HTTPException(status_code=400, detail="Employee does not offer this service")
 
-        duration = int(service.get("duration_minutes", 0))
+        if service:
+            duration = int(service.get("duration_minutes", 0))
+        else:
+            duration = int(provider.get("booking_settings", {}).get("default_duration_minutes") or 60)
         buffer_minutes = service.get("buffer_minutes")
         if buffer_minutes is None:
             buffer_minutes = provider.get("booking_settings", {}).get("buffer_minutes", 0)

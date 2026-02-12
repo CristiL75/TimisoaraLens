@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, Alert, Keyboard, Platform, Linking } from 'react-native';
 import { Appbar, Button, Searchbar, Text, ActivityIndicator } from 'react-native-paper';
+import { CommonActions } from '@react-navigation/native';
 // react-native-maps is native only and breaks web bundling.
 // Import it dynamically at runtime for native platforms only.
 let MapView = null;
@@ -14,7 +15,7 @@ if (Platform.OS !== 'web') {
 import * as Location from 'expo-location';
 
 const LocationPickerScreen = ({ navigation, route }) => {
-  const { initialLocation, returnTo, locationTarget, providerId, provider, formDraft } = route.params || {};
+  const { initialLocation, onLocationPicked, returnTo, returnToKey, locationTarget, providerId, provider, formDraft } = route.params || {};
   
   // State pentru locație selectată
   const [selectedLocation, setSelectedLocation] = useState(
@@ -200,22 +201,57 @@ const LocationPickerScreen = ({ navigation, route }) => {
       address: selectedLocation.address,
     };
 
-    if (returnTo) {
+    const params = {
+      pickedLocation: payload,
+      pickedLocationTarget: locationTarget || null,
+      pickedLocationAt: Date.now(),
+      providerId: providerId || null,
+      provider: provider || null,
+      formDraft: formDraft || null,
+    };
+
+    if (typeof onLocationPicked === 'function') {
+      onLocationPicked(payload);
+      navigation.goBack();
+      return;
+    }
+
+    const state = navigation.getState();
+    const routes = state?.routes || [];
+    const previousRoute = routes.length > 1 ? routes[routes.length - 2] : null;
+    if (returnToKey) {
+      navigation.dispatch(
+        CommonActions.navigate({
+          key: returnToKey,
+          name: returnTo,
+          params,
+          merge: true,
+        })
+      );
+      return;
+    }
+
+    if (previousRoute) {
+      navigation.dispatch(
+        CommonActions.navigate({
+          key: previousRoute.key,
+          name: previousRoute.name,
+          params,
+          merge: true,
+        })
+      );
+      return;
+    }
+
+    const targetRoute = returnTo || null;
+    if (targetRoute) {
       navigation.navigate({
-        name: returnTo,
-        params: {
-          pickedLocation: payload,
-          pickedLocationTarget: locationTarget || null,
-          providerId: providerId || null,
-          provider: provider || null,
-          formDraft: formDraft || null,
-        },
+        name: targetRoute,
+        params,
         merge: true,
       });
       return;
     }
-
-    navigation.goBack();
   };
 
   return (

@@ -83,6 +83,9 @@ export default function BookServiceScreen({ navigation, route }) {
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [deliveryLatitude, setDeliveryLatitude] = useState(null);
   const [deliveryLongitude, setDeliveryLongitude] = useState(null);
+  const [serviceAddress, setServiceAddress] = useState('');
+  const [serviceLatitude, setServiceLatitude] = useState(null);
+  const [serviceLongitude, setServiceLongitude] = useState(null);
   const [checkingCarAvailability, setCheckingCarAvailability] = useState(false);
   const [carAvailability, setCarAvailability] = useState(null);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
@@ -128,6 +131,9 @@ export default function BookServiceScreen({ navigation, route }) {
     rentalStartTime,
     rentalEndDate,
     rentalEndTime,
+    serviceAddress,
+    serviceLatitude,
+    serviceLongitude,
     notes,
   });
 
@@ -194,17 +200,25 @@ export default function BookServiceScreen({ navigation, route }) {
       setDeliveryAddress(route.params.pickedLocation.address || '');
       setDeliveryLatitude(route.params.pickedLocation.latitude || null);
       setDeliveryLongitude(route.params.pickedLocation.longitude || null);
+    }
+    if (route?.params?.pickedLocation && route.params.pickedLocationTarget === 'service_address') {
+      setServiceAddress(route.params.pickedLocation.address || '');
+      setServiceLatitude(route.params.pickedLocation.latitude || null);
+      setServiceLongitude(route.params.pickedLocation.longitude || null);
+    }
+    if (route?.params?.pickedLocation) {
       if (route?.params?.provider && !provider) {
         setProvider(route.params.provider);
       }
       navigation.setParams({
         pickedLocation: null,
         pickedLocationTarget: null,
+        pickedLocationAt: null,
         provider: route?.params?.provider || null,
-        formDraft: route?.params?.formDraft || null,
+        formDraft: null,
       });
     }
-  }, [route?.params?.pickedLocation, route?.params?.pickedLocationTarget]);
+  }, [route?.params?.pickedLocation, route?.params?.pickedLocationTarget, route?.params?.pickedLocationAt]);
 
   useEffect(() => {
     if (route?.params?.formDraft) {
@@ -217,6 +231,9 @@ export default function BookServiceScreen({ navigation, route }) {
       if (draft.rentalStartTime != null) setRentalStartTime(draft.rentalStartTime);
       if (draft.rentalEndDate != null) setRentalEndDate(draft.rentalEndDate);
       if (draft.rentalEndTime != null) setRentalEndTime(draft.rentalEndTime);
+      if (draft.serviceAddress != null) setServiceAddress(draft.serviceAddress);
+      if (draft.serviceLatitude != null) setServiceLatitude(draft.serviceLatitude);
+      if (draft.serviceLongitude != null) setServiceLongitude(draft.serviceLongitude);
       if (draft.notes != null) setNotes(draft.notes);
       navigation.setParams({ formDraft: null });
     }
@@ -268,7 +285,11 @@ export default function BookServiceScreen({ navigation, route }) {
             : bookingsAPI.getEmployees(provider.id),
         ]);
         if (servicesRes.success) {
-          setServices(servicesRes.data || []);
+          const serviceData = servicesRes.data || [];
+          setServices(serviceData);
+          if (isNoEmployeeCategory && serviceData.length > 0 && !selectedServiceId) {
+            setSelectedServiceId(serviceData[0].id);
+          }
         }
         if (employeesRes.success) {
           setEmployees(employeesRes.data || []);
@@ -361,8 +382,8 @@ export default function BookServiceScreen({ navigation, route }) {
       return;
     }
     if (isAppointment) {
-      if (!bookingDate || !selectedServiceId || (!isNoEmployeeCategory && !selectedEmployeeId)) {
-        Alert.alert('Eroare', isNoEmployeeCategory ? 'Selectează data și serviciul' : 'Selectează data, serviciul și angajatul');
+      if (!bookingDate || (!isNoEmployeeCategory && (!selectedServiceId || !selectedEmployeeId))) {
+        Alert.alert('Eroare', isNoEmployeeCategory ? 'Selectează data' : 'Selectează data, serviciul și angajatul');
         return;
       }
     } else {
@@ -390,8 +411,8 @@ export default function BookServiceScreen({ navigation, route }) {
         parseInt(partySize, 10),
         isAppointment ? null : selectedTime,
         isAppointment ? null : durationValue,
-        isAppointment ? selectedServiceId : null,
-        isAppointment ? selectedEmployeeId : null,
+        isAppointment && !isNoEmployeeCategory ? selectedServiceId : null,
+        isAppointment && !isNoEmployeeCategory ? selectedEmployeeId : null,
         null,
         null,
         null,
@@ -438,8 +459,13 @@ export default function BookServiceScreen({ navigation, route }) {
       return;
     }
 
-    if (isAppointment && (!selectedServiceId || (!isNoEmployeeCategory && !selectedEmployeeId))) {
-      Alert.alert('Eroare', isNoEmployeeCategory ? 'Selectează serviciul' : 'Selectează serviciul și angajatul');
+    if (isAppointment && (!isNoEmployeeCategory && (!selectedServiceId || !selectedEmployeeId))) {
+      Alert.alert('Eroare', 'Selectează serviciul și angajatul');
+      return;
+    }
+
+    if (isAppointment && isNoEmployeeCategory && !serviceAddress) {
+      Alert.alert('Eroare', 'Completează adresa pentru serviciu');
       return;
     }
 
@@ -450,7 +476,7 @@ export default function BookServiceScreen({ navigation, route }) {
     const bookingData = {
       provider_id: provider.id,
       table_id: selectedTableId || null,
-      service_id: isAppointment ? selectedServiceId : null,
+      service_id: isAppointment && !isNoEmployeeCategory ? selectedServiceId : null,
       employee_id: isAppointment && !isNoEmployeeCategory ? selectedEmployeeId : null,
       customer_name: customerName,
       customer_email: effectiveEmail,
@@ -462,6 +488,9 @@ export default function BookServiceScreen({ navigation, route }) {
       party_adults: isRestaurant ? parseInt(partyAdults) : 0,
       party_children: isRestaurant ? parseInt(partyChildren) : 0,
       special_occasion: isAppointment ? null : specialOccasion,
+      delivery_address: isAppointment && isNoEmployeeCategory ? serviceAddress || null : null,
+      delivery_latitude: isAppointment && isNoEmployeeCategory ? serviceLatitude || null : null,
+      delivery_longitude: isAppointment && isNoEmployeeCategory ? serviceLongitude || null : null,
       notes: notes || null,
     };
 
@@ -822,7 +851,11 @@ export default function BookServiceScreen({ navigation, route }) {
                     initialLocation: deliveryLatitude && deliveryLongitude
                       ? { latitude: deliveryLatitude, longitude: deliveryLongitude, address: deliveryAddress }
                       : null,
-                    returnTo: 'BookService',
+                    onLocationPicked: (location) => {
+                      setDeliveryAddress(location.address || '');
+                      setDeliveryLatitude(location.latitude || null);
+                      setDeliveryLongitude(location.longitude || null);
+                    },
                     locationTarget: 'rental_delivery',
                     providerId: provider?.id || providerIdParam,
                     provider,
@@ -1132,54 +1165,92 @@ export default function BookServiceScreen({ navigation, route }) {
             />
             {isAppointment && (
               <View style={{ marginBottom: 12 }}>
-                <Text style={styles.slotsTitle}>Serviciu</Text>
-                {loadingServices ? (
-                  <ActivityIndicator size="small" color="#4CAF50" />
-                ) : services.length === 0 ? (
-                  <Text style={styles.emptyText}>Nu exista servicii disponibile.</Text>
-                ) : (
-                  <View style={styles.slotsGrid}>
-                    {services.map((service) => (
-                      <Chip
-                        key={service.id}
-                        selected={selectedServiceId === service.id}
-                        onPress={() => {
-                          setSelectedServiceId(service.id);
-                          setSelectedEmployeeId(null);
-                          setSelectedTime('');
-                          setAvailability(null);
-                        }}
-                        mode="outlined"
-                        style={styles.slotChip}
-                      >
-                        {service.name} ({service.duration_minutes} min)
-                      </Chip>
-                    ))}
-                  </View>
+                {!isNoEmployeeCategory && (
+                  <>
+                    <Text style={styles.slotsTitle}>Serviciu</Text>
+                    {loadingServices ? (
+                      <ActivityIndicator size="small" color="#4CAF50" />
+                    ) : services.length === 0 ? (
+                      <Text style={styles.emptyText}>Nu exista servicii disponibile.</Text>
+                    ) : (
+                      <View style={styles.slotsGrid}>
+                        {services.map((service) => (
+                          <Chip
+                            key={service.id}
+                            selected={selectedServiceId === service.id}
+                            onPress={() => {
+                              setSelectedServiceId(service.id);
+                              setSelectedEmployeeId(null);
+                              setSelectedTime('');
+                              setAvailability(null);
+                            }}
+                            mode="outlined"
+                            style={styles.slotChip}
+                          >
+                            {service.name} ({service.duration_minutes} min)
+                          </Chip>
+                        ))}
+                      </View>
+                    )}
+
+                    {selectedServiceId && provider?.latitude && provider?.longitude && (
+                      <View style={styles.mapContainer}>
+                        <Text style={styles.mapTitle}>Locatia serviciului pe harta</Text>
+                        <MapView
+                          style={styles.map}
+                          initialRegion={{
+                            latitude: provider.latitude,
+                            longitude: provider.longitude,
+                            latitudeDelta: 0.01,
+                            longitudeDelta: 0.01,
+                          }}
+                        >
+                          <Marker
+                            coordinate={{
+                              latitude: provider.latitude,
+                              longitude: provider.longitude,
+                            }}
+                            title={provider.name}
+                            description={selectedService?.name || 'Serviciu selectat'}
+                          />
+                        </MapView>
+                      </View>
+                    )}
+                  </>
                 )}
 
-                {selectedServiceId && provider?.latitude && provider?.longitude && (
-                  <View style={styles.mapContainer}>
-                    <Text style={styles.mapTitle}>Locatia serviciului pe harta</Text>
-                    <MapView
-                      style={styles.map}
-                      initialRegion={{
-                        latitude: provider.latitude,
-                        longitude: provider.longitude,
-                        latitudeDelta: 0.01,
-                        longitudeDelta: 0.01,
-                      }}
+                {isNoEmployeeCategory && (
+                  <>
+                    <TextInput
+                      label="Adresa *"
+                      value={serviceAddress}
+                      onChangeText={setServiceAddress}
+                      mode="outlined"
+                      style={styles.input}
+                      placeholder="Strada, numar, oras"
+                    />
+                    <Button
+                      mode="outlined"
+                      icon="map-search"
+                      onPress={() => navigation.navigate('LocationPicker', {
+                        initialLocation: serviceLatitude && serviceLongitude
+                          ? { latitude: serviceLatitude, longitude: serviceLongitude, address: serviceAddress }
+                          : null,
+                        onLocationPicked: (location) => {
+                          setServiceAddress(location.address || '');
+                          setServiceLatitude(location.latitude || null);
+                          setServiceLongitude(location.longitude || null);
+                        },
+                        locationTarget: 'service_address',
+                        providerId: provider?.id || providerIdParam,
+                        provider,
+                        formDraft: buildFormDraft(),
+                      })}
+                      style={styles.locationButton}
                     >
-                      <Marker
-                        coordinate={{
-                          latitude: provider.latitude,
-                          longitude: provider.longitude,
-                        }}
-                        title={provider.name}
-                        description={selectedService?.name || 'Serviciu selectat'}
-                      />
-                    </MapView>
-                  </View>
+                      Alege adresa pe harta
+                    </Button>
+                  </>
                 )}
 
                 {!isNoEmployeeCategory && (
@@ -1212,27 +1283,39 @@ export default function BookServiceScreen({ navigation, route }) {
                 )}
               </View>
             )}
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            {isAppointment ? (
               <TextInput
                 label="Ora inceput *"
                 value={selectedTime}
                 onChangeText={setSelectedTime}
                 mode="outlined"
-                style={[styles.input, { flex: 1 }]}
-                placeholder={isAppointment ? 'Selecteaza din sloturi' : 'HH:MM'}
-                editable={!isAppointment}
+                style={styles.input}
+                placeholder={isAppointment && !isNoEmployeeCategory ? 'Selecteaza din sloturi' : 'HH:MM'}
+                editable={!isAppointment || isNoEmployeeCategory}
               />
-              <TextInput
-                label="Durata (min) *"
-                value={durationMinutes}
-                onChangeText={setDurationMinutes}
-                mode="outlined"
-                style={[styles.input, { flex: 1 }]}
-                keyboardType="numeric"
-                placeholder="ex: 90"
-                editable={!isAppointment}
-              />
-            </View>
+            ) : (
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TextInput
+                  label="Ora inceput *"
+                  value={selectedTime}
+                  onChangeText={setSelectedTime}
+                  mode="outlined"
+                  style={[styles.input, { flex: 1 }]}
+                  placeholder={isAppointment && !isNoEmployeeCategory ? 'Selecteaza din sloturi' : 'HH:MM'}
+                  editable={!isAppointment || isNoEmployeeCategory}
+                />
+                <TextInput
+                  label="Durata (min) *"
+                  value={durationMinutes}
+                  onChangeText={setDurationMinutes}
+                  mode="outlined"
+                  style={[styles.input, { flex: 1 }]}
+                  keyboardType="numeric"
+                  placeholder="ex: 90"
+                  editable={!isAppointment}
+                />
+              </View>
+            )}
             {!isAppointment && (
               <>
                 <TextInput
