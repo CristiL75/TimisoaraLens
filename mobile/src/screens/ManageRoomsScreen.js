@@ -2,7 +2,7 @@
  * Manage Rooms Screen - Add/edit rooms or halls for a provider
  */
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Image } from 'react-native';
 import {
   Appbar,
   Card,
@@ -14,10 +14,11 @@ import {
   ActivityIndicator,
   Text,
   Chip,
-  Dialog,
+  Modal,
   Portal,
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { bookingsAPI } from '../services/api';
 
 const SPACE_TYPES = [
@@ -61,16 +62,31 @@ export default function ManageRoomsScreen({ navigation, route }) {
   const [priceFullDay, setPriceFullDay] = useState('');
   const [amenities, setAmenities] = useState([]);
   const [layouts, setLayouts] = useState([]);
+  const [roomImages, setRoomImages] = useState([]);
 
   useEffect(() => {
     loadRooms();
   }, []);
 
+  useEffect(() => {
+    ImagePicker.requestMediaLibraryPermissionsAsync();
+    ImagePicker.requestCameraPermissionsAsync();
+  }, []);
+
+  const normalizeRoom = (room) => {
+    if (!room) return room;
+    return {
+      ...room,
+      id: room.id || room._id,
+      provider_id: room.provider_id || room.providerId || room.provider_id,
+    };
+  };
+
   const loadRooms = async () => {
     try {
       const result = await bookingsAPI.getRooms(provider.id);
       if (result.success) {
-        setRooms(result.data || []);
+        setRooms((result.data || []).map(normalizeRoom));
       }
     } catch (error) {
       // ignore
@@ -88,11 +104,59 @@ export default function ManageRoomsScreen({ navigation, route }) {
     setPriceFullDay('');
     setAmenities([]);
     setLayouts([]);
+    setRoomImages([]);
     setDialogVisible(true);
   };
 
   const toggleSelection = (list, setList, key) => {
     setList((prev) => (prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]));
+  };
+
+  const takeRoomPhoto = async () => {
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        allowsEditing: true,
+        aspect: [4, 3],
+      });
+
+      if (!result.canceled) {
+        setRoomImages((prev) => [...prev, result.assets[0].uri]);
+      }
+    } catch (error) {
+      Alert.alert('Eroare', 'Nu s-a putut face poza');
+    }
+  };
+
+  const pickRoomImages = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        quality: 0.8,
+        allowsEditing: false,
+      });
+
+      if (!result.canceled) {
+        const imageUris = result.assets.map((asset) => asset.uri);
+        setRoomImages((prev) => [...prev, ...imageUris]);
+      }
+    } catch (error) {
+      Alert.alert('Eroare', 'Nu s-au putut selecta imaginile');
+    }
+  };
+
+  const showRoomImageOptions = () => {
+    Alert.alert('Adauga poze spatiu', 'Alege sursa imaginilor', [
+      { text: 'Fa o poza', onPress: takeRoomPhoto },
+      { text: 'Galerie foto', onPress: pickRoomImages },
+      { text: 'Anuleaza', style: 'cancel' },
+    ]);
+  };
+
+  const handleRemoveRoomImage = (url) => {
+    setRoomImages((prev) => prev.filter((item) => item !== url));
   };
 
   const handleSaveRoom = async () => {
@@ -113,14 +177,16 @@ export default function ManageRoomsScreen({ navigation, route }) {
       price_full_day: priceFullDay ? parseFloat(priceFullDay) : null,
       amenities,
       layouts,
+      images: roomImages,
     };
 
     try {
       const result = await bookingsAPI.createRoom(roomData);
       if (result.success) {
         setDialogVisible(false);
+        setRoomImages([]);
         if (result.data) {
-          setRooms((prev) => [result.data, ...prev]);
+          setRooms((prev) => [normalizeRoom(result.data), ...prev]);
         } else {
           loadRooms();
         }
@@ -145,9 +211,10 @@ export default function ManageRoomsScreen({ navigation, route }) {
           text: 'Sterge',
           style: 'destructive',
           onPress: async () => {
-            const result = await bookingsAPI.deleteRoom(room.id);
+            const roomId = room.id || room._id;
+            const result = await bookingsAPI.deleteRoom(roomId);
             if (result.success) {
-              setRooms((prev) => prev.filter((item) => item.id !== room.id));
+              setRooms((prev) => prev.filter((item) => (item.id || item._id) !== roomId));
               Alert.alert('Succes', 'Spatiul a fost sters');
             } else {
               Alert.alert('Eroare', result.error || 'Nu s-a putut sterge spatiul');
@@ -205,7 +272,7 @@ export default function ManageRoomsScreen({ navigation, route }) {
           </Card>
         ) : (
           rooms.map((room) => (
-            <Card key={room.id} style={styles.card}>
+            <Card key={room.id || room._id || room.name} style={styles.card}>
               <List.Item
                 title={room.name}
                 description={`${room.space_type} • ${room.capacity} pers`}
@@ -228,6 +295,21 @@ export default function ManageRoomsScreen({ navigation, route }) {
                   <Text style={styles.metaText}>{formatPrices(room)}</Text>
                 </Card.Content>
               ) : null}
+              {room.images && room.images.length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.roomImageRow}
+                >
+                  {room.images.map((img, imgIndex) => (
+                    <Image
+                      key={`${img}-${imgIndex}`}
+                      source={{ uri: img }}
+                      style={styles.roomImagePreview}
+                    />
+                  ))}
+                </ScrollView>
+              )}
               <Card.Actions>
                 <Button
                   mode="contained"
@@ -246,95 +328,129 @@ export default function ManageRoomsScreen({ navigation, route }) {
       <FAB icon="plus" label="Adauga Spatiu" style={styles.fab} onPress={handleAddRoom} />
 
       <Portal>
-        <Dialog visible={dialogVisible} onDismiss={() => setDialogVisible(false)}>
-          <Dialog.Title>Adauga Spatiu Nou</Dialog.Title>
-          <Dialog.Content>
-            <TextInput
-              label="Nume spatiu *"
-              value={roomName}
-              onChangeText={setRoomName}
-              mode="outlined"
-              style={styles.input}
-            />
-            <TextInput
-              label="Capacitate maxima *"
-              value={capacity}
-              onChangeText={setCapacity}
-              mode="outlined"
-              style={styles.input}
-              keyboardType="numeric"
-            />
-            <Title style={styles.sectionTitle}>Tip spatiu</Title>
-            <View style={styles.optionRow}>
-              {SPACE_TYPES.map((option) => (
-                <Chip
-                  key={option.key}
-                  selected={spaceType === option.key}
-                  onPress={() => setSpaceType(option.key)}
-                  style={styles.optionChip}
-                >
-                  {option.label}
-                </Chip>
-              ))}
+        <Modal
+          visible={dialogVisible}
+          onDismiss={() => setDialogVisible(false)}
+          contentContainerStyle={styles.modalContainer}
+        >
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Title>Adauga Spatiu Nou</Title>
             </View>
-            <TextInput
-              label="Pret / ora (optional)"
-              value={pricePerHour}
-              onChangeText={setPricePerHour}
-              mode="outlined"
-              style={styles.input}
-              keyboardType="numeric"
-            />
-            <TextInput
-              label="Pret / jumatate zi (optional)"
-              value={priceHalfDay}
-              onChangeText={setPriceHalfDay}
-              mode="outlined"
-              style={styles.input}
-              keyboardType="numeric"
-            />
-            <TextInput
-              label="Pret / zi intreaga (optional)"
-              value={priceFullDay}
-              onChangeText={setPriceFullDay}
-              mode="outlined"
-              style={styles.input}
-              keyboardType="numeric"
-            />
-            <Title style={styles.sectionTitle}>Dotari</Title>
-            <View style={styles.optionRow}>
-              {AMENITIES.map((option) => (
-                <Chip
-                  key={option.key}
-                  selected={amenities.includes(option.key)}
-                  onPress={() => toggleSelection(amenities, setAmenities, option.key)}
-                  style={styles.optionChip}
+            <ScrollView
+              style={styles.modalBody}
+              contentContainerStyle={styles.modalContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              <TextInput
+                label="Nume spatiu *"
+                value={roomName}
+                onChangeText={setRoomName}
+                mode="outlined"
+                style={styles.input}
+              />
+              <TextInput
+                label="Capacitate maxima *"
+                value={capacity}
+                onChangeText={setCapacity}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <Title style={styles.sectionTitle}>Tip spatiu</Title>
+              <View style={styles.optionRow}>
+                {SPACE_TYPES.map((option) => (
+                  <Chip
+                    key={option.key}
+                    selected={spaceType === option.key}
+                    onPress={() => setSpaceType(option.key)}
+                    style={styles.optionChip}
+                  >
+                    {option.label}
+                  </Chip>
+                ))}
+              </View>
+              <TextInput
+                label="Pret / ora (optional)"
+                value={pricePerHour}
+                onChangeText={setPricePerHour}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <TextInput
+                label="Pret / jumatate zi (optional)"
+                value={priceHalfDay}
+                onChangeText={setPriceHalfDay}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <TextInput
+                label="Pret / zi intreaga (optional)"
+                value={priceFullDay}
+                onChangeText={setPriceFullDay}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <Title style={styles.sectionTitle}>Dotari</Title>
+              <View style={styles.optionRow}>
+                {AMENITIES.map((option) => (
+                  <Chip
+                    key={option.key}
+                    selected={amenities.includes(option.key)}
+                    onPress={() => toggleSelection(amenities, setAmenities, option.key)}
+                    style={styles.optionChip}
+                  >
+                    {option.label}
+                  </Chip>
+                ))}
+              </View>
+              <Title style={styles.sectionTitle}>Layout (optional)</Title>
+              <View style={styles.optionRow}>
+                {LAYOUTS.map((option) => (
+                  <Chip
+                    key={option.key}
+                    selected={layouts.includes(option.key)}
+                    onPress={() => toggleSelection(layouts, setLayouts, option.key)}
+                    style={styles.optionChip}
+                  >
+                    {option.label}
+                  </Chip>
+                ))}
+              </View>
+              <Title style={styles.sectionTitle}>Poze spatiu (optional)</Title>
+              <Button mode="outlined" onPress={showRoomImageOptions} style={styles.addImageButton}>
+                Adauga poze
+              </Button>
+              {roomImages.length > 0 ? (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.roomImageRow}
                 >
-                  {option.label}
-                </Chip>
-              ))}
+                  {roomImages.map((img, imgIndex) => (
+                    <View key={`${img}-${imgIndex}`} style={styles.roomImageItem}>
+                      <Image source={{ uri: img }} style={styles.roomImagePreview} />
+                      <Button mode="text" onPress={() => handleRemoveRoomImage(img)}>
+                        Sterge
+                      </Button>
+                    </View>
+                  ))}
+                </ScrollView>
+              ) : (
+                <Text style={styles.noteText}>Nu sunt poze adaugate.</Text>
+              )}
+            </ScrollView>
+            <View style={styles.modalActions}>
+              <Button onPress={() => setDialogVisible(false)}>Anuleaza</Button>
+              <Button onPress={handleSaveRoom} loading={saving} disabled={saving}>
+                Salveaza
+              </Button>
             </View>
-            <Title style={styles.sectionTitle}>Layout (optional)</Title>
-            <View style={styles.optionRow}>
-              {LAYOUTS.map((option) => (
-                <Chip
-                  key={option.key}
-                  selected={layouts.includes(option.key)}
-                  onPress={() => toggleSelection(layouts, setLayouts, option.key)}
-                  style={styles.optionChip}
-                >
-                  {option.label}
-                </Chip>
-              ))}
-            </View>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setDialogVisible(false)}>Anuleaza</Button>
-            <Button onPress={handleSaveRoom} loading={saving} disabled={saving}>
-              Salveaza
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
+          </View>
+        </Modal>
       </Portal>
     </View>
   );
@@ -367,6 +483,40 @@ const styles = StyleSheet.create({
   input: {
     marginBottom: 12,
   },
+  modalContainer: {
+    alignSelf: 'center',
+    width: '92%',
+    height: '90%',
+    maxHeight: '90%',
+  },
+  modalCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  modalBody: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  modalContent: {
+    paddingBottom: 16,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    backgroundColor: '#fff',
+  },
   sectionTitle: {
     fontSize: 14,
     marginBottom: 8,
@@ -379,6 +529,27 @@ const styles = StyleSheet.create({
   optionChip: {
     marginRight: 8,
     marginBottom: 8,
+  },
+  addImageButton: {
+    marginBottom: 8,
+  },
+  noteText: {
+    color: '#666',
+    fontSize: 12,
+  },
+  roomImageRow: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  roomImageItem: {
+    marginRight: 12,
+    alignItems: 'center',
+  },
+  roomImagePreview: {
+    width: 120,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 8,
   },
   deleteButton: {
     backgroundColor: '#d32f2f',

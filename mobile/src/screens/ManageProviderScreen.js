@@ -13,6 +13,8 @@ import {
   Text,
   Switch,
   ActivityIndicator,
+  Modal,
+  Portal,
 } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import { bookingsAPI } from '../services/api';
@@ -47,6 +49,32 @@ const FUEL_OPTIONS = [
   { key: 'diesel', label: 'Diesel' },
   { key: 'hybrid', label: 'Hibrid' },
   { key: 'electric', label: 'Electric' },
+];
+
+const SPACE_TYPES = [
+  { key: 'meeting', label: 'Meeting room' },
+  { key: 'training', label: 'Training room' },
+  { key: 'conference', label: 'Conference hall' },
+  { key: 'congress', label: 'Congress hall' },
+];
+
+const AMENITIES = [
+  { key: 'stage', label: 'Scena' },
+  { key: 'audio_system', label: 'Sistem audio' },
+  { key: 'microphones', label: 'Microfoane' },
+  { key: 'projector_led', label: 'Proiector / LED wall' },
+  { key: 'stage_lights', label: 'Lumini scena' },
+  { key: 'translation_booth', label: 'Cabina traducere' },
+  { key: 'live_streaming', label: 'Live streaming' },
+  { key: 'catering', label: 'Catering posibil' },
+];
+
+const LAYOUTS = [
+  { key: 'theatre', label: 'Theatre' },
+  { key: 'classroom', label: 'Classroom' },
+  { key: 'u_shape', label: 'U-shape' },
+  { key: 'boardroom', label: 'Boardroom' },
+  { key: 'standing', label: 'Standing event' },
 ];
 
 const DEFAULT_WORKING_HOURS = DAYS.map((day) => ({
@@ -89,6 +117,18 @@ export default function ManageProviderScreen({ navigation, route }) {
   const [carPriceWeekend, setCarPriceWeekend] = useState('');
   const [carDeposit, setCarDeposit] = useState('');
   const [carIncludedKm, setCarIncludedKm] = useState('');
+
+  const [roomsDraft, setRoomsDraft] = useState([]);
+  const [roomDialogVisible, setRoomDialogVisible] = useState(false);
+  const [roomName, setRoomName] = useState('');
+  const [spaceType, setSpaceType] = useState('meeting');
+  const [capacity, setCapacity] = useState('');
+  const [pricePerHour, setPricePerHour] = useState('');
+  const [priceHalfDay, setPriceHalfDay] = useState('');
+  const [priceFullDay, setPriceFullDay] = useState('');
+  const [amenities, setAmenities] = useState([]);
+  const [layouts, setLayouts] = useState([]);
+  const [roomImages, setRoomImages] = useState([]);
 
   const [duration, setDuration] = useState(
     existingProvider?.booking_settings?.default_duration_minutes?.toString() || '90'
@@ -260,6 +300,113 @@ export default function ManageProviderScreen({ navigation, route }) {
     setEditingCarIndex(null);
   };
 
+  const resetRoomForm = () => {
+    setRoomName('');
+    setSpaceType('meeting');
+    setCapacity('');
+    setPricePerHour('');
+    setPriceHalfDay('');
+    setPriceFullDay('');
+    setAmenities([]);
+    setLayouts([]);
+    setRoomImages([]);
+  };
+
+  const toggleRoomSelection = (list, setList, key) => {
+    setList((prev) => (prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]));
+  };
+
+  const takeRoomPhoto = async () => {
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        allowsEditing: true,
+        aspect: [4, 3],
+      });
+
+      if (!result.canceled) {
+        setRoomImages((prev) => [...prev, result.assets[0].uri]);
+      }
+    } catch (error) {
+      Alert.alert('Eroare', 'Nu s-a putut face poza');
+    }
+  };
+
+  const pickRoomImages = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: true,
+        quality: 0.8,
+        allowsEditing: false,
+      });
+
+      if (!result.canceled) {
+        const imageUris = result.assets.map((asset) => asset.uri);
+        setRoomImages((prev) => [...prev, ...imageUris]);
+      }
+    } catch (error) {
+      Alert.alert('Eroare', 'Nu s-au putut selecta imaginile');
+    }
+  };
+
+  const showRoomImageOptions = () => {
+    Alert.alert('Adauga poze spatiu', 'Alege sursa imaginilor', [
+      { text: 'Fa o poza', onPress: takeRoomPhoto },
+      { text: 'Galerie foto', onPress: pickRoomImages },
+      { text: 'Anuleaza', style: 'cancel' },
+    ]);
+  };
+
+  const handleRemoveRoomImage = (url) => {
+    setRoomImages((prev) => prev.filter((item) => item !== url));
+  };
+
+  const handleAddRoomDraft = () => {
+    resetRoomForm();
+    setRoomDialogVisible(true);
+  };
+
+  const handleSaveRoomDraft = () => {
+    if (!roomName || !capacity) {
+      Alert.alert('Eroare', 'Completeaza numele si capacitatea spatiului.');
+      return;
+    }
+    const draft = {
+      name: roomName.trim(),
+      space_type: spaceType,
+      capacity: parseInt(capacity, 10),
+      price_per_hour: pricePerHour ? parseFloat(pricePerHour) : null,
+      price_half_day: priceHalfDay ? parseFloat(priceHalfDay) : null,
+      price_full_day: priceFullDay ? parseFloat(priceFullDay) : null,
+      amenities,
+      layouts,
+      images: roomImages,
+    };
+    setRoomsDraft((prev) => [draft, ...prev]);
+    setRoomDialogVisible(false);
+  };
+
+  const handleRemoveRoomDraft = (index) => {
+    setRoomsDraft((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  const saveRoomsToProvider = async (providerId) => {
+    if (!providerId || roomsDraft.length === 0) {
+      return { created: 0, failed: 0 };
+    }
+    const results = await Promise.all(
+      roomsDraft.map((room) => bookingsAPI.createRoom({ provider_id: providerId, ...room }))
+    );
+    const failed = results.filter((res) => !res.success).length;
+    const created = results.length - failed;
+    if (failed === 0) {
+      setRoomsDraft([]);
+    }
+    return { created, failed };
+  };
+
   const handleSaveCar = () => {
     if (!carBrand || !carModel || !carSeats || !carLuggage || !carPriceDay || !carDeposit) {
       Alert.alert('Eroare', 'Completeaza marca, modelul, locurile, bagajele, pretul/zi si garantia.');
@@ -375,7 +522,19 @@ export default function ManageProviderScreen({ navigation, route }) {
         : await bookingsAPI.createProvider(providerData);
 
       if (result.success) {
-        Alert.alert('Succes', isEdit ? 'Serviciul a fost actualizat.' : 'Serviciul a fost creat.', [
+        const providerId = isEdit ? existingProvider?.id : result.data?.id;
+        let roomSummary = null;
+        if (category === 'location_space' && providerId) {
+          roomSummary = await saveRoomsToProvider(providerId);
+        }
+        let message = isEdit ? 'Serviciul a fost actualizat.' : 'Serviciul a fost creat.';
+        if (roomSummary && (roomSummary.created > 0 || roomSummary.failed > 0)) {
+          message += ` Spatii adaugate: ${roomSummary.created}.`;
+          if (roomSummary.failed > 0) {
+            message += ' Unele spatii nu au putut fi salvate.';
+          }
+        }
+        Alert.alert('Succes', message, [
           { text: 'OK', onPress: () => navigation.navigate('Services') },
         ]);
       } else {
@@ -508,6 +667,37 @@ export default function ManageProviderScreen({ navigation, route }) {
             )}
           </Card.Content>
         </Card>
+
+        {category === 'location_space' && (
+          <Card style={styles.card}>
+            <Card.Content>
+              <Title>Spatii (optional)</Title>
+              <Text style={styles.noteText}>Adauga spatiile pe care vrei sa le salvezi la acest serviciu.</Text>
+              <Button mode="outlined" icon="office-building" onPress={handleAddRoomDraft}>
+                Adauga Spatiu
+              </Button>
+              {roomsDraft.length > 0 ? (
+                <View style={styles.roomList}>
+                  {roomsDraft.map((room, index) => (
+                    <View key={`${room.name}-${index}`} style={styles.roomItem}>
+                      <View style={styles.roomHeader}>
+                        <Text style={styles.roomTitle}>{room.name}</Text>
+                        <Button mode="text" onPress={() => handleRemoveRoomDraft(index)}>
+                          Sterge
+                        </Button>
+                      </View>
+                      <Text style={styles.roomMeta}>
+                        {String(room.space_type || '').replace(/_/g, ' ')} • {room.capacity} pers
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.noteText}>Nu ai spatii adaugate inca.</Text>
+              )}
+            </Card.Content>
+          </Card>
+        )}
 
         {category === 'rent_a_car' && (
           <Card style={styles.card}>
@@ -819,6 +1009,126 @@ export default function ManageProviderScreen({ navigation, route }) {
           {isEdit ? 'Salveaza Modificari' : 'Creeaza Serviciu'}
         </Button>
       </ScrollView>
+
+      <Portal>
+        <Modal
+          visible={roomDialogVisible}
+          onDismiss={() => setRoomDialogVisible(false)}
+          contentContainerStyle={styles.roomModalContainer}
+        >
+          <View style={styles.roomModalCard}>
+            <View style={styles.roomModalHeader}>
+              <Title>Adauga Spatiu</Title>
+            </View>
+            <ScrollView
+              style={styles.roomModalBody}
+              contentContainerStyle={styles.roomModalContent}
+              keyboardShouldPersistTaps="handled"
+            >
+              <TextInput
+                label="Nume spatiu *"
+                value={roomName}
+                onChangeText={setRoomName}
+                mode="outlined"
+                style={styles.input}
+              />
+              <TextInput
+                label="Capacitate maxima *"
+                value={capacity}
+                onChangeText={setCapacity}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <Text style={styles.sectionTitle}>Tip spatiu</Text>
+              <View style={styles.optionRow}>
+                {SPACE_TYPES.map((option) => (
+                  <Chip
+                    key={option.key}
+                    selected={spaceType === option.key}
+                    onPress={() => setSpaceType(option.key)}
+                    style={styles.optionChip}
+                  >
+                    {option.label}
+                  </Chip>
+                ))}
+              </View>
+              <TextInput
+                label="Pret / ora (optional)"
+                value={pricePerHour}
+                onChangeText={setPricePerHour}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <TextInput
+                label="Pret / jumatate zi (optional)"
+                value={priceHalfDay}
+                onChangeText={setPriceHalfDay}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <TextInput
+                label="Pret / zi intreaga (optional)"
+                value={priceFullDay}
+                onChangeText={setPriceFullDay}
+                mode="outlined"
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <Text style={styles.sectionTitle}>Dotari</Text>
+              <View style={styles.optionRow}>
+                {AMENITIES.map((option) => (
+                  <Chip
+                    key={option.key}
+                    selected={amenities.includes(option.key)}
+                    onPress={() => toggleRoomSelection(amenities, setAmenities, option.key)}
+                    style={styles.optionChip}
+                  >
+                    {option.label}
+                  </Chip>
+                ))}
+              </View>
+              <Text style={styles.sectionTitle}>Layout (optional)</Text>
+              <View style={styles.optionRow}>
+                {LAYOUTS.map((option) => (
+                  <Chip
+                    key={option.key}
+                    selected={layouts.includes(option.key)}
+                    onPress={() => toggleRoomSelection(layouts, setLayouts, option.key)}
+                    style={styles.optionChip}
+                  >
+                    {option.label}
+                  </Chip>
+                ))}
+              </View>
+              <Text style={styles.sectionTitle}>Poze spatiu (optional)</Text>
+              <Button mode="outlined" onPress={showRoomImageOptions} style={styles.addImageButton}>
+                Adauga poze
+              </Button>
+              {roomImages.length > 0 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.roomImageRow}>
+                  {roomImages.map((img, imgIndex) => (
+                    <View key={`${img}-${imgIndex}`} style={styles.roomImageItem}>
+                      <Image source={{ uri: img }} style={styles.roomImagePreview} />
+                      <Button mode="text" onPress={() => handleRemoveRoomImage(img)}>
+                        Sterge
+                      </Button>
+                    </View>
+                  ))}
+                </ScrollView>
+              ) : (
+                <Text style={styles.noteText}>Nu sunt poze adaugate.</Text>
+              )}
+            </ScrollView>
+            <View style={styles.roomModalActions}>
+              <Button onPress={() => setRoomDialogVisible(false)}>Anuleaza</Button>
+              <Button onPress={handleSaveRoomDraft}>Salveaza</Button>
+            </View>
+          </View>
+        </Modal>
+      </Portal>
     </View>
   );
 }
@@ -869,6 +1179,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   carImagePreview: {
+    width: 120,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  roomImageRow: {
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  roomImageItem: {
+    marginRight: 12,
+    alignItems: 'center',
+  },
+  roomImagePreview: {
     width: 120,
     height: 80,
     borderRadius: 8,
@@ -947,6 +1271,62 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 12,
     marginTop: 2,
+  },
+  roomList: {
+    marginTop: 12,
+  },
+  roomItem: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  roomHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  roomTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  roomMeta: {
+    color: '#666',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  roomModalContainer: {
+    alignSelf: 'center',
+    width: '92%',
+    height: '90%',
+    maxHeight: '90%',
+  },
+  roomModalCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  roomModalHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  roomModalBody: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  roomModalContent: {
+    paddingBottom: 16,
+  },
+  roomModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    backgroundColor: '#fff',
   },
   saveButton: {
     marginVertical: 10,

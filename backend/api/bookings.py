@@ -140,6 +140,7 @@ class RoomCreateRequest(BaseModel):
     price_full_day: Optional[float] = None
     amenities: List[str] = []
     layouts: List[str] = []
+    images: List[str] = []
 
 
 class RoomResponse(BaseModel):
@@ -154,6 +155,7 @@ class RoomResponse(BaseModel):
     price_full_day: Optional[float] = None
     amenities: List[str] = []
     layouts: List[str] = []
+    images: List[str] = []
     status: str
 
 
@@ -954,6 +956,7 @@ async def create_room(request: RoomCreateRequest, current_user: dict = Depends(g
         price_full_day=request.price_full_day,
         amenities=request.amenities,
         layouts=request.layouts,
+        images=request.images,
         status="active"
     )
 
@@ -970,6 +973,7 @@ async def create_room(request: RoomCreateRequest, current_user: dict = Depends(g
         price_full_day=room.price_full_day,
         amenities=room.amenities,
         layouts=room.layouts,
+        images=room.images,
         status=room.status
     )
 
@@ -999,6 +1003,7 @@ async def list_rooms(provider_id: str):
             price_full_day=r.get("price_full_day"),
             amenities=r.get("amenities", []),
             layouts=r.get("layouts", []),
+            images=r.get("images", []),
             status=r.get("status", "active")
         )
         for r in rooms

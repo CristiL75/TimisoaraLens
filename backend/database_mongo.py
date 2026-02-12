@@ -293,6 +293,7 @@ class Room(BaseModel):
     price_full_day: Optional[float] = None
     amenities: list[str] = []
     layouts: list[str] = []
+    images: list[str] = []
 
     status: str = "active"
     created_at: datetime = Field(default_factory=datetime.utcnow)
