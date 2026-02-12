@@ -2,7 +2,7 @@
  * Book Service Screen - Make a reservation at a provider
  */
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Image } from 'react-native';
 import {
   Appbar,
   Card,
@@ -860,9 +860,26 @@ export default function BookServiceScreen({ navigation, route }) {
                   <Text style={styles.description}>{provider.description}</Text>
                 )}
                 {selectedRoom && (
-                  <Text style={styles.noteText}>
-                    {selectedRoom.name} • {selectedRoom.capacity} pers
-                  </Text>
+                  <>
+                    <Text style={styles.noteText}>
+                      {selectedRoom.name} • {selectedRoom.capacity} pers
+                    </Text>
+                    {selectedRoom.images && selectedRoom.images.length > 0 && (
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.roomImageRow}
+                      >
+                        {selectedRoom.images.map((img, imgIndex) => (
+                          <Image
+                            key={`${img}-${imgIndex}`}
+                            source={{ uri: img }}
+                            style={styles.roomImagePreview}
+                          />
+                        ))}
+                      </ScrollView>
+                    )}
+                  </>
                 )}
               </Card.Content>
             </Card>
@@ -1740,6 +1757,16 @@ const styles = StyleSheet.create({
   map: {
     width: '100%',
     height: 160,
+  },
+  roomImageRow: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  roomImagePreview: {
+    width: 160,
+    height: 100,
+    borderRadius: 8,
+    marginRight: 8,
   },
   bookButton: {
     marginVertical: 20,

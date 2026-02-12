@@ -53,6 +53,7 @@ export default function ManageRoomsScreen({ navigation, route }) {
   const [loading, setLoading] = useState(true);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingRoomId, setEditingRoomId] = useState(null);
 
   const [roomName, setRoomName] = useState('');
   const [spaceType, setSpaceType] = useState('meeting');
@@ -95,7 +96,7 @@ export default function ManageRoomsScreen({ navigation, route }) {
     }
   };
 
-  const handleAddRoom = () => {
+  const resetRoomForm = () => {
     setRoomName('');
     setSpaceType('meeting');
     setCapacity('');
@@ -105,6 +106,26 @@ export default function ManageRoomsScreen({ navigation, route }) {
     setAmenities([]);
     setLayouts([]);
     setRoomImages([]);
+    setEditingRoomId(null);
+  };
+
+  const handleAddRoom = () => {
+    resetRoomForm();
+    setDialogVisible(true);
+  };
+
+  const handleEditRoom = (room) => {
+    if (!room) return;
+    setRoomName(room.name || '');
+    setSpaceType(room.space_type || 'meeting');
+    setCapacity(room.capacity != null ? String(room.capacity) : '');
+    setPricePerHour(room.price_per_hour != null ? String(room.price_per_hour) : '');
+    setPriceHalfDay(room.price_half_day != null ? String(room.price_half_day) : '');
+    setPriceFullDay(room.price_full_day != null ? String(room.price_full_day) : '');
+    setAmenities(room.amenities || []);
+    setLayouts(room.layouts || []);
+    setRoomImages(room.images || []);
+    setEditingRoomId(room.id || room._id || null);
     setDialogVisible(true);
   };
 
@@ -181,16 +202,24 @@ export default function ManageRoomsScreen({ navigation, route }) {
     };
 
     try {
-      const result = await bookingsAPI.createRoom(roomData);
+      const result = editingRoomId
+        ? await bookingsAPI.updateRoom(editingRoomId, roomData)
+        : await bookingsAPI.createRoom(roomData);
       if (result.success) {
         setDialogVisible(false);
-        setRoomImages([]);
+        resetRoomForm();
         if (result.data) {
-          setRooms((prev) => [normalizeRoom(result.data), ...prev]);
+          if (editingRoomId) {
+            setRooms((prev) => prev.map((item) => (
+              (item.id || item._id) === editingRoomId ? normalizeRoom(result.data) : item
+            )));
+          } else {
+            setRooms((prev) => [normalizeRoom(result.data), ...prev]);
+          }
         } else {
           loadRooms();
         }
-        Alert.alert('Succes', 'Spatiul a fost adaugat');
+        Alert.alert('Succes', editingRoomId ? 'Spatiul a fost actualizat' : 'Spatiul a fost adaugat');
       } else {
         Alert.alert('Eroare', result.error || 'Nu s-a putut salva spatiul');
       }
@@ -311,6 +340,14 @@ export default function ManageRoomsScreen({ navigation, route }) {
                 </ScrollView>
               )}
               <Card.Actions>
+                <Button
+                  mode="outlined"
+                  icon="pencil"
+                  onPress={() => handleEditRoom(room)}
+                  style={styles.editButton}
+                >
+                  Editeaza
+                </Button>
                 <Button
                   mode="contained"
                   icon="delete"
@@ -444,7 +481,12 @@ export default function ManageRoomsScreen({ navigation, route }) {
               )}
             </ScrollView>
             <View style={styles.modalActions}>
-              <Button onPress={() => setDialogVisible(false)}>Anuleaza</Button>
+              <Button onPress={() => {
+                setDialogVisible(false);
+                resetRoomForm();
+              }}>
+                Anuleaza
+              </Button>
               <Button onPress={handleSaveRoom} loading={saving} disabled={saving}>
                 Salveaza
               </Button>
@@ -529,6 +571,9 @@ const styles = StyleSheet.create({
   optionChip: {
     marginRight: 8,
     marginBottom: 8,
+  },
+  editButton: {
+    marginRight: 8,
   },
   addImageButton: {
     marginBottom: 8,

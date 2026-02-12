@@ -1010,6 +1010,64 @@ async def list_rooms(provider_id: str):
     ]
 
 
+@router.put("/rooms/{room_id}", response_model=RoomResponse)
+async def update_room(room_id: str, request: RoomCreateRequest, current_user: dict = Depends(get_current_user)):
+    """Update a room/hall for a provider"""
+    providers_col = get_providers_collection()
+    rooms_col = get_rooms_collection()
+
+    if not ObjectId.is_valid(room_id) or not ObjectId.is_valid(request.provider_id):
+        raise HTTPException(status_code=400, detail="Invalid room or provider ID")
+
+    room = await rooms_col.find_one({"_id": ObjectId(room_id)})
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    provider = await providers_col.find_one({"_id": ObjectId(request.provider_id)})
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    if str(provider.get("user_id")) != str(current_user.get("id")):
+        raise HTTPException(status_code=403, detail="Not authorized to manage this provider")
+
+    update_data = {
+        "name": request.name,
+        "space_type": request.space_type,
+        "capacity": request.capacity,
+        "price_per_hour": request.price_per_hour,
+        "price_half_day": request.price_half_day,
+        "price_full_day": request.price_full_day,
+        "amenities": request.amenities,
+        "layouts": request.layouts,
+        "images": request.images,
+        "updated_at": datetime.utcnow(),
+    }
+
+    await rooms_col.update_one(
+        {"_id": ObjectId(room_id)},
+        {"$set": update_data}
+    )
+
+    updated_room = await rooms_col.find_one({"_id": ObjectId(room_id)})
+    if not updated_room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    return RoomResponse(
+        id=str(updated_room["_id"]),
+        provider_id=str(updated_room["provider_id"]),
+        name=updated_room.get("name", ""),
+        space_type=updated_room.get("space_type", ""),
+        capacity=updated_room.get("capacity", 0),
+        price_per_hour=updated_room.get("price_per_hour"),
+        price_half_day=updated_room.get("price_half_day"),
+        price_full_day=updated_room.get("price_full_day"),
+        amenities=updated_room.get("amenities", []),
+        layouts=updated_room.get("layouts", []),
+        images=updated_room.get("images", []),
+        status=updated_room.get("status", "active"),
+    )
+
+
 @router.delete("/rooms/{room_id}")
 async def delete_room(room_id: str, current_user: dict = Depends(get_current_user)):
     """Delete (deactivate) a room for a provider"""

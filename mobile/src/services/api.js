@@ -489,6 +489,22 @@ export const bookingsAPI = {
   },
 
   /**
+   * Update a room/hall
+   */
+  updateRoom: async (roomId, roomData) => {
+    try {
+      const response = await api.put(`/bookings/rooms/${roomId}`, roomData);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] updateRoom error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to update room',
+      };
+    }
+  },
+
+  /**
    * Delete (deactivate) a room
    */
   deleteRoom: async (roomId) => {

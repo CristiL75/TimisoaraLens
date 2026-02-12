@@ -108,6 +108,21 @@ export default function ProviderDetailScreen({ route, navigation }) {
                     <Text style={styles.fleetMeta}>
                       {String(room.space_type || '').replace(/_/g, ' ')} • {room.capacity} pers
                     </Text>
+                    {room.images && room.images.length > 0 && (
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.roomImageRow}
+                      >
+                        {room.images.map((img, imgIndex) => (
+                          <Image
+                            key={`${img}-${imgIndex}`}
+                            source={{ uri: img }}
+                            style={styles.roomImage}
+                          />
+                        ))}
+                      </ScrollView>
+                    )}
                     {(room.price_per_hour != null || room.price_half_day != null || room.price_full_day != null) && (
                       <Text style={styles.fleetMeta}>
                         {room.price_per_hour != null ? `${room.price_per_hour} lei/ora` : ''}
@@ -204,6 +219,16 @@ const styles = StyleSheet.create({
   tagsRow: { flexDirection: 'row', marginTop: 8 },
   ownerActions: { margin: 16, flexDirection: 'row', justifyContent: 'center' },
   actionBtn: { marginHorizontal: 8 },
+  roomImageRow: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  roomImage: {
+    width: 180,
+    height: 120,
+    borderRadius: 10,
+    marginRight: 10,
+  },
   mapContainer: {
     marginTop: 12,
     borderRadius: 8,
