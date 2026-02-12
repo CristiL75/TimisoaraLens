@@ -37,6 +37,10 @@ const SERVICE_CATEGORIES = [
   { key: 'beauty', label: 'Beauty' },
   { key: 'rent_a_car', label: 'Rent-a-Car' },
   { key: 'location_space', label: 'Locatie / Business' },
+  { key: 'curatenie_zilnica', label: 'Curatenie zilnica' },
+  { key: 'curatenie_generala', label: 'Curatenie generala' },
+  { key: 'electrician', label: 'Electrician' },
+  { key: 'instalator', label: 'Instalator' },
 ];
 
 const TRANSMISSION_OPTIONS = [

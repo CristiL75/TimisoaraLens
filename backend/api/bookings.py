@@ -21,14 +21,12 @@ from database_mongo import (
     get_services_collection,
     get_employees_collection,
     get_users_collection,
-    get_service_offers_collection,
     Provider,
     Table,
     Room,
     Booking,
     Service,
     Employee,
-    ServiceOfferAvailability,
     BookingSettings,
     WorkingHours,
     Car,
@@ -39,13 +37,6 @@ from auth_utils import get_current_user, SECRET_KEY, ALGORITHM
 # Router trebuie definit imediat după importuri
 router = APIRouter(tags=["Bookings"])
 
-ALLOWED_SERVICE_OFFERS = {
-    "curatenie_zilnica",
-    "curatenie_generala",
-    "electrician",
-    "instalator",
-}
-ALLOWED_SERVICE_OFFER_PRICING = {"per_hour", "per_service"}
 
 
 async def purge_expired_bookings(bookings_col) -> None:
@@ -209,27 +200,6 @@ class EmployeeResponse(BaseModel):
     service_ids: List[str] = []
     working_hours: List[WorkingHours] = []
     status: str
-
-
-class ServiceOfferRequest(BaseModel):
-    """Request to create/update a standalone service offer"""
-    services: List[str] = []
-    price_type: str
-    price_value: float
-    availability: ServiceOfferAvailability
-
-
-class ServiceOfferResponse(BaseModel):
-    """Service offer response"""
-    id: str
-    user_id: str
-    services: List[str]
-    price_type: str
-    price_value: float
-    availability: ServiceOfferAvailability
-    status: str
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
 
 
 class BookingCreateRequest(BaseModel):
@@ -2276,93 +2246,6 @@ async def check_availability(
         ))
 
     return AvailabilityResponse(date=date, slots=slots, tables=table_availability)
-
-
-def normalize_service_offer(doc: dict) -> dict:
-    doc["id"] = str(doc.get("_id"))
-    doc.pop("_id", None)
-    return doc
-
-
-def validate_service_offer(request: ServiceOfferRequest) -> None:
-    if not request.services:
-        raise HTTPException(status_code=400, detail="At least one service must be selected")
-    invalid = [item for item in request.services if item not in ALLOWED_SERVICE_OFFERS]
-    if invalid:
-        raise HTTPException(status_code=400, detail=f"Invalid services: {', '.join(invalid)}")
-    if request.price_type not in ALLOWED_SERVICE_OFFER_PRICING:
-        raise HTTPException(status_code=400, detail="Invalid price type")
-    if request.price_value < 0:
-        raise HTTPException(status_code=400, detail="Price must be non-negative")
-    if not request.availability.days:
-        raise HTTPException(status_code=400, detail="Availability days cannot be empty")
-
-
-@router.get("/service-offers", response_model=List[ServiceOfferResponse])
-async def list_service_offers():
-    """List all active service offers"""
-    offers_col = get_service_offers_collection()
-    cursor = offers_col.find({"status": "active"})
-    results = []
-    async for doc in cursor:
-        results.append(normalize_service_offer(doc))
-    return results
-
-
-@router.get("/service-offers/me", response_model=ServiceOfferResponse)
-async def get_my_service_offer(current_user: dict = Depends(get_current_user)):
-    """Get current user's service offer"""
-    if not current_user.get("id"):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
-    offers_col = get_service_offers_collection()
-    doc = await offers_col.find_one({"user_id": current_user["id"]})
-    if not doc:
-        raise HTTPException(status_code=404, detail="Service offer not found")
-    return normalize_service_offer(doc)
-
-
-@router.put("/service-offers/me", response_model=ServiceOfferResponse)
-async def upsert_my_service_offer(
-    request: ServiceOfferRequest,
-    current_user: dict = Depends(get_current_user),
-):
-    """Create or update current user's service offer"""
-    if not current_user.get("id"):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
-
-    validate_service_offer(request)
-
-    offers_col = get_service_offers_collection()
-    now = datetime.utcnow()
-    availability_payload = (
-        request.availability.model_dump()
-        if hasattr(request.availability, "model_dump")
-        else dict(request.availability)
-    )
-    payload = {
-        "services": request.services,
-        "price_type": request.price_type,
-        "price_value": request.price_value,
-        "availability": availability_payload,
-        "updated_at": now,
-        "status": "active",
-    }
-
-    existing = await offers_col.find_one({"user_id": current_user["id"]})
-    if existing:
-        await offers_col.update_one({"_id": existing["_id"]}, {"$set": payload})
-        doc = await offers_col.find_one({"_id": existing["_id"]})
-    else:
-        payload.update({
-            "user_id": current_user["id"],
-            "created_at": now,
-        })
-        result = await offers_col.insert_one(payload)
-        doc = await offers_col.find_one({"_id": result.inserted_id})
-
-    if not doc:
-        raise HTTPException(status_code=500, detail="Failed to save service offer")
-    return normalize_service_offer(doc)
 
 
 @router.get("/{booking_id}", response_model=BookingResponse)
