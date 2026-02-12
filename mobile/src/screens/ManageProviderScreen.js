@@ -43,6 +43,13 @@ const SERVICE_CATEGORIES = [
   { key: 'instalator', label: 'Instalator' },
 ];
 
+const NO_PRICE_EMPLOYEE_CATEGORIES = [
+  'curatenie_zilnica',
+  'curatenie_generala',
+  'electrician',
+  'instalator',
+];
+
 const TRANSMISSION_OPTIONS = [
   { key: 'manual', label: 'Manuala' },
   { key: 'automatic', label: 'Automata' },
@@ -160,9 +167,11 @@ export default function ManageProviderScreen({ navigation, route }) {
     existingProvider?.tables || []
   );
 
-  const [workingHours] = useState(
+  const [workingHours, setWorkingHours] = useState(
     existingProvider?.working_hours || DEFAULT_WORKING_HOURS
   );
+
+  const isNoPriceEmployeeCategory = NO_PRICE_EMPLOYEE_CATEGORIES.includes(category);
 
   useEffect(() => {
     if (existingProvider?.category) {
@@ -179,6 +188,93 @@ export default function ManageProviderScreen({ navigation, route }) {
     setFacilities((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const buildFormDraft = () => ({
+    category,
+    name,
+    email,
+    phone,
+    description,
+    address,
+    latitude,
+    longitude,
+    images,
+    cars,
+    carImages,
+    carDeliveryRadius,
+    editingCarIndex,
+    carBrand,
+    carModel,
+    carYear,
+    carSeats,
+    carLuggage,
+    carTransmission,
+    carFuel,
+    carConsumption,
+    carPriceDay,
+    carPriceWeekend,
+    carDeposit,
+    carIncludedKm,
+    roomsDraft,
+    roomName,
+    spaceType,
+    capacity,
+    pricePerHour,
+    priceHalfDay,
+    priceFullDay,
+    amenities,
+    layouts,
+    roomImages,
+    duration,
+    buffer,
+    facilities,
+    tables,
+    workingHours,
+  });
+
+  const applyFormDraft = (draft) => {
+    if (!draft) return;
+    if (draft.category !== undefined) setCategory(draft.category);
+    if (draft.name !== undefined) setName(draft.name);
+    if (draft.email !== undefined) setEmail(draft.email);
+    if (draft.phone !== undefined) setPhone(draft.phone);
+    if (draft.description !== undefined) setDescription(draft.description);
+    if (draft.address !== undefined) setAddress(draft.address);
+    if (draft.latitude !== undefined) setLatitude(draft.latitude);
+    if (draft.longitude !== undefined) setLongitude(draft.longitude);
+    if (draft.images !== undefined) setImages(draft.images);
+    if (draft.cars !== undefined) setCars(draft.cars);
+    if (draft.carImages !== undefined) setCarImages(draft.carImages);
+    if (draft.carDeliveryRadius !== undefined) setCarDeliveryRadius(draft.carDeliveryRadius);
+    if (draft.editingCarIndex !== undefined) setEditingCarIndex(draft.editingCarIndex);
+    if (draft.carBrand !== undefined) setCarBrand(draft.carBrand);
+    if (draft.carModel !== undefined) setCarModel(draft.carModel);
+    if (draft.carYear !== undefined) setCarYear(draft.carYear);
+    if (draft.carSeats !== undefined) setCarSeats(draft.carSeats);
+    if (draft.carLuggage !== undefined) setCarLuggage(draft.carLuggage);
+    if (draft.carTransmission !== undefined) setCarTransmission(draft.carTransmission);
+    if (draft.carFuel !== undefined) setCarFuel(draft.carFuel);
+    if (draft.carConsumption !== undefined) setCarConsumption(draft.carConsumption);
+    if (draft.carPriceDay !== undefined) setCarPriceDay(draft.carPriceDay);
+    if (draft.carPriceWeekend !== undefined) setCarPriceWeekend(draft.carPriceWeekend);
+    if (draft.carDeposit !== undefined) setCarDeposit(draft.carDeposit);
+    if (draft.carIncludedKm !== undefined) setCarIncludedKm(draft.carIncludedKm);
+    if (draft.roomsDraft !== undefined) setRoomsDraft(draft.roomsDraft);
+    if (draft.roomName !== undefined) setRoomName(draft.roomName);
+    if (draft.spaceType !== undefined) setSpaceType(draft.spaceType);
+    if (draft.capacity !== undefined) setCapacity(draft.capacity);
+    if (draft.pricePerHour !== undefined) setPricePerHour(draft.pricePerHour);
+    if (draft.priceHalfDay !== undefined) setPriceHalfDay(draft.priceHalfDay);
+    if (draft.priceFullDay !== undefined) setPriceFullDay(draft.priceFullDay);
+    if (draft.amenities !== undefined) setAmenities(draft.amenities);
+    if (draft.layouts !== undefined) setLayouts(draft.layouts);
+    if (draft.roomImages !== undefined) setRoomImages(draft.roomImages);
+    if (draft.duration !== undefined) setDuration(draft.duration);
+    if (draft.buffer !== undefined) setBuffer(draft.buffer);
+    if (draft.facilities !== undefined) setFacilities(draft.facilities);
+    if (draft.tables !== undefined) setTables(draft.tables);
+    if (draft.workingHours !== undefined) setWorkingHours(draft.workingHours);
+  };
+
   const handleLocationSelected = (location) => {
     setLatitude(location.latitude);
     setLongitude(location.longitude);
@@ -188,9 +284,16 @@ export default function ManageProviderScreen({ navigation, route }) {
   useEffect(() => {
     if (route?.params?.pickedLocation) {
       handleLocationSelected(route.params.pickedLocation);
-      navigation.setParams({ pickedLocation: null, pickedLocationTarget: null });
+      navigation.setParams({ pickedLocation: null, pickedLocationTarget: null, formDraft: null });
     }
   }, [route?.params?.pickedLocation, route?.params?.pickedLocationTarget]);
+
+  useEffect(() => {
+    if (route?.params?.formDraft) {
+      applyFormDraft(route.params.formDraft);
+      navigation.setParams({ formDraft: null });
+    }
+  }, [route?.params?.formDraft]);
 
   const takePhoto = async () => {
     try {
@@ -626,6 +729,7 @@ export default function ManageProviderScreen({ navigation, route }) {
                 onPress={() => navigation.navigate('LocationPicker', {
                   initialLocation: latitude && longitude ? { latitude, longitude, address } : null,
                   returnTo: 'ManageProvider',
+                  formDraft: buildFormDraft(),
                 })}
                 style={styles.locationButton}
               >
@@ -962,7 +1066,7 @@ export default function ManageProviderScreen({ navigation, route }) {
           </Card>
         )}
 
-        {isEdit && category !== 'food_drinks' && category !== 'rent_a_car' && category !== 'location_space' && (
+        {isEdit && category !== 'food_drinks' && category !== 'rent_a_car' && category !== 'location_space' && !isNoPriceEmployeeCategory && (
           <Card style={styles.card}>
             <Card.Content>
               <Title>Servicii si Angajati</Title>

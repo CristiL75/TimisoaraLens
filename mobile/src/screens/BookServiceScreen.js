@@ -36,6 +36,13 @@ const PRICING_UNITS = [
   { key: 'full_day', label: 'Zi intreaga' },
 ];
 
+const NO_EMPLOYEE_CATEGORIES = [
+  'curatenie_zilnica',
+  'curatenie_generala',
+  'electrician',
+  'instalator',
+];
+
 export default function BookServiceScreen({ navigation, route }) {
   const providerParam = route?.params?.provider || null;
   const providerIdParam = route?.params?.providerId || providerParam?.id || null;
@@ -47,6 +54,7 @@ export default function BookServiceScreen({ navigation, route }) {
   const isRestaurant = provider?.category === 'food_drinks';
   const isRentCar = provider?.category === 'rent_a_car';
   const isLocationSpace = provider?.category === 'location_space';
+  const isNoEmployeeCategory = NO_EMPLOYEE_CATEGORIES.includes(provider?.category);
 
   const [loading, setLoading] = useState(false);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
@@ -251,11 +259,13 @@ export default function BookServiceScreen({ navigation, route }) {
   useEffect(() => {
     const loadServicesAndEmployees = async () => {
       setLoadingServices(true);
-      setLoadingEmployees(true);
+      setLoadingEmployees(!isNoEmployeeCategory);
       try {
         const [servicesRes, employeesRes] = await Promise.all([
           bookingsAPI.getServices(provider.id),
-          bookingsAPI.getEmployees(provider.id),
+          isNoEmployeeCategory
+            ? Promise.resolve({ success: true, data: [] })
+            : bookingsAPI.getEmployees(provider.id),
         ]);
         if (servicesRes.success) {
           setServices(servicesRes.data || []);
@@ -351,8 +361,8 @@ export default function BookServiceScreen({ navigation, route }) {
       return;
     }
     if (isAppointment) {
-      if (!bookingDate || !selectedServiceId || !selectedEmployeeId) {
-        Alert.alert('Eroare', 'Selectează data, serviciul și angajatul');
+      if (!bookingDate || !selectedServiceId || (!isNoEmployeeCategory && !selectedEmployeeId)) {
+        Alert.alert('Eroare', isNoEmployeeCategory ? 'Selectează data și serviciul' : 'Selectează data, serviciul și angajatul');
         return;
       }
     } else {
@@ -428,8 +438,8 @@ export default function BookServiceScreen({ navigation, route }) {
       return;
     }
 
-    if (isAppointment && (!selectedServiceId || !selectedEmployeeId)) {
-      Alert.alert('Eroare', 'Selectează serviciul și angajatul');
+    if (isAppointment && (!selectedServiceId || (!isNoEmployeeCategory && !selectedEmployeeId))) {
+      Alert.alert('Eroare', isNoEmployeeCategory ? 'Selectează serviciul' : 'Selectează serviciul și angajatul');
       return;
     }
 
@@ -441,7 +451,7 @@ export default function BookServiceScreen({ navigation, route }) {
       provider_id: provider.id,
       table_id: selectedTableId || null,
       service_id: isAppointment ? selectedServiceId : null,
-      employee_id: isAppointment ? selectedEmployeeId : null,
+      employee_id: isAppointment && !isNoEmployeeCategory ? selectedEmployeeId : null,
       customer_name: customerName,
       customer_email: effectiveEmail,
       customer_phone: customerPhone,
@@ -458,7 +468,7 @@ export default function BookServiceScreen({ navigation, route }) {
     try {
       const result = await bookingsAPI.createBooking(bookingData);
       if (result.success) {
-        const priceLine = isAppointment && selectedService?.price != null
+        const priceLine = isAppointment && !isNoEmployeeCategory && selectedService?.price != null
           ? ` Pret: ${selectedService.price} lei.`
           : '';
         Alert.alert(
@@ -1067,9 +1077,11 @@ export default function BookServiceScreen({ navigation, route }) {
                   >
                     {provider.booking_settings.auto_confirm ? 'Auto-confirm' : 'Manual'}
                   </Chip>
-                  <Chip icon="currency-usd" mode="outlined" style={styles.chip}>
-                    {selectedService?.price} RON
-                  </Chip>
+                  {!isNoEmployeeCategory && (
+                    <Chip icon="currency-usd" mode="outlined" style={styles.chip}>
+                      {selectedService?.price} RON
+                    </Chip>
+                  )}
                 </View>
               </Card.Content>
             </Card>
@@ -1170,29 +1182,33 @@ export default function BookServiceScreen({ navigation, route }) {
                   </View>
                 )}
 
-                <Text style={[styles.slotsTitle, { marginTop: 12 }]}>Angajat</Text>
-                {loadingEmployees ? (
-                  <ActivityIndicator size="small" color="#4CAF50" />
-                ) : filteredEmployees.length === 0 ? (
-                  <Text style={styles.emptyText}>Nu exista angajati disponibili.</Text>
-                ) : (
-                  <View style={styles.slotsGrid}>
-                    {filteredEmployees.map((employee) => (
-                      <Chip
-                        key={employee.id}
-                        selected={selectedEmployeeId === employee.id}
-                        onPress={() => {
-                          setSelectedEmployeeId(employee.id);
-                          setSelectedTime('');
-                          setAvailability(null);
-                        }}
-                        mode="outlined"
-                        style={styles.slotChip}
-                      >
-                        {employee.name}
-                      </Chip>
-                    ))}
-                  </View>
+                {!isNoEmployeeCategory && (
+                  <>
+                    <Text style={[styles.slotsTitle, { marginTop: 12 }]}>Angajat</Text>
+                    {loadingEmployees ? (
+                      <ActivityIndicator size="small" color="#4CAF50" />
+                    ) : filteredEmployees.length === 0 ? (
+                      <Text style={styles.emptyText}>Nu exista angajati disponibili.</Text>
+                    ) : (
+                      <View style={styles.slotsGrid}>
+                        {filteredEmployees.map((employee) => (
+                          <Chip
+                            key={employee.id}
+                            selected={selectedEmployeeId === employee.id}
+                            onPress={() => {
+                              setSelectedEmployeeId(employee.id);
+                              setSelectedTime('');
+                              setAvailability(null);
+                            }}
+                            mode="outlined"
+                            style={styles.slotChip}
+                          >
+                            {employee.name}
+                          </Chip>
+                        ))}
+                      </View>
+                    )}
+                  </>
                 )}
               </View>
             )}

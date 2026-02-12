@@ -37,6 +37,13 @@ from auth_utils import get_current_user, SECRET_KEY, ALGORITHM
 # Router trebuie definit imediat după importuri
 router = APIRouter(tags=["Bookings"])
 
+NO_EMPLOYEE_CATEGORIES = {
+    "curatenie_zilnica",
+    "curatenie_generala",
+    "electrician",
+    "instalator",
+}
+
 
 
 async def purge_expired_bookings(bookings_col) -> None:
@@ -634,6 +641,35 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
         )
         result = await providers_col.insert_one(provider.model_dump(by_alias=True, exclude={"id"}))
         print("[DEBUG] Provider created with id:", str(result.inserted_id))
+
+        if request.category in {"curatenie_zilnica", "curatenie_generala", "electrician", "instalator"}:
+            try:
+                services_col = get_services_collection()
+                employees_col = get_employees_collection()
+                default_duration = request.booking_settings.default_duration_minutes or 60
+                service = Service(
+                    provider_id=result.inserted_id,
+                    name="Serviciu standard",
+                    duration_minutes=default_duration,
+                    price=0.0,
+                    buffer_minutes=request.booking_settings.buffer_minutes,
+                    category=request.category,
+                    status="active",
+                )
+                service_result = await services_col.insert_one(
+                    service.model_dump(by_alias=True, exclude={"id"})
+                )
+                employee = Employee(
+                    provider_id=result.inserted_id,
+                    name="Echipa",
+                    role="General",
+                    service_ids=[service_result.inserted_id],
+                    working_hours=request.working_hours,
+                    status="active",
+                )
+                await employees_col.insert_one(employee.model_dump(by_alias=True, exclude={"id"}))
+            except Exception as exc:
+                print("[WARN] Failed to auto-create service/employee:", exc)
         return ProviderResponse(
             id=str(result.inserted_id),
             user_id=str(user_id_val) if user_id_val else None,
@@ -1670,11 +1706,12 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
     elif booking_type == "appointment_based":
         services_col = get_services_collection()
         employees_col = get_employees_collection()
+        is_no_employee_category = provider.get("category") in NO_EMPLOYEE_CATEGORIES
 
-        if not request.service_id or not request.employee_id:
+        if not request.service_id or (not is_no_employee_category and not request.employee_id):
             raise HTTPException(status_code=400, detail="Service and employee are required")
 
-        if not ObjectId.is_valid(request.service_id) or not ObjectId.is_valid(request.employee_id):
+        if not ObjectId.is_valid(request.service_id) or (not is_no_employee_category and not ObjectId.is_valid(request.employee_id)):
             raise HTTPException(status_code=400, detail="Invalid service or employee ID")
 
         service = await services_col.find_one({
@@ -1685,18 +1722,20 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
         if not service:
             raise HTTPException(status_code=404, detail="Service not found")
 
-        employee = await employees_col.find_one({
-            "_id": ObjectId(request.employee_id),
-            "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
-            "status": "active"
-        })
-        if not employee:
-            raise HTTPException(status_code=404, detail="Employee not found")
+        employee = None
+        if not is_no_employee_category:
+            employee = await employees_col.find_one({
+                "_id": ObjectId(request.employee_id),
+                "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
+                "status": "active"
+            })
+            if not employee:
+                raise HTTPException(status_code=404, detail="Employee not found")
 
-        service_id_str = str(service["_id"])
-        employee_services = [str(sid) for sid in employee.get("service_ids", [])]
-        if service_id_str not in employee_services:
-            raise HTTPException(status_code=400, detail="Employee does not offer this service")
+            service_id_str = str(service["_id"])
+            employee_services = [str(sid) for sid in employee.get("service_ids", [])]
+            if service_id_str not in employee_services:
+                raise HTTPException(status_code=400, detail="Employee does not offer this service")
 
         duration = int(service.get("duration_minutes", 0))
         buffer_minutes = service.get("buffer_minutes")
@@ -1712,43 +1751,73 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
         end_time = end_dt.strftime("%H:%M")
         party_size_value = request.party_size or 1
 
-        day_name = start_dt.strftime("%A").lower()
-        working_day = next((wh for wh in employee.get("working_hours", []) if wh.get("day") == day_name), None)
-        if not working_day or working_day.get("is_closed"):
-            raise HTTPException(status_code=400, detail="Employee is not available on this day")
+        if is_no_employee_category:
+            day_name = start_dt.strftime("%A").lower()
+            working_day = next((wh for wh in provider.get("working_hours", []) if wh.get("day") == day_name), None)
+            if not working_day or working_day.get("is_closed"):
+                raise HTTPException(status_code=400, detail="Provider is closed on this day")
 
-        open_time = datetime.strptime(working_day["open_time"], "%H:%M").time()
-        close_time = datetime.strptime(working_day["close_time"], "%H:%M").time()
-        if not (open_time <= start_dt.time() and end_dt.time() <= close_time):
-            raise HTTPException(status_code=400, detail="Time is outside working hours")
+            open_time = datetime.strptime(working_day["open_time"], "%H:%M").time()
+            close_time = datetime.strptime(working_day["close_time"], "%H:%M").time()
+            if not (open_time <= start_dt.time() and end_dt.time() <= close_time):
+                raise HTTPException(status_code=400, detail="Time is outside working hours")
 
-        break_start = working_day.get("break_start")
-        break_end = working_day.get("break_end")
-        if break_start and break_end:
-            break_start_dt = datetime.combine(start_dt.date(), datetime.strptime(break_start, "%H:%M").time())
-            break_end_dt = datetime.combine(start_dt.date(), datetime.strptime(break_end, "%H:%M").time())
-            if break_start_dt < end_dt and start_dt < break_end_dt:
-                raise HTTPException(status_code=400, detail="Time overlaps employee break")
+            existing_provider_bookings = await bookings_col.find({
+                "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
+                "booking_date": request.booking_date,
+                "status": "confirmed"
+            }).to_list(1000)
 
-        existing_employee_bookings = await bookings_col.find({
-            "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
-            "employee_id": {"$in": [ObjectId(request.employee_id), request.employee_id]},
-            "booking_date": request.booking_date,
-            "status": "confirmed"
-        }).to_list(1000)
+            for booking in existing_provider_bookings:
+                existing_start = datetime.strptime(
+                    f"{booking['booking_date']} {booking['start_time']}",
+                    "%Y-%m-%d %H:%M"
+                )
+                existing_end = datetime.strptime(
+                    f"{booking['booking_date']} {booking['end_time']}",
+                    "%Y-%m-%d %H:%M"
+                )
+                existing_end_with_buffer = existing_end + timedelta(minutes=int(buffer_minutes or 0))
+                if existing_start < end_with_buffer and start_dt < existing_end_with_buffer:
+                    raise HTTPException(status_code=409, detail="Provider already booked for this time")
+        else:
+            day_name = start_dt.strftime("%A").lower()
+            working_day = next((wh for wh in employee.get("working_hours", []) if wh.get("day") == day_name), None)
+            if not working_day or working_day.get("is_closed"):
+                raise HTTPException(status_code=400, detail="Employee is not available on this day")
 
-        for booking in existing_employee_bookings:
-            existing_start = datetime.strptime(
-                f"{booking['booking_date']} {booking['start_time']}",
-                "%Y-%m-%d %H:%M"
-            )
-            existing_end = datetime.strptime(
-                f"{booking['booking_date']} {booking['end_time']}",
-                "%Y-%m-%d %H:%M"
-            )
-            existing_end_with_buffer = existing_end + timedelta(minutes=int(buffer_minutes or 0))
-            if existing_start < end_with_buffer and start_dt < existing_end_with_buffer:
-                raise HTTPException(status_code=409, detail="Employee already booked for this time")
+            open_time = datetime.strptime(working_day["open_time"], "%H:%M").time()
+            close_time = datetime.strptime(working_day["close_time"], "%H:%M").time()
+            if not (open_time <= start_dt.time() and end_dt.time() <= close_time):
+                raise HTTPException(status_code=400, detail="Time is outside working hours")
+
+            break_start = working_day.get("break_start")
+            break_end = working_day.get("break_end")
+            if break_start and break_end:
+                break_start_dt = datetime.combine(start_dt.date(), datetime.strptime(break_start, "%H:%M").time())
+                break_end_dt = datetime.combine(start_dt.date(), datetime.strptime(break_end, "%H:%M").time())
+                if break_start_dt < end_dt and start_dt < break_end_dt:
+                    raise HTTPException(status_code=400, detail="Time overlaps employee break")
+
+            existing_employee_bookings = await bookings_col.find({
+                "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
+                "employee_id": {"$in": [ObjectId(request.employee_id), request.employee_id]},
+                "booking_date": request.booking_date,
+                "status": "confirmed"
+            }).to_list(1000)
+
+            for booking in existing_employee_bookings:
+                existing_start = datetime.strptime(
+                    f"{booking['booking_date']} {booking['start_time']}",
+                    "%Y-%m-%d %H:%M"
+                )
+                existing_end = datetime.strptime(
+                    f"{booking['booking_date']} {booking['end_time']}",
+                    "%Y-%m-%d %H:%M"
+                )
+                existing_end_with_buffer = existing_end + timedelta(minutes=int(buffer_minutes or 0))
+                if existing_start < end_with_buffer and start_dt < existing_end_with_buffer:
+                    raise HTTPException(status_code=409, detail="Employee already booked for this time")
     else:
         # Calculate end time based on selected duration or provider settings
         duration = request.duration_minutes or provider["booking_settings"]["default_duration_minutes"]
@@ -2011,10 +2080,12 @@ async def check_availability(
         )
 
     if booking_type == "appointment_based":
-        if not service_id or not employee_id:
+        is_no_employee_category = provider.get("category") in NO_EMPLOYEE_CATEGORIES
+
+        if not service_id or (not is_no_employee_category and not employee_id):
             raise HTTPException(status_code=400, detail="Service and employee are required")
 
-        if not ObjectId.is_valid(service_id) or not ObjectId.is_valid(employee_id):
+        if not ObjectId.is_valid(service_id) or (not is_no_employee_category and not ObjectId.is_valid(employee_id)):
             raise HTTPException(status_code=400, detail="Invalid service or employee ID")
 
         service = await services_col.find_one({
@@ -2025,17 +2096,19 @@ async def check_availability(
         if not service:
             raise HTTPException(status_code=404, detail="Service not found")
 
-        employee = await employees_col.find_one({
-            "_id": ObjectId(employee_id),
-            "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
-            "status": "active"
-        })
-        if not employee:
-            raise HTTPException(status_code=404, detail="Employee not found")
+        employee = None
+        if not is_no_employee_category:
+            employee = await employees_col.find_one({
+                "_id": ObjectId(employee_id),
+                "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
+                "status": "active"
+            })
+            if not employee:
+                raise HTTPException(status_code=404, detail="Employee not found")
 
-        employee_services = [str(sid) for sid in employee.get("service_ids", [])]
-        if str(service["_id"]) not in employee_services:
-            raise HTTPException(status_code=400, detail="Employee does not offer this service")
+            employee_services = [str(sid) for sid in employee.get("service_ids", [])]
+            if str(service["_id"]) not in employee_services:
+                raise HTTPException(status_code=400, detail="Employee does not offer this service")
 
         duration = int(service.get("duration_minutes", 0))
         buffer_minutes = service.get("buffer_minutes")
@@ -2047,7 +2120,10 @@ async def check_availability(
 
         date_obj = datetime.strptime(date, "%Y-%m-%d")
         day_name = date_obj.strftime("%A").lower()
-        working_day = next((wh for wh in employee.get("working_hours", []) if wh.get("day") == day_name), None)
+        working_hours_source = provider.get("working_hours", []) if is_no_employee_category else employee.get("working_hours", [])
+        if not working_hours_source:
+            working_hours_source = provider.get("working_hours", [])
+        working_day = next((wh for wh in working_hours_source if wh.get("day") == day_name), None)
         if not working_day or working_day.get("is_closed"):
             return AvailabilityResponse(date=date, slots=[], tables=[])
 
@@ -2062,12 +2138,15 @@ async def check_availability(
             break_start_dt = datetime.combine(date_obj.date(), datetime.strptime(break_start, "%H:%M").time())
             break_end_dt = datetime.combine(date_obj.date(), datetime.strptime(break_end, "%H:%M").time())
 
-        existing_bookings = await bookings_col.find({
+        booking_query = {
             "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
-            "employee_id": {"$in": [ObjectId(employee_id), employee_id]},
             "booking_date": date,
             "status": "confirmed"
-        }).to_list(1000)
+        }
+        if not is_no_employee_category:
+            booking_query["employee_id"] = {"$in": [ObjectId(employee_id), employee_id]}
+
+        existing_bookings = await bookings_col.find(booking_query).to_list(1000)
 
         def is_employee_free(slot_start_dt: datetime, slot_end_dt: datetime) -> bool:
             slot_end_with_buffer = slot_end_dt + timedelta(minutes=int(buffer_minutes or 0))
