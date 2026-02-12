@@ -12,10 +12,43 @@ import {
   Chip,
   ActivityIndicator,
   Text,
+  Checkbox,
+  TextInput,
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { bookingsAPI } from '../services/api';
+import { bookingsAPI, serviceOffersAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+
+const SERVICE_OPTIONS = [
+  { key: 'curatenie_zilnica', label: 'Curatenie zilnica' },
+  { key: 'curatenie_generala', label: 'Curatenie generala' },
+  { key: 'electrician', label: 'Electrician' },
+  { key: 'instalator', label: 'Instalator' },
+];
+
+const DEFAULT_AVAILABILITY = {
+  days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+  start_time: '08:00',
+  end_time: '18:00',
+};
+
+const PRICE_TYPES = [
+  { key: 'per_hour', label: 'Pe ora' },
+  { key: 'per_service', label: 'Pe serviciu' },
+];
+
+const formatDays = (days) => {
+  const map = {
+    monday: 'Luni',
+    tuesday: 'Marti',
+    wednesday: 'Miercuri',
+    thursday: 'Joi',
+    friday: 'Vineri',
+    saturday: 'Sambata',
+    sunday: 'Duminica',
+  };
+  return (days || []).map((day) => map[day] || day).join(', ');
+};
 
 export default function ServicesScreen({ navigation }) {
   const { user } = useAuth();
@@ -28,10 +61,19 @@ export default function ServicesScreen({ navigation }) {
   const [providerServices, setProviderServices] = useState([]);
   const [providerRooms, setProviderRooms] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [offerLoading, setOfferLoading] = useState(true);
+  const [offerSaving, setOfferSaving] = useState(false);
+  const [offerError, setOfferError] = useState('');
+  const [offerSuccess, setOfferSuccess] = useState(false);
+  const [selectedServices, setSelectedServices] = useState([]);
+  const [priceType, setPriceType] = useState('per_hour');
+  const [priceValue, setPriceValue] = useState('');
+  const [availability, setAvailability] = useState(DEFAULT_AVAILABILITY);
 
   useEffect(() => {
     loadProviders();
     loadProviderBookings();
+    loadServiceOffer();
   }, []);
 
   useEffect(() => {
@@ -194,6 +236,62 @@ export default function ServicesScreen({ navigation }) {
   const onRefresh = () => {
     setRefreshing(true);
     loadProviders();
+    loadServiceOffer();
+  };
+
+  const loadServiceOffer = async () => {
+    setOfferLoading(true);
+    try {
+      const result = await serviceOffersAPI.getMyOffer();
+      if (result.success && result.data) {
+        setSelectedServices(result.data.services || []);
+        setPriceType(result.data.price_type || 'per_hour');
+        setPriceValue(result.data.price_value != null ? String(result.data.price_value) : '');
+        setAvailability(result.data.availability || DEFAULT_AVAILABILITY);
+      }
+    } catch (e) {
+      // no-op
+    } finally {
+      setOfferLoading(false);
+    }
+  };
+
+  const toggleService = (key) => {
+    setSelectedServices((prev) =>
+      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]
+    );
+  };
+
+  const handleSaveOffer = async () => {
+    setOfferError('');
+    setOfferSuccess(false);
+
+    if (!selectedServices.length) {
+      setOfferError('Selecteaza cel putin un serviciu.');
+      return;
+    }
+
+    const numericPrice = Number(priceValue);
+    if (!priceValue || Number.isNaN(numericPrice) || numericPrice < 0) {
+      setOfferError('Introdu un pret valid.');
+      return;
+    }
+
+    setOfferSaving(true);
+    const payload = {
+      services: selectedServices,
+      price_type: priceType,
+      price_value: numericPrice,
+      availability,
+    };
+
+    const result = await serviceOffersAPI.upsertMyOffer(payload);
+    if (result.success) {
+      setOfferSuccess(true);
+    } else {
+      setOfferError(result.error || 'Nu am putut salva oferta.');
+    }
+    setOfferSaving(false);
   };
 
   if (loading) {
@@ -242,6 +340,79 @@ export default function ServicesScreen({ navigation }) {
               Adauga Serviciu
             </Button>
           </Card.Actions>
+        </Card>
+
+        <Card style={styles.card}>
+          <Card.Content>
+            <View style={styles.titleContainer}>
+              <MaterialCommunityIcons name="toolbox" size={24} color="#4CAF50" />
+              <Title style={styles.titleText}>Servicii profesionale</Title>
+            </View>
+            <Paragraph>
+              Configureaza serviciile de curatenie si interventii tehnice.
+            </Paragraph>
+            {offerLoading ? (
+              <ActivityIndicator size="small" color="#4CAF50" style={{ marginTop: 12 }} />
+            ) : (
+              <>
+                <View style={styles.checkboxContainer}>
+                  {SERVICE_OPTIONS.map((option) => (
+                    <View key={option.key} style={styles.checkboxRow}>
+                      <Checkbox
+                        status={selectedServices.includes(option.key) ? 'checked' : 'unchecked'}
+                        onPress={() => toggleService(option.key)}
+                      />
+                      <Text onPress={() => toggleService(option.key)} style={styles.checkboxLabel}>
+                        {option.label}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+
+                <View style={styles.priceTypeRow}>
+                  {PRICE_TYPES.map((item) => (
+                    <Chip
+                      key={item.key}
+                      selected={priceType === item.key}
+                      onPress={() => setPriceType(item.key)}
+                      style={styles.priceChip}
+                    >
+                      {item.label}
+                    </Chip>
+                  ))}
+                </View>
+                <TextInput
+                  label="Pret (RON)"
+                  value={priceValue}
+                  onChangeText={setPriceValue}
+                  keyboardType="numeric"
+                  mode="outlined"
+                  style={styles.fullInput}
+                  left={<TextInput.Icon icon="currency-eur" />}
+                />
+                <Paragraph>
+                  Program standard: {formatDays(availability.days)} | {availability.start_time} - {availability.end_time}
+                </Paragraph>
+
+                {!!offerError && (
+                  <Text style={styles.errorText}>{offerError}</Text>
+                )}
+                {offerSuccess && (
+                  <Text style={styles.successText}>Oferta a fost salvata.</Text>
+                )}
+
+                <Button
+                  mode="contained"
+                  onPress={handleSaveOffer}
+                  loading={offerSaving}
+                  disabled={offerSaving}
+                  style={styles.saveButton}
+                >
+                  Salveaza oferta
+                </Button>
+              </>
+            )}
+          </Card.Content>
         </Card>
 
         {/* Rezervari in curs pentru serviciile mele */}
@@ -569,6 +740,44 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginRight: 8,
     alignSelf: 'flex-start',
+  },
+  checkboxContainer: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  checkboxLabel: {
+    fontSize: 14,
+  },
+  priceTypeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 10,
+  },
+  priceChip: {
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  fullInput: {
+    marginBottom: 6,
+  },
+  saveButton: {
+    marginTop: 10,
+    backgroundColor: '#4CAF50',
+  },
+  errorText: {
+    color: '#d32f2f',
+    marginTop: 6,
+    marginBottom: 6,
+  },
+  successText: {
+    color: '#2e7d32',
+    marginTop: 6,
+    marginBottom: 6,
   },
   sectionTitle: {
     marginTop: 10,

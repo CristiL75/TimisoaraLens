@@ -132,6 +132,8 @@ async def connect_to_mongo():
         await database.bookings.create_index("provider_id")
         await database.bookings.create_index([("provider_id", 1), ("booking_date", 1)])
         await database.bookings.create_index("status")
+        await database.service_offers.create_index("user_id")
+        await database.service_offers.create_index("services")
         
         print("✅ MongoDB indexes created")
     except Exception as e:
@@ -186,6 +188,10 @@ def get_services_collection():
 def get_employees_collection():
     """Get employees collection"""
     return database.employees
+
+def get_service_offers_collection():
+    """Get service offers collection"""
+    return database.service_offers
 
 
 # ============================================================
@@ -330,6 +336,30 @@ class Employee(BaseModel):
     working_hours: list[WorkingHours] = []
     status: str = "active"
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        populate_by_name = True
+        json_encoders = {ObjectId: str}
+
+
+class ServiceOfferAvailability(BaseModel):
+    """Availability block for service offers"""
+    days: list[str] = []
+    start_time: str
+    end_time: str
+
+
+class ServiceOffer(BaseModel):
+    """Standalone professional service offer"""
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    user_id: str
+    services: list[str] = []
+    price_type: str
+    price_value: float
+    availability: ServiceOfferAvailability
+    status: str = "active"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:
         populate_by_name = True

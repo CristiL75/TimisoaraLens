@@ -95,6 +95,7 @@ export default function HomeScreen({ navigation }) {
           </Card.Actions>
         </Card>
 
+
         <Button
           mode="outlined"
           onPress={logout}

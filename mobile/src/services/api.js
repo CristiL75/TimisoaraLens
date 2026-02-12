@@ -816,6 +816,58 @@ export const bookingsAPI = {
   },
 };
 
+// Service Offers API
+export const serviceOffersAPI = {
+  /**
+   * List all service offers
+   */
+  listOffers: async () => {
+    try {
+      const response = await api.get('/bookings/service-offers');
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] listOffers error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to list service offers',
+      };
+    }
+  },
+
+  /**
+   * Get current user's offer
+   */
+  getMyOffer: async () => {
+    try {
+      const response = await api.get('/bookings/service-offers/me');
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] getMyOffer error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to get my offer',
+        status: error.response?.status,
+      };
+    }
+  },
+
+  /**
+   * Create or update current user's offer
+   */
+  upsertMyOffer: async (payload) => {
+    try {
+      const response = await api.put('/bookings/service-offers/me', payload);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] upsertMyOffer error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Failed to save my offer',
+      };
+    }
+  },
+};
+
 export default api;
 
 // DEBUG: Log API_BASE and override at end of file
