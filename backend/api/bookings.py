@@ -1743,9 +1743,10 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
 
         if service:
             duration = int(service.get("duration_minutes", 0))
+            buffer_minutes = service.get("buffer_minutes")
         else:
             duration = int(provider.get("booking_settings", {}).get("default_duration_minutes") or 60)
-        buffer_minutes = service.get("buffer_minutes")
+            buffer_minutes = None
         if buffer_minutes is None:
             buffer_minutes = provider.get("booking_settings", {}).get("buffer_minutes", 0)
 
