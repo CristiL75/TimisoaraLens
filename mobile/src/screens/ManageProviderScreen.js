@@ -238,13 +238,23 @@ export default function ManageProviderScreen({ navigation, route }) {
   const [privateGroupPrice, setPrivateGroupPrice] = useState('');
   const [stopName, setStopName] = useState('');
   const [stopDesc, setStopDesc] = useState('');
+  const [stopLatitude, setStopLatitude] = useState('');
+  const [stopLongitude, setStopLongitude] = useState('');
   const [dateValue, setDateValue] = useState('');
   const [dateTime, setDateTime] = useState('');
 
   const addRouteStop = () => {
     if (!stopName.trim()) { Alert.alert('Eroare', 'Adauga un nume pentru oprire'); return; }
-    setRouteStops((prev) => [...prev, { name: stopName.trim(), description: stopDesc.trim() || null, latitude: null, longitude: null }]);
-    setStopName(''); setStopDesc('');
+    setRouteStops((prev) => [...prev, {
+      name: stopName.trim(),
+      description: stopDesc.trim() || null,
+      latitude: stopLatitude ? parseFloat(stopLatitude) : null,
+      longitude: stopLongitude ? parseFloat(stopLongitude) : null,
+    }]);
+    setStopName('');
+    setStopDesc('');
+    setStopLatitude('');
+    setStopLongitude('');
   };
   const removeRouteStop = (index) => setRouteStops((prev) => prev.filter((_, i) => i !== index));
   const addDate = () => {
@@ -1058,6 +1068,34 @@ export default function ManageProviderScreen({ navigation, route }) {
                     mode="outlined"
                     style={styles.input}
                   />
+                  <Button
+                    mode="outlined"
+                    icon="map-marker"
+                    onPress={() => navigation.navigate('LocationPicker', {
+                      initialLocation: stopLatitude && stopLongitude
+                        ? {
+                            latitude: parseFloat(stopLatitude),
+                            longitude: parseFloat(stopLongitude),
+                            address: stopName || '',
+                          }
+                        : null,
+                      onLocationPicked: (location) => {
+                        setStopLatitude(String(location.latitude));
+                        setStopLongitude(String(location.longitude));
+                        if (!stopName.trim() && location.address) {
+                          setStopName(location.address);
+                        }
+                      },
+                    })}
+                    style={styles.input}
+                  >
+                    Alege oprire pe harta
+                  </Button>
+                  {stopLatitude && stopLongitude ? (
+                    <Text style={styles.noteText}>
+                      GPS oprire: {parseFloat(stopLatitude).toFixed(5)}, {parseFloat(stopLongitude).toFixed(5)}
+                    </Text>
+                  ) : null}
                   <Button mode="outlined" icon="plus" onPress={addRouteStop} style={styles.input}>
                     Adauga oprire
                   </Button>

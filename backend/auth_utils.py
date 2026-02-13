@@ -109,4 +109,4 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     users_col = get_users_collection()
     user_doc = await users_col.find_one({"email": email})
     user_id = str(user_doc["_id"]) if user_doc and "_id" in user_doc else None
-    return {"email": email, "username": username, "id": user_id}
+    return {"email": email, "username": username, "id": user_id, "_id": user_id}
