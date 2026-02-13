@@ -42,6 +42,9 @@ const SERVICE_CATEGORIES = [
   { key: 'curatenie_generala', label: 'Curatenie generala' },
   { key: 'electrician', label: 'Electrician' },
   { key: 'instalator', label: 'Instalator' },
+  { key: 'guided_tour', label: 'Tur ghidat' },
+  { key: 'workshop', label: 'Workshop' },
+  { key: 'indoor_activity', label: 'Activitate indoor' },
 ];
 
 const NO_PRICE_EMPLOYEE_CATEGORIES = [
