@@ -95,30 +95,6 @@ export default function HomeScreen({ navigation }) {
           </View>
         </Card>
 
-        {/* Experiences Button */}
-        <Card style={styles.card}>
-          <Card.Content>
-            <View style={styles.titleContainer}>
-              <MaterialCommunityIcons name="compass-outline" size={28} color="#E65100" />
-              <Title style={styles.titleText}>Experiențe & Tururi</Title>
-            </View>
-            <Paragraph style={styles.cardDescription}>
-              Descoperă tururi ghidate, workshop-uri și activități în Timișoara.
-              Creează propriile experiențe sau rezervă pe cele existente.
-            </Paragraph>
-          </Card.Content>
-          <View style={styles.cardActionRow}>
-            <Button
-              mode="contained"
-              icon="compass"
-              onPress={() => navigation.navigate('ManageExperiences')}
-              style={styles.experiencesButton}
-            >
-              Experiențe
-            </Button>
-          </View>
-        </Card>
-
 
         <Button
           mode="outlined"
@@ -180,10 +156,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     paddingHorizontal: 16,
     paddingBottom: 12,
-  },
-  experiencesButton: {
-    marginLeft: 'auto',
-    backgroundColor: '#E65100',
   },
   profileButton: {
     paddingHorizontal: 0,
