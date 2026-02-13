@@ -15,9 +15,10 @@ import {
   ActivityIndicator,
   Modal,
   Portal,
+  IconButton,
 } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
-import { bookingsAPI } from '../services/api';
+import { bookingsAPI, experiencesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const DAYS = [
@@ -219,8 +220,39 @@ export default function ManageProviderScreen({ navigation, route }) {
   const [rtBenefits, setRtBenefits] = useState('');
 
   const isClub = category === 'club_nightlife';
+  const isExperience = ['guided_tour', 'workshop', 'indoor_activity'].includes(category);
 
   const isNoPriceEmployeeCategory = NO_PRICE_EMPLOYEE_CATEGORIES.includes(category);
+
+  // Experience-specific state
+  const [minParticipants, setMinParticipants] = useState('1');
+  const [maxParticipants, setMaxParticipants] = useState('15');
+  const [meetingPoint, setMeetingPoint] = useState('');
+  const [meetingLatitude, setMeetingLatitude] = useState('');
+  const [meetingLongitude, setMeetingLongitude] = useState('');
+  const [meetingInstructions, setMeetingInstructions] = useState('');
+  const [routeStops, setRouteStops] = useState([]);
+  const [durationText, setDurationText] = useState('');
+  const [availableDates, setAvailableDates] = useState([]);
+  const [pricePerPerson, setPricePerPerson] = useState('');
+  const [privateGroupPrice, setPrivateGroupPrice] = useState('');
+  const [stopName, setStopName] = useState('');
+  const [stopDesc, setStopDesc] = useState('');
+  const [dateValue, setDateValue] = useState('');
+  const [dateTime, setDateTime] = useState('');
+
+  const addRouteStop = () => {
+    if (!stopName.trim()) { Alert.alert('Eroare', 'Adauga un nume pentru oprire'); return; }
+    setRouteStops((prev) => [...prev, { name: stopName.trim(), description: stopDesc.trim() || null, latitude: null, longitude: null }]);
+    setStopName(''); setStopDesc('');
+  };
+  const removeRouteStop = (index) => setRouteStops((prev) => prev.filter((_, i) => i !== index));
+  const addDate = () => {
+    if (!dateValue.trim() || !dateTime.trim()) { Alert.alert('Eroare', 'Completeaza data si ora'); return; }
+    setAvailableDates((prev) => [...prev, { date: dateValue.trim(), start_time: dateTime.trim() }]);
+    setDateValue(''); setDateTime('');
+  };
+  const removeDate = (index) => setAvailableDates((prev) => prev.filter((_, i) => i !== index));
 
   useEffect(() => {
     if (existingProvider?.category) {
@@ -688,6 +720,43 @@ export default function ManageProviderScreen({ navigation, route }) {
       return;
     }
 
+    // Experience categories => save via experiencesAPI
+    if (isExperience) {
+      setLoading(true);
+      const expData = {
+        name: name.trim(),
+        description: description.trim() || null,
+        experience_type: category,
+        images,
+        min_participants: parseInt(minParticipants, 10) || 1,
+        max_participants: parseInt(maxParticipants, 10) || 15,
+        meeting_point: meetingPoint.trim() || null,
+        meeting_latitude: meetingLatitude ? parseFloat(meetingLatitude) : null,
+        meeting_longitude: meetingLongitude ? parseFloat(meetingLongitude) : null,
+        meeting_instructions: meetingInstructions.trim() || null,
+        route_stops: routeStops,
+        duration_text: durationText.trim() || null,
+        available_dates: availableDates,
+        price_per_person: parseFloat(pricePerPerson) || 0,
+        private_group_price: privateGroupPrice ? parseFloat(privateGroupPrice) : null,
+      };
+      try {
+        const result = await experiencesAPI.createExperience(expData);
+        if (result.success) {
+          Alert.alert('Succes', 'Experienta a fost creata!', [
+            { text: 'OK', onPress: () => navigation.navigate('Services') },
+          ]);
+        } else {
+          Alert.alert('Eroare', result.error || 'Nu s-a putut salva experienta');
+        }
+      } catch (error) {
+        Alert.alert('Eroare', 'A aparut o eroare la salvare');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     setLoading(true);
     const bookingType = category === 'food_drinks'
       ? 'table_based'
@@ -884,6 +953,184 @@ export default function ManageProviderScreen({ navigation, route }) {
             )}
           </Card.Content>
         </Card>
+
+        {/* Experience-specific fields */}
+        {isExperience && (
+          <>
+            <Card style={styles.card}>
+              <Card.Content>
+                <Title>👥 Participanti</Title>
+                <View style={{ flexDirection: 'row' }}>
+                  <TextInput
+                    label="Min participanti"
+                    value={minParticipants}
+                    onChangeText={setMinParticipants}
+                    mode="outlined"
+                    style={[styles.input, { flex: 1, marginRight: 8 }]}
+                    keyboardType="numeric"
+                  />
+                  <TextInput
+                    label="Max participanti"
+                    value={maxParticipants}
+                    onChangeText={setMaxParticipants}
+                    mode="outlined"
+                    style={[styles.input, { flex: 1 }]}
+                    keyboardType="numeric"
+                  />
+                </View>
+              </Card.Content>
+            </Card>
+
+            <Card style={styles.card}>
+              <Card.Content>
+                <Title>📍 Punct de intalnire</Title>
+                <TextInput
+                  label="Adresa / Landmark"
+                  value={meetingPoint}
+                  onChangeText={setMeetingPoint}
+                  mode="outlined"
+                  style={styles.input}
+                  placeholder="ex: Piata Unirii, Timisoara"
+                />
+                <Button
+                  mode="outlined"
+                  icon="map-marker"
+                  onPress={() => navigation.navigate('LocationPicker', {
+                    initialLocation: meetingLatitude && meetingLongitude
+                      ? {
+                          latitude: parseFloat(meetingLatitude),
+                          longitude: parseFloat(meetingLongitude),
+                          address: meetingPoint || '',
+                        }
+                      : null,
+                    onLocationPicked: (location) => {
+                      setMeetingPoint(location.address || '');
+                      setMeetingLatitude(String(location.latitude));
+                      setMeetingLongitude(String(location.longitude));
+                    },
+                  })}
+                  style={styles.input}
+                >
+                  Alege pe harta
+                </Button>
+                {meetingLatitude && meetingLongitude ? (
+                  <Text style={styles.noteText}>
+                    GPS: {parseFloat(meetingLatitude).toFixed(5)}, {parseFloat(meetingLongitude).toFixed(5)}
+                  </Text>
+                ) : null}
+                <TextInput
+                  label="Instructiuni intalnire"
+                  value={meetingInstructions}
+                  onChangeText={setMeetingInstructions}
+                  mode="outlined"
+                  style={styles.input}
+                  placeholder="ex: In fata catedralei, langa statuie"
+                  multiline
+                />
+              </Card.Content>
+            </Card>
+
+            {category === 'guided_tour' && (
+              <Card style={styles.card}>
+                <Card.Content>
+                  <Title>🗺️ Traseu / Opriri</Title>
+                  {routeStops.map((stop, idx) => (
+                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0f0f0', borderRadius: 8, padding: 8, marginBottom: 6 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontWeight: 'bold', fontSize: 14 }}>{idx + 1}. {stop.name}</Text>
+                        {stop.description ? <Text style={{ color: '#666', fontSize: 12 }}>{stop.description}</Text> : null}
+                      </View>
+                      <IconButton icon="close-circle" size={20} iconColor="#d32f2f" onPress={() => removeRouteStop(idx)} />
+                    </View>
+                  ))}
+                  <TextInput
+                    label="Nume oprire"
+                    value={stopName}
+                    onChangeText={setStopName}
+                    mode="outlined"
+                    style={styles.input}
+                    placeholder="ex: Bastionul Theresia"
+                  />
+                  <TextInput
+                    label="Descriere scurta (optional)"
+                    value={stopDesc}
+                    onChangeText={setStopDesc}
+                    mode="outlined"
+                    style={styles.input}
+                  />
+                  <Button mode="outlined" icon="plus" onPress={addRouteStop} style={styles.input}>
+                    Adauga oprire
+                  </Button>
+                </Card.Content>
+              </Card>
+            )}
+
+            <Card style={styles.card}>
+              <Card.Content>
+                <Title>⏱️ Durata & Program</Title>
+                <TextInput
+                  label="Durata experienta"
+                  value={durationText}
+                  onChangeText={setDurationText}
+                  mode="outlined"
+                  style={styles.input}
+                  placeholder="ex: 2h, 4h, full day"
+                />
+
+                <Title style={{ fontSize: 16, marginTop: 8 }}>📅 Date disponibile</Title>
+                {availableDates.map((d, idx) => (
+                  <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0f0f0', borderRadius: 8, padding: 8, marginBottom: 6 }}>
+                    <Text style={{ flex: 1, fontWeight: 'bold' }}>{d.date} — {d.start_time}</Text>
+                    <IconButton icon="close-circle" size={20} iconColor="#d32f2f" onPress={() => removeDate(idx)} />
+                  </View>
+                ))}
+                <View style={{ flexDirection: 'row' }}>
+                  <TextInput
+                    label="Data (YYYY-MM-DD)"
+                    value={dateValue}
+                    onChangeText={setDateValue}
+                    mode="outlined"
+                    style={[styles.input, { flex: 1, marginRight: 8 }]}
+                    placeholder="2026-03-10"
+                  />
+                  <TextInput
+                    label="Ora (HH:MM)"
+                    value={dateTime}
+                    onChangeText={setDateTime}
+                    mode="outlined"
+                    style={[styles.input, { flex: 1 }]}
+                    placeholder="10:00"
+                  />
+                </View>
+                <Button mode="outlined" icon="calendar-plus" onPress={addDate} style={styles.input}>
+                  Adauga data
+                </Button>
+              </Card.Content>
+            </Card>
+
+            <Card style={styles.card}>
+              <Card.Content>
+                <Title>💰 Pret</Title>
+                <TextInput
+                  label="Pret / persoana (lei) *"
+                  value={pricePerPerson}
+                  onChangeText={setPricePerPerson}
+                  mode="outlined"
+                  style={styles.input}
+                  keyboardType="numeric"
+                />
+                <TextInput
+                  label="Pret grup privat (lei, optional)"
+                  value={privateGroupPrice}
+                  onChangeText={setPrivateGroupPrice}
+                  mode="outlined"
+                  style={styles.input}
+                  keyboardType="numeric"
+                />
+              </Card.Content>
+            </Card>
+          </>
+        )}
 
         {category === 'location_space' && (
           <Card style={styles.card}>
@@ -1117,7 +1364,7 @@ export default function ManageProviderScreen({ navigation, route }) {
           </Card>
         )}
 
-        {category !== 'rent_a_car' && category !== 'location_space' && (
+        {category !== 'rent_a_car' && category !== 'location_space' && !isExperience && (
           <Card style={styles.card}>
             <Card.Content>
               <Title>Setari Rezervari</Title>
@@ -1272,7 +1519,7 @@ export default function ManageProviderScreen({ navigation, route }) {
           </Card>
         )}
 
-        {isEdit && category !== 'food_drinks' && category !== 'club_nightlife' && category !== 'rent_a_car' && category !== 'location_space' && !isNoPriceEmployeeCategory && (
+        {isEdit && category !== 'food_drinks' && category !== 'club_nightlife' && category !== 'rent_a_car' && category !== 'location_space' && !isNoPriceEmployeeCategory && !isExperience && (
           <Card style={styles.card}>
             <Card.Content>
               <Title>Servicii si Angajati</Title>

@@ -283,9 +283,14 @@ export default function ManageExperiencesScreen({ navigation }) {
 
   const handlePickMeetingPoint = () => {
     navigation.navigate('LocationPicker', {
-      initialLatitude: meetingLatitude ? parseFloat(meetingLatitude) : 45.7489,
-      initialLongitude: meetingLongitude ? parseFloat(meetingLongitude) : 21.2087,
-      onLocationSelected: (location) => {
+      initialLocation: meetingLatitude && meetingLongitude
+        ? {
+            latitude: parseFloat(meetingLatitude),
+            longitude: parseFloat(meetingLongitude),
+            address: meetingPoint || '',
+          }
+        : null,
+      onLocationPicked: (location) => {
         setMeetingPoint(location.address || '');
         setMeetingLatitude(String(location.latitude));
         setMeetingLongitude(String(location.longitude));
