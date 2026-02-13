@@ -149,13 +149,6 @@ export default function ServicesScreen({ navigation }) {
     (provider) => provider.user_id && user?.id && String(provider.user_id).trim() === String(user.id).trim()
   );
 
-  const experienceCategories = ['guided_tour', 'workshop', 'indoor_activity'];
-
-  const filteredExperiences = useMemo(() => {
-    if (selectedCategory === 'all') return experiences;
-    return experiences.filter((exp) => exp.experience_type === selectedCategory);
-  }, [experiences, selectedCategory]);
-
   const formatTableLabel = (value) => {
     if (!value) return '';
     return String(value).replace(/_/g, ' ');
@@ -255,14 +248,7 @@ export default function ServicesScreen({ navigation }) {
               Poti adauga mai multe servicii si le poti gestiona separat.
             </Paragraph>
           </Card.Content>
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 8, gap: 8 }}>
-            <Button
-              mode="outlined"
-              icon="compass-outline"
-              onPress={() => navigation.navigate('ManageExperiences')}
-            >
-              Experiențele mele
-            </Button>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 8 }}>
             <Button
               mode="contained"
               icon="plus"
@@ -422,9 +408,6 @@ export default function ServicesScreen({ navigation }) {
             { key: 'curatenie_generala', label: 'Curatenie generala' },
             { key: 'electrician', label: 'Electrician' },
             { key: 'instalator', label: 'Instalator' },
-            { key: 'guided_tour', label: 'Tur ghidat' },
-            { key: 'workshop', label: 'Workshop' },
-            { key: 'indoor_activity', label: 'Activitate indoor' },
           ].map((cat) => (
             <Chip
               key={cat.key}
@@ -437,87 +420,7 @@ export default function ServicesScreen({ navigation }) {
           ))}
         </ScrollView>
 
-        {/* Experience categories: show experiences instead of providers */}
-        {['guided_tour', 'workshop', 'indoor_activity'].includes(selectedCategory) ? (
-          filteredExperiences.length === 0 ? (
-            <Card style={styles.card}>
-              <Card.Content>
-                <Text style={styles.emptyText}>
-                  Nu exista experiențe disponibile pentru aceasta categorie.
-                </Text>
-              </Card.Content>
-            </Card>
-          ) : (
-            filteredExperiences.map((exp) => {
-              const isExpOwner = user?.id && exp.user_id && String(user.id).trim() === String(exp.user_id).trim();
-              return (
-                <Card key={exp.id} style={styles.card}>
-                  {exp.images && exp.images.length > 0 && (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 8 }}>
-                      {exp.images.map((img, idx) => (
-                        <Image
-                          key={idx}
-                          source={{ uri: img }}
-                          style={{ width: 120, height: 80, borderRadius: 8, marginRight: 8 }}
-                        />
-                      ))}
-                    </ScrollView>
-                  )}
-                  <Card.Content>
-                    <View style={styles.titleContainer}>
-                      <MaterialCommunityIcons
-                        name={exp.experience_type === 'guided_tour' ? 'walk' : exp.experience_type === 'workshop' ? 'school' : 'home-variant'}
-                        size={24}
-                        color="#E65100"
-                      />
-                      <Title style={styles.titleText}>{exp.name}</Title>
-                    </View>
-                    {exp.description ? (
-                      <Paragraph numberOfLines={2}>{exp.description}</Paragraph>
-                    ) : null}
-                    <View style={styles.tagsContainer}>
-                      <Chip icon="account-group" mode="outlined" style={styles.smallChip}>
-                        {exp.min_participants}-{exp.max_participants} pers
-                      </Chip>
-                      <Chip icon="cash" mode="outlined" style={styles.smallChip}>
-                        {exp.price_per_person} lei/pers
-                      </Chip>
-                      {exp.duration_text ? (
-                        <Chip icon="clock" mode="outlined" style={styles.smallChip}>
-                          {exp.duration_text}
-                        </Chip>
-                      ) : null}
-                      {exp.available_dates?.length > 0 ? (
-                        <Chip icon="calendar" mode="outlined" style={styles.smallChip}>
-                          {exp.available_dates.length} date
-                        </Chip>
-                      ) : null}
-                    </View>
-                  </Card.Content>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', padding: 8, gap: 4 }}>
-                    <Button
-                      mode="outlined"
-                      icon="calendar-check"
-                      onPress={() => navigation.navigate('BookExperience', { experience: exp })}
-                    >
-                      Rezerva
-                    </Button>
-                    {isExpOwner && (
-                      <Button
-                        mode="contained"
-                        icon="pencil"
-                        style={{ marginLeft: 8 }}
-                        onPress={() => navigation.navigate('ManageExperiences')}
-                      >
-                        Editeaza
-                      </Button>
-                    )}
-                  </View>
-                </Card>
-              );
-            })
-          )
-        ) : providers.filter((provider) => selectedCategory === 'all' || provider.category === selectedCategory).length === 0 ? (
+        {providers.filter((provider) => selectedCategory === 'all' || provider.category === selectedCategory).length === 0 ? (
           <Card style={styles.card}>
             <Card.Content>
               <Text style={styles.emptyText}>
@@ -665,80 +568,94 @@ export default function ServicesScreen({ navigation }) {
             })
         )}
 
-        {/* Show experiences also in "all" view */}
-        {selectedCategory === 'all' && filteredExperiences.length > 0 && (
-          <>
-            <Title style={styles.sectionTitle}>Experiențe & Tururi</Title>
-            {filteredExperiences.map((exp) => {
-              const isExpOwner = user?.id && exp.user_id && String(user.id).trim() === String(exp.user_id).trim();
-              return (
-                <Card key={exp.id} style={styles.card}>
-                  {exp.images && exp.images.length > 0 && (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 8 }}>
-                      {exp.images.map((img, idx) => (
-                        <Image
-                          key={idx}
-                          source={{ uri: img }}
-                          style={{ width: 120, height: 80, borderRadius: 8, marginRight: 8 }}
-                        />
-                      ))}
-                    </ScrollView>
-                  )}
-                  <Card.Content>
-                    <View style={styles.titleContainer}>
-                      <MaterialCommunityIcons
-                        name={exp.experience_type === 'guided_tour' ? 'walk' : exp.experience_type === 'workshop' ? 'school' : 'home-variant'}
-                        size={24}
-                        color="#E65100"
+        {/* Experiences Section */}
+        <Title style={styles.sectionTitle}>🧭 Experiențe & Tururi</Title>
+        <Card style={styles.card}>
+          <Card.Content>
+            <View style={styles.titleContainer}>
+              <MaterialCommunityIcons name="compass-outline" size={24} color="#E65100" />
+              <Title style={styles.titleText}>Experiențe</Title>
+            </View>
+            <Paragraph>
+              Creeaza tururi ghidate, workshop-uri sau activitati.
+            </Paragraph>
+          </Card.Content>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 8, gap: 8 }}>
+            <Button
+              mode="outlined"
+              icon="format-list-bulleted"
+              onPress={() => navigation.navigate('ManageExperiences')}
+            >
+              Experiențele mele
+            </Button>
+          </View>
+        </Card>
+
+        {experiences.length > 0 &&
+          experiences.map((exp) => {
+            const isExpOwner = user?.id && exp.user_id && String(user.id).trim() === String(exp.user_id).trim();
+            return (
+              <Card key={exp.id} style={styles.card}>
+                {exp.images && exp.images.length > 0 && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 8 }}>
+                    {exp.images.map((img, idx) => (
+                      <Image
+                        key={idx}
+                        source={{ uri: img }}
+                        style={{ width: 120, height: 80, borderRadius: 8, marginRight: 8 }}
                       />
-                      <Title style={styles.titleText}>{exp.name}</Title>
-                    </View>
-                    {exp.description ? (
-                      <Paragraph numberOfLines={2}>{exp.description}</Paragraph>
-                    ) : null}
-                    <View style={styles.tagsContainer}>
-                      <Chip icon="account-group" mode="outlined" style={styles.smallChip}>
-                        {exp.min_participants}-{exp.max_participants} pers
-                      </Chip>
-                      <Chip icon="cash" mode="outlined" style={styles.smallChip}>
-                        {exp.price_per_person} lei/pers
-                      </Chip>
-                      {exp.duration_text ? (
-                        <Chip icon="clock" mode="outlined" style={styles.smallChip}>
-                          {exp.duration_text}
-                        </Chip>
-                      ) : null}
-                      {exp.available_dates?.length > 0 ? (
-                        <Chip icon="calendar" mode="outlined" style={styles.smallChip}>
-                          {exp.available_dates.length} date
-                        </Chip>
-                      ) : null}
-                    </View>
-                  </Card.Content>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', padding: 8, gap: 4 }}>
-                    <Button
-                      mode="outlined"
-                      icon="calendar-check"
-                      onPress={() => navigation.navigate('BookExperience', { experience: exp })}
-                    >
-                      Rezerva
-                    </Button>
-                    {isExpOwner && (
-                      <Button
-                        mode="contained"
-                        icon="pencil"
-                        style={{ marginLeft: 8 }}
-                        onPress={() => navigation.navigate('ManageExperiences')}
-                      >
-                        Editeaza
-                      </Button>
-                    )}
+                    ))}
+                  </ScrollView>
+                )}
+                <Card.Content>
+                  <View style={styles.titleContainer}>
+                    <MaterialCommunityIcons name="compass" size={24} color="#E65100" />
+                    <Title style={styles.titleText}>{exp.name}</Title>
                   </View>
-                </Card>
-              );
-            })}
-          </>
-        )}
+                  {exp.description ? (
+                    <Paragraph numberOfLines={2}>{exp.description}</Paragraph>
+                  ) : null}
+                  <View style={styles.tagsContainer}>
+                    <Chip icon="account-group" mode="outlined" style={styles.smallChip}>
+                      {exp.min_participants}-{exp.max_participants} pers
+                    </Chip>
+                    <Chip icon="cash" mode="outlined" style={styles.smallChip}>
+                      {exp.price_per_person} lei/pers
+                    </Chip>
+                    {exp.duration_text ? (
+                      <Chip icon="clock" mode="outlined" style={styles.smallChip}>
+                        {exp.duration_text}
+                      </Chip>
+                    ) : null}
+                    {exp.available_dates?.length > 0 ? (
+                      <Chip icon="calendar" mode="outlined" style={styles.smallChip}>
+                        {exp.available_dates.length} date
+                      </Chip>
+                    ) : null}
+                  </View>
+                </Card.Content>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', padding: 8, gap: 4 }}>
+                  <Button
+                    mode="outlined"
+                    icon="calendar-check"
+                    onPress={() => navigation.navigate('BookExperience', { experience: exp })}
+                  >
+                    Rezerva
+                  </Button>
+                  {isExpOwner && (
+                    <Button
+                      mode="contained"
+                      icon="pencil"
+                      style={{ marginLeft: 8 }}
+                      onPress={() => navigation.navigate('ManageExperiences')}
+                    >
+                      Editeaza
+                    </Button>
+                  )}
+                </View>
+              </Card>
+            );
+          })}
       </ScrollView>
     </View>
   );
