@@ -263,11 +263,10 @@ export default function ManageEmployeesScreen({ navigation, route }) {
                   </View>
                 )}
               </Card.Content>
-              <Card.Actions>
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 8, gap: 8 }}>
                 <Button
                   mode="contained"
                   icon="pencil"
-                  style={{ marginRight: 8 }}
                   onPress={() => handleEditEmployee(employee)}
                 >
                   Editeaza
@@ -280,7 +279,7 @@ export default function ManageEmployeesScreen({ navigation, route }) {
                 >
                   Sterge
                 </Button>
-              </Card.Actions>
+              </View>
             </Card>
           ))
         )}

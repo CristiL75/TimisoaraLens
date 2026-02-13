@@ -215,11 +215,10 @@ export default function ProfileScreen({ navigation }) {
                 <Paragraph>{provider.description}</Paragraph>
                 <Chip style={styles.chip}>{provider.status}</Chip>
               </Card.Content>
-              <Card.Actions>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', padding: 8, gap: 8 }}>
                 <Button
                   mode="contained"
                   onPress={() => navigation.navigate('ManageProvider', { provider })}
-                  style={{ marginRight: 8 }}
                 >
                   Editează
                 </Button>
@@ -260,7 +259,7 @@ export default function ProfileScreen({ navigation }) {
                     </Button>
                   </View>
                 )}
-              </Card.Actions>
+              </View>
             </Card>
           ))
         )}
@@ -308,11 +307,11 @@ export default function ProfileScreen({ navigation }) {
                       )}
                       {booking.notes && <Paragraph>Notite: {booking.notes}</Paragraph>}
                     </Card.Content>
-                    <Card.Actions>
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 8, gap: 8 }}>
                       <Button
                         mode="contained"
                         icon="check"
-                        style={{ backgroundColor: '#388e3c', marginRight: 8 }}
+                        style={{ backgroundColor: '#388e3c' }}
                         onPress={() => handleUpdateBookingStatus(booking, 'confirmed')}
                         disabled={updatingBookingId === booking.id}
                         loading={updatingBookingId === booking.id}
@@ -329,7 +328,7 @@ export default function ProfileScreen({ navigation }) {
                       >
                         Respinge
                       </Button>
-                    </Card.Actions>
+                    </View>
                   </Card>
                 ))
             )}
@@ -451,7 +450,7 @@ export default function ProfileScreen({ navigation }) {
                 )}
                 <Chip style={styles.chip}>{booking.status}</Chip>
               </Card.Content>
-              <Card.Actions>
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 8 }}>
                 <Button
                   mode="outlined"
                   onPress={() => handleCancelBooking(booking)}
@@ -466,7 +465,7 @@ export default function ProfileScreen({ navigation }) {
                 >
                   Anuleaza rezervarea
                 </Button>
-              </Card.Actions>
+              </View>
             </Card>
           ))
         )}

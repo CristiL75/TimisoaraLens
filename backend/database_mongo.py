@@ -193,6 +193,10 @@ def get_service_offers_collection():
     """Get service offers collection"""
     return database.service_offers
 
+def get_experiences_collection():
+    """Get experiences collection"""
+    return database.experiences
+
 
 # ============================================================
 # BOOKING SYSTEM MODELS
@@ -392,7 +396,78 @@ class ServiceOffer(BaseModel):
         json_encoders = {ObjectId: str}
 
 
-class Booking(BaseModel):
+class RouteStop(BaseModel):
+    """A stop/waypoint on an experience route"""
+    name: str
+    description: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+
+class ExperienceDate(BaseModel):
+    """A scheduled date + time for an experience"""
+    date: str        # "2026-03-10"
+    start_time: str  # "10:00"
+
+
+class Experience(BaseModel):
+    """Guided tour / workshop / indoor activity"""
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    user_id: str
+    name: str
+    description: Optional[str] = None
+    experience_type: str = "guided_tour"  # guided_tour, indoor_activity, workshop
+    images: list[str] = []
+
+    # Participants
+    min_participants: int = 1
+    max_participants: int = 15
+
+    # Location / meeting point
+    meeting_point: Optional[str] = None  # address / landmark name
+    meeting_latitude: Optional[float] = None
+    meeting_longitude: Optional[float] = None
+    meeting_instructions: Optional[str] = None
+
+    # Route (for guided tours)
+    route_stops: list[RouteStop] = []
+
+    # Duration & schedule
+    duration_text: Optional[str] = None  # "2h", "4h", "full day"
+    available_dates: list[ExperienceDate] = []
+
+    # Price
+    price_per_person: float = 0
+    private_group_price: Optional[float] = None
+
+    status: str = "active"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        populate_by_name = True
+        json_encoders = {ObjectId: str}
+
+
+class ExperienceBooking(BaseModel):
+    """Booking for an experience"""
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    experience_id: PyObjectId
+    user_id: Optional[str] = None
+    customer_name: str
+    customer_email: EmailStr
+    customer_phone: str
+    date: str       # selected date
+    start_time: str # selected time
+    party_size: int
+    is_private_group: bool = False
+    notes: Optional[str] = None
+    total_price: float = 0
+    status: str = "pending"  # pending, confirmed, rejected, canceled
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        populate_by_name = True
+        json_encoders = {ObjectId: str}
     """Customer booking/reservation"""
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     provider_id: PyObjectId

@@ -59,7 +59,7 @@ export default function HomeScreen({ navigation }) {
               Adaugă propriul anunț sau descoperă cazări disponibile.
             </Paragraph>
           </Card.Content>
-          <Card.Actions>
+          <View style={styles.cardActionRow}>
             <Button
               mode="contained"
               icon="home-search"
@@ -68,7 +68,7 @@ export default function HomeScreen({ navigation }) {
             >
               Vezi Apartamente
             </Button>
-          </Card.Actions>
+          </View>
         </Card>
 
         {/* Services/Bookings Button */}
@@ -83,7 +83,7 @@ export default function HomeScreen({ navigation }) {
               Gestionează rezervări și disponibilitate.
             </Paragraph>
           </Card.Content>
-          <Card.Actions>
+          <View style={styles.cardActionRow}>
             <Button
               mode="contained"
               icon="calendar-check"
@@ -92,7 +92,31 @@ export default function HomeScreen({ navigation }) {
             >
               Vezi Servicii
             </Button>
-          </Card.Actions>
+          </View>
+        </Card>
+
+        {/* Experiences Button */}
+        <Card style={styles.card}>
+          <Card.Content>
+            <View style={styles.titleContainer}>
+              <MaterialCommunityIcons name="compass-outline" size={28} color="#E65100" />
+              <Title style={styles.titleText}>Experiențe & Tururi</Title>
+            </View>
+            <Paragraph style={styles.cardDescription}>
+              Descoperă tururi ghidate, workshop-uri și activități în Timișoara.
+              Creează propriile experiențe sau rezervă pe cele existente.
+            </Paragraph>
+          </Card.Content>
+          <View style={styles.cardActionRow}>
+            <Button
+              mode="contained"
+              icon="compass"
+              onPress={() => navigation.navigate('ManageExperiences')}
+              style={styles.experiencesButton}
+            >
+              Experiențe
+            </Button>
+          </View>
         </Card>
 
 
@@ -150,6 +174,16 @@ const styles = StyleSheet.create({
   servicesButton: {
     marginLeft: 'auto',
     backgroundColor: '#4CAF50',
+  },
+  cardActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  experiencesButton: {
+    marginLeft: 'auto',
+    backgroundColor: '#E65100',
   },
   profileButton: {
     paddingHorizontal: 0,

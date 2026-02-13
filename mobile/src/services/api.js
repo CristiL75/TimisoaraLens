@@ -869,3 +869,99 @@ const bookingsAPIExtended = {
 };
 
 Object.assign(bookingsAPI, bookingsAPIExtended);
+
+// Experiences API
+const experiencesAPI = {
+  createExperience: async (data) => {
+    try {
+      const response = await api.post('/bookings/experiences', data);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] createExperience error:', formatAxiosError(error));
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+  listExperiences: async () => {
+    try {
+      const response = await api.get('/bookings/experiences');
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] listExperiences error:', formatAxiosError(error));
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+  getMyExperiences: async () => {
+    try {
+      const response = await api.get('/bookings/experiences/my');
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] getMyExperiences error:', formatAxiosError(error));
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+  getExperience: async (id) => {
+    try {
+      const response = await api.get(`/bookings/experiences/${id}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] getExperience error:', formatAxiosError(error));
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+  updateExperience: async (id, data) => {
+    try {
+      const response = await api.put(`/bookings/experiences/${id}`, data);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] updateExperience error:', formatAxiosError(error));
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+  deleteExperience: async (id) => {
+    try {
+      const response = await api.delete(`/bookings/experiences/${id}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] deleteExperience error:', formatAxiosError(error));
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+  bookExperience: async (data) => {
+    try {
+      const response = await api.post('/bookings/experience-bookings', data);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] bookExperience error:', formatAxiosError(error));
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+  getMyExperienceBookings: async () => {
+    try {
+      const response = await api.get('/bookings/experience-bookings/my');
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] getMyExperienceBookings error:', formatAxiosError(error));
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+  getOwnerExperienceBookings: async () => {
+    try {
+      const response = await api.get('/bookings/experience-bookings/owner');
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] getOwnerExperienceBookings error:', formatAxiosError(error));
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+  updateExperienceBookingStatus: async (bookingId, statusVal) => {
+    try {
+      const response = await api.patch(`/bookings/experience-bookings/${bookingId}/status`, { status: statusVal });
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] updateExperienceBookingStatus error:', formatAxiosError(error));
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+};
+
+export { experiencesAPI };

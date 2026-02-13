@@ -183,7 +183,7 @@ export default function ManageTablesScreen({ navigation, route }) {
                   </Chip>
                 )}
               />
-              <Card.Actions>
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 8 }}>
                 <Button
                   mode="contained"
                   icon="delete"
@@ -192,7 +192,7 @@ export default function ManageTablesScreen({ navigation, route }) {
                 >
                   Sterge
                 </Button>
-              </Card.Actions>
+              </View>
             </Card>
           ))
         )}

@@ -339,7 +339,7 @@ export default function ManageRoomsScreen({ navigation, route }) {
                   ))}
                 </ScrollView>
               )}
-              <Card.Actions>
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 8, gap: 8 }}>
                 <Button
                   mode="outlined"
                   icon="pencil"
@@ -356,7 +356,7 @@ export default function ManageRoomsScreen({ navigation, route }) {
                 >
                   Sterge
                 </Button>
-              </Card.Actions>
+              </View>
             </Card>
           ))
         )}

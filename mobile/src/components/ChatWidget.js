@@ -188,7 +188,7 @@ export default function ChatWidget() {
                 )}
               </ScrollView>
             </View>
-            <Card.Actions style={styles.inputRow}>
+            <View style={styles.inputRow}>
               <TextInput
                 style={styles.input}
                 placeholder="Scrie un mesaj..."
@@ -205,7 +205,7 @@ export default function ChatWidget() {
               >
                 Trimite
               </Button>
-            </Card.Actions>
+            </View>
           </Card>
         </KeyboardAvoidingView>
       )}

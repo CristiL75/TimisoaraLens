@@ -21,6 +21,7 @@ from database_mongo import (
     get_services_collection,
     get_employees_collection,
     get_users_collection,
+    get_experiences_collection,
     Provider,
     Table,
     Room,
@@ -33,6 +34,10 @@ from database_mongo import (
     EventSettings,
     ReservationType,
     PyObjectId,
+    Experience,
+    ExperienceBooking,
+    RouteStop,
+    ExperienceDate,
 )
 from auth_utils import get_current_user, SECRET_KEY, ALGORITHM
 
@@ -2480,3 +2485,335 @@ async def cancel_booking(booking_id: str, current_user=Depends(get_current_user)
     # TODO: Send cancellation email
 
     return {"message": "Booking canceled successfully"}
+
+
+# ============================================================
+# EXPERIENCES API
+# ============================================================
+
+class RouteStopRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+class ExperienceDateRequest(BaseModel):
+    date: str
+    start_time: str
+
+class ExperienceCreateRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    experience_type: str = "guided_tour"
+    images: List[str] = []
+    min_participants: int = 1
+    max_participants: int = 15
+    meeting_point: Optional[str] = None
+    meeting_latitude: Optional[float] = None
+    meeting_longitude: Optional[float] = None
+    meeting_instructions: Optional[str] = None
+    route_stops: List[RouteStopRequest] = []
+    duration_text: Optional[str] = None
+    available_dates: List[ExperienceDateRequest] = []
+    price_per_person: float = 0
+    private_group_price: Optional[float] = None
+
+class ExperienceResponse(BaseModel):
+    id: str
+    user_id: str
+    name: str
+    description: Optional[str] = None
+    experience_type: str
+    images: List[str] = []
+    min_participants: int
+    max_participants: int
+    meeting_point: Optional[str] = None
+    meeting_latitude: Optional[float] = None
+    meeting_longitude: Optional[float] = None
+    meeting_instructions: Optional[str] = None
+    route_stops: List[RouteStopRequest] = []
+    duration_text: Optional[str] = None
+    available_dates: List[ExperienceDateRequest] = []
+    price_per_person: float
+    private_group_price: Optional[float] = None
+    status: str
+
+class ExperienceBookingCreateRequest(BaseModel):
+    experience_id: str
+    customer_name: str
+    customer_email: EmailStr
+    customer_phone: str
+    date: str
+    start_time: str
+    party_size: int
+    is_private_group: bool = False
+    notes: Optional[str] = None
+
+class ExperienceBookingResponse(BaseModel):
+    id: str
+    experience_id: str
+    user_id: Optional[str] = None
+    customer_name: str
+    customer_email: str
+    customer_phone: str
+    date: str
+    start_time: str
+    party_size: int
+    is_private_group: bool
+    notes: Optional[str] = None
+    total_price: float
+    status: str
+
+
+def _serialize_experience(doc) -> ExperienceResponse:
+    return ExperienceResponse(
+        id=str(doc["_id"]),
+        user_id=str(doc.get("user_id", "")),
+        name=doc["name"],
+        description=doc.get("description"),
+        experience_type=doc.get("experience_type", "guided_tour"),
+        images=doc.get("images", []),
+        min_participants=doc.get("min_participants", 1),
+        max_participants=doc.get("max_participants", 15),
+        meeting_point=doc.get("meeting_point"),
+        meeting_latitude=doc.get("meeting_latitude"),
+        meeting_longitude=doc.get("meeting_longitude"),
+        meeting_instructions=doc.get("meeting_instructions"),
+        route_stops=[RouteStopRequest(**s) for s in doc.get("route_stops", [])],
+        duration_text=doc.get("duration_text"),
+        available_dates=[ExperienceDateRequest(**d) for d in doc.get("available_dates", [])],
+        price_per_person=doc.get("price_per_person", 0),
+        private_group_price=doc.get("private_group_price"),
+        status=doc.get("status", "active"),
+    )
+
+
+def _serialize_experience_booking(doc) -> ExperienceBookingResponse:
+    return ExperienceBookingResponse(
+        id=str(doc["_id"]),
+        experience_id=str(doc.get("experience_id", "")),
+        user_id=doc.get("user_id"),
+        customer_name=doc["customer_name"],
+        customer_email=doc["customer_email"],
+        customer_phone=doc["customer_phone"],
+        date=doc["date"],
+        start_time=doc["start_time"],
+        party_size=doc.get("party_size", 1),
+        is_private_group=doc.get("is_private_group", False),
+        notes=doc.get("notes"),
+        total_price=doc.get("total_price", 0),
+        status=doc.get("status", "pending"),
+    )
+
+
+@router.post("/experiences", response_model=ExperienceResponse, status_code=status.HTTP_201_CREATED)
+async def create_experience(request: ExperienceCreateRequest, current_user=Depends(get_current_user)):
+    experiences_col = get_experiences_collection()
+    exp_data = {
+        "user_id": str(current_user["_id"]),
+        "name": request.name,
+        "description": request.description,
+        "experience_type": request.experience_type,
+        "images": request.images or [],
+        "min_participants": request.min_participants,
+        "max_participants": request.max_participants,
+        "meeting_point": request.meeting_point,
+        "meeting_latitude": request.meeting_latitude,
+        "meeting_longitude": request.meeting_longitude,
+        "meeting_instructions": request.meeting_instructions,
+        "route_stops": [s.model_dump() for s in request.route_stops],
+        "duration_text": request.duration_text,
+        "available_dates": [d.model_dump() for d in request.available_dates],
+        "price_per_person": request.price_per_person,
+        "private_group_price": request.private_group_price,
+        "status": "active",
+        "created_at": datetime.utcnow(),
+    }
+    result = await experiences_col.insert_one(exp_data)
+    exp_data["_id"] = result.inserted_id
+    return _serialize_experience(exp_data)
+
+
+@router.get("/experiences", response_model=List[ExperienceResponse])
+async def list_experiences():
+    experiences_col = get_experiences_collection()
+    cursor = experiences_col.find({"status": "active"}).sort("created_at", -1)
+    docs = await cursor.to_list(length=200)
+    return [_serialize_experience(d) for d in docs]
+
+
+@router.get("/experiences/my", response_model=List[ExperienceResponse])
+async def get_my_experiences(current_user=Depends(get_current_user)):
+    experiences_col = get_experiences_collection()
+    cursor = experiences_col.find({"user_id": str(current_user["_id"])}).sort("created_at", -1)
+    docs = await cursor.to_list(length=200)
+    return [_serialize_experience(d) for d in docs]
+
+
+@router.get("/experiences/{experience_id}", response_model=ExperienceResponse)
+async def get_experience(experience_id: str):
+    experiences_col = get_experiences_collection()
+    doc = await experiences_col.find_one({"_id": ObjectId(experience_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Experience not found")
+    return _serialize_experience(doc)
+
+
+@router.put("/experiences/{experience_id}", response_model=ExperienceResponse)
+async def update_experience(experience_id: str, request: ExperienceCreateRequest, current_user=Depends(get_current_user)):
+    experiences_col = get_experiences_collection()
+    existing = await experiences_col.find_one({"_id": ObjectId(experience_id)})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Experience not found")
+    if existing.get("user_id") != str(current_user["_id"]):
+        raise HTTPException(status_code=403, detail="Not your experience")
+
+    update_data = {
+        "name": request.name,
+        "description": request.description,
+        "experience_type": request.experience_type,
+        "images": request.images or [],
+        "min_participants": request.min_participants,
+        "max_participants": request.max_participants,
+        "meeting_point": request.meeting_point,
+        "meeting_latitude": request.meeting_latitude,
+        "meeting_longitude": request.meeting_longitude,
+        "meeting_instructions": request.meeting_instructions,
+        "route_stops": [s.model_dump() for s in request.route_stops],
+        "duration_text": request.duration_text,
+        "available_dates": [d.model_dump() for d in request.available_dates],
+        "price_per_person": request.price_per_person,
+        "private_group_price": request.private_group_price,
+    }
+    await experiences_col.update_one({"_id": ObjectId(experience_id)}, {"$set": update_data})
+    updated = await experiences_col.find_one({"_id": ObjectId(experience_id)})
+    return _serialize_experience(updated)
+
+
+@router.delete("/experiences/{experience_id}")
+async def delete_experience(experience_id: str, current_user=Depends(get_current_user)):
+    experiences_col = get_experiences_collection()
+    existing = await experiences_col.find_one({"_id": ObjectId(experience_id)})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Experience not found")
+    if existing.get("user_id") != str(current_user["_id"]):
+        raise HTTPException(status_code=403, detail="Not your experience")
+    await experiences_col.delete_one({"_id": ObjectId(experience_id)})
+    return {"message": "Experience deleted"}
+
+
+# --- Experience Bookings ---
+
+@router.post("/experience-bookings", response_model=ExperienceBookingResponse, status_code=status.HTTP_201_CREATED)
+async def create_experience_booking(request: ExperienceBookingCreateRequest, req: Request):
+    experiences_col = get_experiences_collection()
+    from database_mongo import database as db_ref
+    exp_bookings_col = db_ref.experience_bookings
+
+    exp = await experiences_col.find_one({"_id": ObjectId(request.experience_id)})
+    if not exp:
+        raise HTTPException(status_code=404, detail="Experience not found")
+
+    # Count existing bookings for this date+time
+    existing = await exp_bookings_col.find({
+        "experience_id": request.experience_id,
+        "date": request.date,
+        "start_time": request.start_time,
+        "status": {"$in": ["pending", "confirmed"]},
+    }).to_list(length=1000)
+
+    total_booked = sum(b.get("party_size", 0) for b in existing)
+    if total_booked + request.party_size > exp.get("max_participants", 15):
+        raise HTTPException(status_code=400, detail=f"Nu mai sunt locuri disponibile. Locuri ramase: {exp.get('max_participants', 15) - total_booked}")
+
+    # Calculate price
+    if request.is_private_group and exp.get("private_group_price"):
+        total_price = exp["private_group_price"]
+    else:
+        total_price = exp.get("price_per_person", 0) * request.party_size
+
+    # Get user_id from token if available
+    user_id = None
+    try:
+        user = await get_optional_user_from_request(req)
+        if user:
+            user_id = str(user["_id"])
+    except Exception:
+        pass
+
+    booking_data = {
+        "experience_id": request.experience_id,
+        "user_id": user_id,
+        "customer_name": request.customer_name,
+        "customer_email": request.customer_email,
+        "customer_phone": request.customer_phone,
+        "date": request.date,
+        "start_time": request.start_time,
+        "party_size": request.party_size,
+        "is_private_group": request.is_private_group,
+        "notes": request.notes,
+        "total_price": total_price,
+        "status": "pending",
+        "created_at": datetime.utcnow(),
+    }
+    result = await exp_bookings_col.insert_one(booking_data)
+    booking_data["_id"] = result.inserted_id
+    return _serialize_experience_booking(booking_data)
+
+
+@router.get("/experience-bookings/my", response_model=List[ExperienceBookingResponse])
+async def get_my_experience_bookings(current_user=Depends(get_current_user)):
+    from database_mongo import database as db_ref
+    exp_bookings_col = db_ref.experience_bookings
+    cursor = exp_bookings_col.find({"user_id": str(current_user["_id"])}).sort("created_at", -1)
+    docs = await cursor.to_list(length=200)
+    return [_serialize_experience_booking(d) for d in docs]
+
+
+@router.get("/experience-bookings/owner", response_model=List[ExperienceBookingResponse])
+async def get_owner_experience_bookings(current_user=Depends(get_current_user)):
+    experiences_col = get_experiences_collection()
+    from database_mongo import database as db_ref
+    exp_bookings_col = db_ref.experience_bookings
+
+    # Get all experiences owned by user
+    my_exps = await experiences_col.find({"user_id": str(current_user["_id"])}).to_list(length=200)
+    exp_ids = [str(e["_id"]) for e in my_exps]
+    if not exp_ids:
+        return []
+
+    cursor = exp_bookings_col.find({"experience_id": {"$in": exp_ids}}).sort("created_at", -1)
+    docs = await cursor.to_list(length=500)
+    return [_serialize_experience_booking(d) for d in docs]
+
+
+@router.patch("/experience-bookings/{booking_id}/status")
+async def update_experience_booking_status(booking_id: str, payload: dict = Body(...), current_user=Depends(get_current_user)):
+    from database_mongo import database as db_ref
+    exp_bookings_col = db_ref.experience_bookings
+
+    new_status = payload.get("status")
+    if new_status not in ("confirmed", "rejected", "canceled"):
+        raise HTTPException(status_code=400, detail="Invalid status")
+
+    booking = await exp_bookings_col.find_one({"_id": ObjectId(booking_id)})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    # Verify ownership - either the experience owner or the customer
+    experiences_col = get_experiences_collection()
+    exp = await experiences_col.find_one({"_id": ObjectId(booking["experience_id"])})
+    is_owner = exp and exp.get("user_id") == str(current_user["_id"])
+    is_customer = booking.get("user_id") == str(current_user["_id"])
+
+    if not is_owner and not is_customer:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    if new_status == "canceled" and not is_customer:
+        raise HTTPException(status_code=403, detail="Only customer can cancel")
+
+    await exp_bookings_col.update_one(
+        {"_id": ObjectId(booking_id)},
+        {"$set": {"status": new_status}}
+    )
+    return {"message": f"Booking status updated to {new_status}"}

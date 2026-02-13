@@ -15,6 +15,7 @@ import {
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { bookingsAPI } from '../services/api';
+import { experiencesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function ServicesScreen({ navigation }) {
@@ -28,10 +29,12 @@ export default function ServicesScreen({ navigation }) {
   const [providerServices, setProviderServices] = useState([]);
   const [providerRooms, setProviderRooms] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [experiences, setExperiences] = useState([]);
 
   useEffect(() => {
     loadProviders();
     loadProviderBookings();
+    loadExperiences();
   }, []);
 
   useEffect(() => {
@@ -191,9 +194,21 @@ export default function ServicesScreen({ navigation }) {
     return car ? `${car.brand} ${car.model}` : null;
   };
 
+  const loadExperiences = async () => {
+    try {
+      const result = await experiencesAPI.listExperiences();
+      if (result.success) {
+        setExperiences(result.data);
+      }
+    } catch (error) {
+      // ignore
+    }
+  };
+
   const onRefresh = () => {
     setRefreshing(true);
     loadProviders();
+    loadExperiences();
   };
 
   if (loading) {
@@ -233,7 +248,7 @@ export default function ServicesScreen({ navigation }) {
               Poti adauga mai multe servicii si le poti gestiona separat.
             </Paragraph>
           </Card.Content>
-          <Card.Actions>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 8 }}>
             <Button
               mode="contained"
               icon="plus"
@@ -241,7 +256,7 @@ export default function ServicesScreen({ navigation }) {
             >
               Adauga Serviciu
             </Button>
-          </Card.Actions>
+          </View>
         </Card>
 
         {/* Rezervari in curs pentru serviciile mele */}
@@ -293,11 +308,11 @@ export default function ServicesScreen({ navigation }) {
                       )}
                       {booking.notes && <Paragraph>Notite: {booking.notes}</Paragraph>}
                     </Card.Content>
-                    <Card.Actions>
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 8, gap: 8 }}>
                       <Button
                         mode="contained"
                         icon="check"
-                        style={{ backgroundColor: '#388e3c', marginRight: 8 }}
+                        style={{ backgroundColor: '#388e3c' }}
                         onPress={async () => {
                           const result = await bookingsAPI.updateBookingStatus(booking.id, 'confirmed');
                           if (result.success) {
@@ -326,7 +341,7 @@ export default function ServicesScreen({ navigation }) {
                       >
                         Respinge
                       </Button>
-                    </Card.Actions>
+                    </View>
                   </Card>
                 ))
             )}
@@ -488,7 +503,7 @@ export default function ServicesScreen({ navigation }) {
                       </View>
                     )}
                   </Card.Content>
-                  <Card.Actions>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', padding: 8, gap: 4 }}>
                     {!isRentCar && !isLocationSpace && !isClub && (
                       <Button
                         mode="outlined"
@@ -547,11 +562,100 @@ export default function ServicesScreen({ navigation }) {
                         Editeaza
                       </Button>
                     )}
-                  </Card.Actions>
+                  </View>
                 </Card>
               );
             })
         )}
+
+        {/* Experiences Section */}
+        <Title style={styles.sectionTitle}>🧭 Experiențe & Tururi</Title>
+        <Card style={styles.card}>
+          <Card.Content>
+            <View style={styles.titleContainer}>
+              <MaterialCommunityIcons name="compass-outline" size={24} color="#E65100" />
+              <Title style={styles.titleText}>Experiențe</Title>
+            </View>
+            <Paragraph>
+              Creeaza tururi ghidate, workshop-uri sau activitati.
+            </Paragraph>
+          </Card.Content>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 8, gap: 8 }}>
+            <Button
+              mode="outlined"
+              icon="format-list-bulleted"
+              onPress={() => navigation.navigate('ManageExperiences')}
+            >
+              Experiențele mele
+            </Button>
+          </View>
+        </Card>
+
+        {experiences.length > 0 &&
+          experiences.map((exp) => {
+            const isExpOwner = user?.id && exp.user_id && String(user.id).trim() === String(exp.user_id).trim();
+            return (
+              <Card key={exp.id} style={styles.card}>
+                {exp.images && exp.images.length > 0 && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 8 }}>
+                    {exp.images.map((img, idx) => (
+                      <Image
+                        key={idx}
+                        source={{ uri: img }}
+                        style={{ width: 120, height: 80, borderRadius: 8, marginRight: 8 }}
+                      />
+                    ))}
+                  </ScrollView>
+                )}
+                <Card.Content>
+                  <View style={styles.titleContainer}>
+                    <MaterialCommunityIcons name="compass" size={24} color="#E65100" />
+                    <Title style={styles.titleText}>{exp.name}</Title>
+                  </View>
+                  {exp.description ? (
+                    <Paragraph numberOfLines={2}>{exp.description}</Paragraph>
+                  ) : null}
+                  <View style={styles.tagsContainer}>
+                    <Chip icon="account-group" mode="outlined" style={styles.smallChip}>
+                      {exp.min_participants}-{exp.max_participants} pers
+                    </Chip>
+                    <Chip icon="cash" mode="outlined" style={styles.smallChip}>
+                      {exp.price_per_person} lei/pers
+                    </Chip>
+                    {exp.duration_text ? (
+                      <Chip icon="clock" mode="outlined" style={styles.smallChip}>
+                        {exp.duration_text}
+                      </Chip>
+                    ) : null}
+                    {exp.available_dates?.length > 0 ? (
+                      <Chip icon="calendar" mode="outlined" style={styles.smallChip}>
+                        {exp.available_dates.length} date
+                      </Chip>
+                    ) : null}
+                  </View>
+                </Card.Content>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', padding: 8, gap: 4 }}>
+                  <Button
+                    mode="outlined"
+                    icon="calendar-check"
+                    onPress={() => navigation.navigate('BookExperience', { experience: exp })}
+                  >
+                    Rezerva
+                  </Button>
+                  {isExpOwner && (
+                    <Button
+                      mode="contained"
+                      icon="pencil"
+                      style={{ marginLeft: 8 }}
+                      onPress={() => navigation.navigate('ManageExperiences')}
+                    >
+                      Editeaza
+                    </Button>
+                  )}
+                </View>
+              </Card>
+            );
+          })}
       </ScrollView>
     </View>
   );

@@ -164,19 +164,7 @@ export default function ManageServicesScreen({ navigation, route }) {
           } else {
             loadServices();
           }
-          Alert.alert(
-            'Succes',
-            'Serviciul a fost adaugat',
-            [{
-              text: 'OK',
-              onPress: () => navigation.dispatch(
-                CommonActions.reset({
-                  index: 0,
-                  routes: [{ name: 'Services' }],
-                })
-              ),
-            }]
-          );
+          Alert.alert('Succes', 'Serviciul a fost adaugat');
         }
       } else {
         Alert.alert('Eroare', result.error || 'Nu s-a putut salva serviciul');
@@ -276,7 +264,7 @@ export default function ManageServicesScreen({ navigation, route }) {
                   </ScrollView>
                 )}
               </Card.Content>
-              <Card.Actions>
+              <View style={styles.cardActions}>
                 <Button
                   mode="outlined"
                   icon="pencil"
@@ -292,7 +280,7 @@ export default function ManageServicesScreen({ navigation, route }) {
                 >
                   Sterge
                 </Button>
-              </Card.Actions>
+              </View>
             </Card>
           ))
         )}
@@ -409,6 +397,12 @@ const styles = StyleSheet.create({
   },
   input: { marginBottom: 12 },
   deleteButton: { backgroundColor: '#d32f2f', marginLeft: 8 },
+  cardActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    padding: 8,
+    gap: 8,
+  },
   modalContainer: {
     backgroundColor: '#fff',
     margin: 20,

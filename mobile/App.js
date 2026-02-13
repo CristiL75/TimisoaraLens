@@ -28,6 +28,8 @@ import ManageServicesScreen from './src/screens/ManageServicesScreen';
 import ManageEmployeesScreen from './src/screens/ManageEmployeesScreen';
 import BookServiceScreen from './src/screens/BookServiceScreen';
 import BookEventScreen from './src/screens/BookEventScreen';
+import ManageExperiencesScreen from './src/screens/ManageExperiencesScreen';
+import BookExperienceScreen from './src/screens/BookExperienceScreen';
 import ProviderDetailScreen from './src/screens/ProviderDetailScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import BookingCalendarScreen from './src/screens/BookingCalendarScreen';
@@ -73,6 +75,8 @@ function AppStack() {
       <Stack.Screen name="ManageEmployees" component={ManageEmployeesScreen} />
       <Stack.Screen name="BookService" component={BookServiceScreen} />
       <Stack.Screen name="BookEvent" component={BookEventScreen} />
+      <Stack.Screen name="ManageExperiences" component={ManageExperiencesScreen} />
+      <Stack.Screen name="BookExperience" component={BookExperienceScreen} />
       <Stack.Screen name="BookingCalendar" component={BookingCalendarScreen} />
     </Stack.Navigator>
   );
