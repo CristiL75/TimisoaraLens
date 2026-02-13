@@ -25,7 +25,6 @@ from database_mongo import (
     Provider,
     Table,
     Room,
-    Booking,
     Service,
     Employee,
     BookingSettings,
