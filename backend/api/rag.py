@@ -105,9 +105,18 @@ async def rag_query(request: RAGQueryRequest):
     try:
         logger.info(f"Proxying RAG query to HF Space: {request.query}")
         
+        apartment_keywords = [
+            "apartament", "apartamente", "cazare", "regim hotelier", "studio",
+            "garsoniera", "accommodation", "apartment", "flat", "lodging",
+            "rent", "booking", "stay",
+        ]
+        query_lower = request.query.lower()
+        use_apartments = any(k in query_lower for k in apartment_keywords)
+        endpoint = "/query_apartments" if use_apartments else "/query"
+
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
-                f"{HF_RAG_SPACE_URL}/query",
+                f"{HF_RAG_SPACE_URL}{endpoint}",
                 json=request.dict(),
             )
             response.raise_for_status()
