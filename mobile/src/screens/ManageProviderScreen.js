@@ -754,7 +754,7 @@ export default function ManageProviderScreen({ navigation, route }) {
         const result = await experiencesAPI.createExperience(expData);
         if (result.success) {
           Alert.alert('Succes', 'Experienta a fost creata!', [
-            { text: 'OK', onPress: () => navigation.navigate('Services') },
+            { text: 'OK', onPress: () => navigation.goBack() },
           ]);
         } else {
           Alert.alert('Eroare', result.error || 'Nu s-a putut salva experienta');
@@ -827,7 +827,7 @@ export default function ManageProviderScreen({ navigation, route }) {
           }
         }
         Alert.alert('Succes', message, [
-          { text: 'OK', onPress: () => navigation.navigate('Services') },
+          { text: 'OK', onPress: () => navigation.goBack() },
         ]);
       } else {
         Alert.alert('Eroare', result.error || 'Nu s-a putut salva serviciul');
@@ -837,6 +837,37 @@ export default function ManageProviderScreen({ navigation, route }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeleteProvider = () => {
+    if (!isEdit || !existingProvider?.id) {
+      return;
+    }
+    Alert.alert(
+      'Sterge serviciu',
+      'Sigur vrei sa stergi acest serviciu? Actiunea nu poate fi anulata.',
+      [
+        { text: 'Renunta', style: 'cancel' },
+        {
+          text: 'Sterge',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const result = await bookingsAPI.deleteProvider(existingProvider.id);
+              if (result.success) {
+                Alert.alert('Succes', 'Serviciul a fost sters.', [
+                  { text: 'OK', onPress: () => navigation.goBack() },
+                ]);
+              } else {
+                Alert.alert('Eroare', result.error || 'Nu s-a putut sterge serviciul');
+              }
+            } catch (error) {
+              Alert.alert('Eroare', 'A aparut o eroare la stergere');
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -1607,6 +1638,16 @@ export default function ManageProviderScreen({ navigation, route }) {
         >
           {isEdit ? 'Salveaza Modificari' : 'Creeaza Serviciu'}
         </Button>
+        {isEdit && (
+          <Button
+            mode="contained"
+            icon="delete"
+            onPress={handleDeleteProvider}
+            style={styles.deleteButton}
+          >
+            Sterge Serviciu
+          </Button>
+        )}
       </ScrollView>
 
       <Portal>
@@ -1996,6 +2037,10 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     marginVertical: 10,
+  },
+  deleteButton: {
+    marginBottom: 10,
+    backgroundColor: '#d32f2f',
   },
   tablesButton: {
     marginTop: 8,

@@ -1,7 +1,7 @@
 /**
  * Services Screen - List providers and manage own services
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, Image } from 'react-native';
 import {
   Appbar,
@@ -17,6 +17,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { bookingsAPI } from '../services/api';
 import { experiencesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function ServicesScreen({ navigation }) {
   const { user } = useAuth();
@@ -36,6 +37,14 @@ export default function ServicesScreen({ navigation }) {
     loadProviderBookings();
     loadExperiences();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProviders();
+      loadProviderBookings();
+      loadExperiences();
+    }, [])
+  );
 
   useEffect(() => {
     const ownedProviderIds = providers
@@ -255,14 +264,7 @@ export default function ServicesScreen({ navigation }) {
               Poti adauga mai multe servicii si le poti gestiona separat.
             </Paragraph>
           </Card.Content>
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 8, gap: 8 }}>
-            <Button
-              mode="outlined"
-              icon="compass-outline"
-              onPress={() => navigation.navigate('ManageExperiences')}
-            >
-              Experiențele mele
-            </Button>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 8 }}>
             <Button
               mode="contained"
               icon="plus"

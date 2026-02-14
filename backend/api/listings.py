@@ -2,7 +2,7 @@
 Listings Module - Hotel/Apartment Listings Management
 Allows users to create, update, and manage property listings
 """
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Query
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Query, BackgroundTasks
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
@@ -12,8 +12,53 @@ from api.auth import get_current_user
 import json
 import os
 import math
+import httpx
+import logging
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
+
+RAG_BASE_URL = os.getenv("RAG_BASE_URL", "").strip()
+if not RAG_BASE_URL:
+    RAG_BASE_URL = os.getenv("HF_RAG_SPACE_URL", "").strip()
+
+
+async def _notify_rag_upsert(listing: dict) -> None:
+    if not RAG_BASE_URL:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            await client.post(f"{RAG_BASE_URL}/rag/apartments/upsert", json={"listing": listing})
+    except Exception as e:
+        logger.warning("[LISTINGS] RAG upsert failed: %s", e)
+
+
+async def _notify_rag_delete(listing_id: str) -> None:
+    if not RAG_BASE_URL:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            await client.post(f"{RAG_BASE_URL}/rag/apartments/delete", json={"listing_id": listing_id})
+    except Exception as e:
+        logger.warning("[LISTINGS] RAG delete failed: %s", e)
+
+
+async def _backfill_listings(db, status: Optional[str] = "active", limit: Optional[int] = None) -> int:
+    if not RAG_BASE_URL:
+        return 0
+    query = {}
+    if status:
+        query["status"] = status
+    cursor = db.listings.find(query)
+    if limit:
+        cursor = cursor.limit(limit)
+    count = 0
+    async for listing in cursor:
+        listing_payload = serialize_listing(listing)
+        await _notify_rag_upsert(listing_payload)
+        count += 1
+    return count
 
 class Location(BaseModel):
     """Location model for listing"""
@@ -163,6 +208,7 @@ def serialize_listings(listings):
 async def create_listing(
     listing_data: ListingCreate, 
     current_user: dict = Depends(get_current_user),
+    background_tasks: BackgroundTasks = None,
     db = Depends(get_database)
 ):
     """
@@ -215,14 +261,40 @@ async def create_listing(
         result = await db.listings.insert_one(new_listing)
         new_listing['_id'] = result.inserted_id
         
+        listing_payload = serialize_listing(new_listing)
+        if background_tasks:
+            background_tasks.add_task(_notify_rag_upsert, listing_payload)
+
         return {
             "success": True,
-            "listing": serialize_listing(new_listing),
+            "listing": listing_payload,
             "message": "Listing created successfully"
         }
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create listing: {str(e)}")
+
+@router.post("/rag/backfill")
+async def backfill_listings_to_rag(
+    status: Optional[str] = "active",
+    limit: Optional[int] = None,
+    current_user: dict = Depends(get_current_user),
+    background_tasks: BackgroundTasks = None,
+    db = Depends(get_database)
+):
+    """
+    Backfill existing listings into RAG (HF Space -> Qdrant).
+    """
+    if not RAG_BASE_URL:
+        raise HTTPException(status_code=400, detail="RAG_BASE_URL/HF_RAG_SPACE_URL not configured")
+    if not background_tasks:
+        # Fallback to sync if background task manager is not available
+        count = await _backfill_listings(db, status=status, limit=limit)
+        return {"success": True, "count": count}
+
+    background_tasks.add_task(_backfill_listings, db, status, limit)
+    return {"success": True, "message": "Backfill started"}
+
 
 @router.get("/all")
 async def get_all_listings(
@@ -484,6 +556,7 @@ async def update_listing(
     listing_id: str, 
     listing_data: ListingCreate, 
     current_user: dict = Depends(get_current_user),
+    background_tasks: BackgroundTasks = None,
     db = Depends(get_database)
 ):
     """
@@ -541,9 +614,13 @@ async def update_listing(
         # Fetch updated listing
         updated_listing = await db.listings.find_one({"_id": obj_id})
         
+        listing_payload = serialize_listing(updated_listing)
+        if background_tasks:
+            background_tasks.add_task(_notify_rag_upsert, listing_payload)
+
         return {
             "success": True,
-            "listing": serialize_listing(updated_listing),
+            "listing": listing_payload,
             "message": "Listing updated successfully"
         }
     
@@ -556,6 +633,7 @@ async def update_listing(
 async def delete_listing(
     listing_id: str, 
     current_user: dict = Depends(get_current_user),
+    background_tasks: BackgroundTasks = None,
     db = Depends(get_database)
 ):
     """
@@ -585,6 +663,9 @@ async def delete_listing(
         
         if result.deleted_count == 0:
             raise HTTPException(status_code=500, detail="Failed to delete listing")
+
+        if background_tasks:
+            background_tasks.add_task(_notify_rag_delete, listing_id)
         
         return {
             "success": True,

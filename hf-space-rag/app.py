@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, PointStruct, PointIdsList, VectorParams
 import httpx
 from langdetect import detect, LangDetectException
 
@@ -29,6 +30,7 @@ HF_TOKEN = os.getenv("HF_TOKEN", "")
 HF_MODEL = os.getenv("HF_MODEL", "google/flan-t5-small")
 HF_BASE_URL = os.getenv("HF_BASE_URL", "https://router.huggingface.co/v1")
 COLLECTION_NAME = "timisoara_knowledge"
+APARTMENTS_COLLECTION = os.getenv("APARTMENTS_COLLECTION", "apartments")
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 TOP_K = 5
 
@@ -75,6 +77,106 @@ class RAGQueryResponse(BaseModel):
     answer: str
     sources: list = []
     query: str
+
+
+class ApartmentUpsertRequest(BaseModel):
+    listing: dict
+
+
+class ApartmentDeleteRequest(BaseModel):
+    listing_id: str
+
+
+def _ensure_apartments_collection():
+    qdrant_client = get_qdrant_client()
+    embedding_model = get_embedding_model()
+    vector_size = int(embedding_model.get_sentence_embedding_dimension())
+    try:
+        qdrant_client.get_collection(APARTMENTS_COLLECTION)
+    except Exception:
+        qdrant_client.create_collection(
+            collection_name=APARTMENTS_COLLECTION,
+            vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
+        )
+
+
+def _build_apartment_text(listing: dict) -> str:
+    location = listing.get("location") or {}
+    amenities = listing.get("amenities") or []
+    address = location.get("address") or ""
+    city = location.get("city") or ""
+    parts = [
+        f"Titlu: {listing.get('title', '')}",
+        f"Descriere: {listing.get('description', '')}",
+        f"Tip: {listing.get('property_type', '')}",
+        f"Pret/noapte: {listing.get('price_per_night', '')} lei",
+        f"Capacitate: {listing.get('max_guests', '')} persoane",
+        f"Dormitoare: {listing.get('bedrooms', '')}",
+        f"Bai: {listing.get('bathrooms', '')}",
+        f"Adresa: {address}",
+        f"Oras: {city}",
+        f"Facilitati: {', '.join(amenities)}",
+    ]
+    return "\n".join([p for p in parts if p.strip()])
+
+
+def _build_apartment_payload(listing: dict) -> dict:
+    location = listing.get("location") or {}
+    return {
+        "listing_id": listing.get("id") or listing.get("_id"),
+        "user_id": listing.get("user_id"),
+        "title": listing.get("title"),
+        "property_type": listing.get("property_type"),
+        "price_per_night": listing.get("price_per_night"),
+        "max_guests": listing.get("max_guests"),
+        "bedrooms": listing.get("bedrooms"),
+        "bathrooms": listing.get("bathrooms"),
+        "amenities": listing.get("amenities") or [],
+        "status": listing.get("status"),
+        "location": {
+            "latitude": location.get("latitude"),
+            "longitude": location.get("longitude"),
+            "address": location.get("address"),
+            "city": location.get("city"),
+            "country": location.get("country"),
+        },
+    }
+
+
+@app.post("/rag/apartments/upsert")
+async def upsert_apartment(request: ApartmentUpsertRequest):
+    listing = request.listing or {}
+    listing_id = listing.get("id") or listing.get("_id")
+    if not listing_id:
+        raise HTTPException(status_code=400, detail="Missing listing id")
+
+    _ensure_apartments_collection()
+    embedding_model = get_embedding_model()
+    qdrant_client = get_qdrant_client()
+
+    text = _build_apartment_text(listing)
+    vector = embedding_model.encode(text, convert_to_numpy=True).tolist()
+    payload = _build_apartment_payload(listing)
+    payload["text"] = text
+
+    qdrant_client.upsert(
+        collection_name=APARTMENTS_COLLECTION,
+        points=[PointStruct(id=str(listing_id), vector=vector, payload=payload)],
+    )
+    return {"success": True, "listing_id": str(listing_id)}
+
+
+@app.post("/rag/apartments/delete")
+async def delete_apartment(request: ApartmentDeleteRequest):
+    if not request.listing_id:
+        raise HTTPException(status_code=400, detail="Missing listing id")
+
+    qdrant_client = get_qdrant_client()
+    qdrant_client.delete(
+        collection_name=APARTMENTS_COLLECTION,
+        points_selector=PointIdsList(points=[str(request.listing_id)]),
+    )
+    return {"success": True, "listing_id": str(request.listing_id)}
 
 
 async def query_hf_router(prompt: str, max_tokens: int = 150) -> str:
