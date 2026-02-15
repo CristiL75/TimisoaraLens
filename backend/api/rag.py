@@ -91,13 +91,17 @@ def _detect_last_endpoint(conversation_history: Optional[list]) -> Optional[str]
         # If response mentions listings, apartments cards, prices with lei → apartments endpoint
         apartment_signals = [
             "listing", "apartament", "cazare", "proprietar", "dormitor",
-            "pret de", "lei/noapte", "rezervare", "disponibil"
+            "pret de", "lei/noapte", "rezervare", "disponibil",
+            "ionut popescu", "latcu", "cristian-simion",  # Specific owners
+            "constructorilor", "piata libertatii", "piața libertății",  # Apartment addresses
+            "puncte de interes recomandate", "traseu", "itinerar"  # POI from owners
         ]
         
         # If response mentions historical facts, city info → knowledge endpoint  
         knowledge_signals = [
             "timișoara", "istori", "revoluți", "cultur", "oraș",
-            "în anul", "eveniment", "monument", "fondată"
+            "în anul", "eveniment", "monument", "fondată",
+            "catedrala", "piata victoriei"  # General city landmarks (not owner POIs)
         ]
         
         apartment_score = sum(1 for s in apartment_signals if s in content_lower)
@@ -156,7 +160,7 @@ Query: "{query}"
 
 APARTMENTS database contains:
 - Accommodation listings (apartments, rooms, prices, facilities)
-- Owner information and contacts
+- Owner information and contacts (phone, email, name)
 - POI routes/itineraries recommended by apartment owners
 - Booking, availability, reviews
 
@@ -170,7 +174,11 @@ SEMANTIC CLASSIFICATION - Understand meaning, not just keywords:
 ✓ "ce sugerează/propune/recomandă" → APARTMENTS (if about owner)
 ✓ "gazda/proprietar/owner/host" → APARTMENTS
 ✓ "puncte de interes/locuri/pois" from owner → APARTMENTS
+✓ "contact/telefon/email/numar" despre proprietar → APARTMENTS
 ✓ "istoric/history/revoluție" NOT about apartments → KNOWLEDGE
+
+CONTEXT RULE:
+If recent conversation was about apartments/owners, vague queries like "ce numar de contact?", "telefon?", "cine este proprietarul?" refer to that apartment → APARTMENTS
 
 EXAMPLES:
 "apartament ieftin" → APARTMENTS
@@ -178,6 +186,9 @@ EXAMPLES:
 "ce locuri interesante recomandă gazda?" → APARTMENTS
 "un itinerar pentru vizitat orașul" → APARTMENTS (if owner context, else KNOWLEDGE)
 "cine este proprietarul?" → APARTMENTS
+"ce numar de contact are proprietarul?" → APARTMENTS
+"telefon/email proprietar" → APARTMENTS
+"cum il contactez?" → APARTMENTS
 "revoluția din 1989" → KNOWLEDGE
 "istoria Timișoarei" → KNOWLEDGE
 
