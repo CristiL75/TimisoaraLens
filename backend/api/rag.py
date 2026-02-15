@@ -70,28 +70,36 @@ Make questions natural, concise (max 10 words each), and relevant to tourism/bus
         return []
 
 
-async def classify_query_intent(query: str) -> str:
+async def classify_query_intent(query: str, conversation_history: Optional[list] = None) -> str:
     """
     Use LLM to semantically classify if query is about apartments/accommodation or general knowledge.
+    Takes conversation history into account for contextual queries.
     Returns: 'apartments' or 'knowledge'
     """
     if not HF_RAG_SPACE_URL:
         return "knowledge"
     
     try:
-        prompt = f"""You are a query router. You must respond with EXACTLY one word: APARTMENTS or KNOWLEDGE
+        # Build context from conversation history
+        context = ""
+        if conversation_history:
+            recent = conversation_history[-2:]  # Last 2 messages
+            for msg in recent:
+                role = msg.get('role', 'user')
+                content = msg.get('content', '')
+                context += f"{role}: {content}\n"
+            context = f"\nRecent conversation:\n{context}"
+        
+        prompt = f"""You are a query router. Respond with EXACTLY one word: APARTMENTS or KNOWLEDGE{context}
+Current query: "{query}"
 
-APARTMENTS database contains:
-- Apartment listings with prices, facilities, locations
-- Owner information and contact details
-- POI recommendations from apartment owners
+APARTMENTS database: apartment listings, prices, facilities, rooms, owners, booking
+KNOWLEDGE database: Timișoara history, culture, general tourism
 
-KNOWLEDGE database contains:
-- Timișoara history, culture, general tourism info
-
-Query: "{query}"
-
-Respond with one word only: APARTMENTS or KNOWLEDGE
+Rules:
+- Explicit apartment queries → APARTMENTS
+- Contextual queries ("mai ieftin", "da te rog") after apartment discussion → APARTMENTS
+- General city info → KNOWLEDGE
 
 Your answer:"""
 
@@ -133,24 +141,46 @@ Your answer:"""
                 logger.info("[CLASSIFICATION] Decision: knowledge (based on semantic analysis)")
                 return "knowledge"
             else:
-                # Tie or no clear signal - use query analysis as fallback
-                logger.warning(f"[CLASSIFICATION] LLM response unclear, analyzing query directly")
+                # Tie or no clear signal - use query + conversation analysis as fallback
+                logger.warning(f"[CLASSIFICATION] LLM response unclear, analyzing query and context")
                 query_lower = query.lower()
                 apartment_query_signals = ["apartament", "cazare", "accommodation", "stay", "booking", "rent", "dormitor", "lei", "pret", "price"]
+                
+                # Check if query has apartment keywords
                 if any(k in query_lower for k in apartment_query_signals):
                     logger.info("[CLASSIFICATION] Query analysis: apartments")
                     return "apartments"
+                
+                # Check conversation history for apartment context
+                if conversation_history:
+                    for msg in conversation_history[-3:]:  # Check last 3 messages
+                        content_lower = msg.get('content', '').lower()
+                        if any(k in content_lower for k in apartment_query_signals):
+                            logger.info("[CLASSIFICATION] Conversation history context: apartments")
+                            return "apartments"
+                
                 logger.info("[CLASSIFICATION] Query analysis: knowledge (default)")
                 return "knowledge"
                 
     except Exception as e:
-        logger.warning(f"[CLASSIFICATION] LLM call failed: {e}, analyzing query directly")
-        # Fallback: direct query analysis
+        logger.warning(f"[CLASSIFICATION] LLM call failed: {e}, analyzing query and context")
+        # Fallback: direct query + history analysis
         query_lower = query.lower()
         apartment_signals = ["apartament", "cazare", "accommodation", "stay", "booking", "rent", "dormitor", "lei", "pret", "price", "owner", "proprietar"]
+        
+        # Check query
         if any(k in query_lower for k in apartment_signals):
-            logger.info("[CLASSIFICATION] Fallback: apartments")
+            logger.info("[CLASSIFICATION] Fallback query: apartments")
             return "apartments"
+        
+        # Check conversation history
+        if conversation_history:
+            for msg in conversation_history[-3:]:
+                content_lower = msg.get('content', '').lower()
+                if any(k in content_lower for k in apartment_signals):
+                    logger.info("[CLASSIFICATION] Fallback history: apartments")
+                    return "apartments"
+        
         logger.info("[CLASSIFICATION] Fallback: knowledge")
         return "knowledge"
 
@@ -196,9 +226,9 @@ async def rag_query(request: RAGQueryRequest):
     try:
         logger.info(f"Proxying RAG query to HF Space: {request.query}")
         
-        # Use LLM to classify query intent instead of hardcoded keywords
+        # Use LLM to classify query intent with conversation context
         logger.info(f"[CLASSIFICATION] Starting LLM classification for query: {request.query}")
-        intent = await classify_query_intent(request.query)
+        intent = await classify_query_intent(request.query, request.conversation_history)
         endpoint = "/query_apartments" if intent == "apartments" else "/query"
         logger.info(f"[CLASSIFICATION] LLM classified intent: '{intent}' -> using endpoint: {endpoint}")
 
