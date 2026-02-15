@@ -121,28 +121,23 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
     if not HF_RAG_SPACE_URL:
         return "knowledge"
     
-    # Pre-check: If query explicitly mentions apartment-related terms, go to apartments directly
+    # Pre-check: ONLY for very explicit apartment queries (fast path)
+    # Let LLM handle semantic variants and synonyms
     query_lower = query.lower()
-    apartment_keywords = [
+    explicit_apartment_keywords = [
         "apartament", "apartamente", "apartment", "apartments",
         "aprtament", "apartamnt",  # Common typos
-        "cazare", "accommodation", "lodging",
-        "inchiriere", "rent", "rental",
-        "dormitor", "bedroom", "bedrooms",
-        "listing", "listare", "listat", "listed",
-        "proprietar", "owner", "host",
-        "rezervare", "booking", "book",
-        "disponibil", "available", "availability",
+        "cazare", "accommodation", "inchiriere", "rent",
+        "listing", "listare", "listat",
+        "rezervare", "booking",
     ]
     
-    # Also check with fuzzy matching for "apartament" (allow 1-2 char diff)
-    if "apartam" in query_lower or "cazare" in query_lower or "listing" in query_lower:
-        logger.info(f"[CLASSIFICATION] Pre-check: apartment-related term detected → apartments")
+    # Fast path for explicit queries only
+    if any(keyword in query_lower for keyword in explicit_apartment_keywords):
+        logger.info(f"[CLASSIFICATION] Pre-check: explicit apartment keyword → apartments")
         return "apartments"
     
-    if any(keyword in query_lower for keyword in apartment_keywords):
-        logger.info(f"[CLASSIFICATION] Pre-check: apartment keyword detected → apartments")
-        return "apartments"
+    # Everything else (including synonyms, contextual queries) → LLM classification
     
     try:
         # Build context from conversation history
@@ -155,16 +150,38 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
                 context += f"{role}: {content}\n"
             context = f"\nRecent conversation:\n{context}"
         
-        prompt = f"""Route this query to the correct database. Answer ONLY: APARTMENTS or KNOWLEDGE{context}
+        prompt = f"""Classify this query. Answer ONLY: APARTMENTS or KNOWLEDGE{context}
 
 Query: "{query}"
 
-APARTMENTS = searching for places to stay (listings, prices, rooms, owners, POIs recommended by owners)
-KNOWLEDGE = general city information (history, culture, tourism facts)
+APARTMENTS database contains:
+- Accommodation listings (apartments, rooms, prices, facilities)
+- Owner information and contacts
+- POI routes/itineraries recommended by apartment owners
+- Booking, availability, reviews
 
-If the query references previous conversation context ("acesta", "aceluia", "el", "ce recomanda") → use the SAME database as before.
+KNOWLEDGE database contains:
+- Timișoara city history, culture, architecture
+- General tourism info not related to specific accommodations
+- Historical events, monuments, city facts
 
-Answer:"""
+SEMANTIC CLASSIFICATION - Understand meaning, not just keywords:
+✓ "traseu/itinerary/route recommended" → APARTMENTS (owner's POI list)
+✓ "ce sugerează/propune/recomandă" → APARTMENTS (if about owner)
+✓ "gazda/proprietar/owner/host" → APARTMENTS
+✓ "puncte de interes/locuri/pois" from owner → APARTMENTS
+✓ "istoric/history/revoluție" NOT about apartments → KNOWLEDGE
+
+EXAMPLES:
+"apartament ieftin" → APARTMENTS
+"ce traseu turistic propune?" → APARTMENTS (owner's POI route)
+"ce locuri interesante recomandă gazda?" → APARTMENTS
+"un itinerar pentru vizitat orașul" → APARTMENTS (if owner context, else KNOWLEDGE)
+"cine este proprietarul?" → APARTMENTS
+"revoluția din 1989" → KNOWLEDGE
+"istoria Timișoarei" → KNOWLEDGE
+
+Answer (APARTMENTS or KNOWLEDGE):"""
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(
