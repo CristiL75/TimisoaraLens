@@ -113,10 +113,7 @@ async def rag_query(request: RAGQueryRequest):
             "latcu", "cristian", "simion", "popescu", "ionut", "cristil75",
             # POI queries related to apartments
             "traseu", "turistic", "cafenea", "restaurant", "recomandat",
-            # Specific POI names
-            "hype", "narativ", "catedrala", "mitropolitana",
-            # POI related terms
-            "puncte", "interes", "vizita", "locuri", "parere", "ofera",
+            "puncte", "interes",
         ]
         query_lower = request.query.lower()
         use_apartments = any(k in query_lower for k in apartment_keywords)
