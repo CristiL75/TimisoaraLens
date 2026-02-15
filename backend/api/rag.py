@@ -70,6 +70,48 @@ Make questions natural, concise (max 10 words each), and relevant to tourism/bus
         return []
 
 
+def _detect_last_endpoint(conversation_history: Optional[list]) -> Optional[str]:
+    """
+    Detect the last endpoint used by analyzing conversation history.
+    Returns 'apartments' or 'knowledge' or None if unclear.
+    """
+    if not conversation_history or len(conversation_history) < 2:
+        return None
+    
+    # Look at last few assistant responses to see which endpoint was used
+    for msg in reversed(conversation_history[-6:]):
+        if not hasattr(msg, 'role') or not hasattr(msg, 'content'):
+            continue
+            
+        if msg.role != 'assistant':
+            continue
+            
+        content_lower = msg.content.lower()
+        
+        # If response mentions listings, apartments cards, prices with lei → apartments endpoint
+        apartment_signals = [
+            "listing", "apartament", "cazare", "proprietar", "dormitor",
+            "pret de", "lei/noapte", "rezervare", "disponibil"
+        ]
+        
+        # If response mentions historical facts, city info → knowledge endpoint  
+        knowledge_signals = [
+            "timișoara", "istori", "revoluți", "cultur", "oraș",
+            "în anul", "eveniment", "monument", "fondată"
+        ]
+        
+        apartment_score = sum(1 for s in apartment_signals if s in content_lower)
+        knowledge_score = sum(1 for s in knowledge_signals if s in content_lower)
+        
+        # Clear signal from last assistant response
+        if apartment_score > knowledge_score and apartment_score >= 2:
+            return "apartments"
+        elif knowledge_score > apartment_score and knowledge_score >= 2:
+            return "knowledge"
+    
+    return None
+
+
 async def classify_query_intent(query: str, conversation_history: Optional[list] = None) -> str:
     """
     Use LLM to semantically classify if query is about apartments/accommodation or general knowledge.
@@ -90,18 +132,16 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
                 context += f"{role}: {content}\n"
             context = f"\nRecent conversation:\n{context}"
         
-        prompt = f"""You are a query router. Respond with EXACTLY one word: APARTMENTS or KNOWLEDGE{context}
-Current query: "{query}"
+        prompt = f"""Route this query to the correct database. Answer ONLY: APARTMENTS or KNOWLEDGE{context}
 
-APARTMENTS database: apartment listings, prices, facilities, rooms, owners, booking
-KNOWLEDGE database: Timișoara history, culture, general tourism
+Query: "{query}"
 
-Rules:
-- Explicit apartment queries → APARTMENTS
-- Contextual queries ("mai ieftin", "da te rog") after apartment discussion → APARTMENTS
-- General city info → KNOWLEDGE
+APARTMENTS = searching for places to stay (listings, prices, rooms, owners, POIs recommended by owners)
+KNOWLEDGE = general city information (history, culture, tourism facts)
 
-Your answer:"""
+If the query references previous conversation context ("acesta", "aceluia", "el", "ce recomanda") → use the SAME database as before.
+
+Answer:"""
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(
@@ -141,25 +181,23 @@ Your answer:"""
                 logger.info("[CLASSIFICATION] Decision: knowledge (based on semantic analysis)")
                 return "knowledge"
             else:
-                # Tie or no clear signal - use query + conversation analysis as fallback
-                logger.warning(f"[CLASSIFICATION] LLM response unclear, analyzing query and context")
-                query_lower = query.lower()
-                apartment_query_signals = ["apartament", "cazare", "accommodation", "stay", "booking", "rent", "dormitor", "lei", "pret", "price"]
+                # Tie or no clear signal - detect last endpoint from conversation
+                logger.warning(f"[CLASSIFICATION] LLM response unclear, using conversation context tracking")
                 
-                # Check if query has apartment keywords
-                if any(k in query_lower for k in apartment_query_signals):
-                    logger.info("[CLASSIFICATION] Query analysis: apartments")
+                # Detect last endpoint used by analyzing conversation history
+                last_endpoint = _detect_last_endpoint(conversation_history)
+                
+                if last_endpoint:
+                    logger.info(f"[CLASSIFICATION] Continuing with last endpoint: {last_endpoint}")
+                    return last_endpoint
+                
+                # No history - use simple heuristic only for explicit apartment queries
+                query_lower = query.lower()
+                if any(k in query_lower for k in ["apartament", "cazare", "lei", "dormitor"]):
+                    logger.info("[CLASSIFICATION] Default: apartments (explicit query)")
                     return "apartments"
                 
-                # Check conversation history for apartment context
-                if conversation_history:
-                    for msg in conversation_history[-3:]:  # Check last 3 messages
-                        content_lower = msg.content.lower() if hasattr(msg, 'content') else ''
-                        if any(k in content_lower for k in apartment_query_signals):
-                            logger.info("[CLASSIFICATION] Conversation history context: apartments")
-                            return "apartments"
-                
-                logger.info("[CLASSIFICATION] Query analysis: knowledge (default)")
+                logger.info("[CLASSIFICATION] Default: knowledge (no context)")
                 return "knowledge"
                 
     except Exception as e:
