@@ -70,6 +70,45 @@ Make questions natural, concise (max 10 words each), and relevant to tourism/bus
         return []
 
 
+async def classify_query_intent(query: str) -> str:
+    """
+    Use LLM to classify if query is about apartments/accommodation or general knowledge.
+    Returns: 'apartments' or 'knowledge'
+    """
+    if not HF_RAG_SPACE_URL:
+        return "knowledge"
+    
+    try:
+        prompt = f"""Classify this user query into one category:
+- "apartments" if asking about accommodation, apartments, hotels, places to stay, booking, lodging, rental properties, or POI recommendations from apartment owners
+- "knowledge" if asking about Timișoara history, culture, events, general tourist information
+
+Query: {query}
+
+Answer with ONLY one word: apartments OR knowledge"""
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{HF_RAG_SPACE_URL}/generate",
+                json={"prompt": prompt, "max_tokens": 10}
+            )
+            response.raise_for_status()
+            result = response.json().get("text", "").strip().lower()
+            
+            if "apartment" in result:
+                return "apartments"
+            else:
+                return "knowledge"
+    except Exception as e:
+        logger.warning(f"LLM classification failed: {e}, using fallback keywords")
+        # Fallback to basic keywords
+        query_lower = query.lower()
+        apartment_signals = ["apartament", "cazare", "accommodation", "stay", "booking", "rent"]
+        if any(k in query_lower for k in apartment_signals):
+            return "apartments"
+        return "knowledge"
+
+
 # Pydantic models
 class ConversationMessage(BaseModel):
     role: str  # "user" or "assistant"
@@ -105,22 +144,10 @@ async def rag_query(request: RAGQueryRequest):
     try:
         logger.info(f"Proxying RAG query to HF Space: {request.query}")
         
-        apartment_keywords = [
-            "apartament", "apartamente", "cazare", "regim hotelier", "studio",
-            "garsoniera", "accommodation", "apartment", "flat", "lodging",
-            "rent", "booking", "stay",
-            # Owner names to detect apartment queries about specific owners
-            "latcu", "cristian", "simion", "popescu", "ionut", "cristil75",
-            # POI queries related to apartments
-            "traseu", "turistic", "cafenea", "restaurant", "recomandat",
-            "puncte", "interes",
-            # Generic opinion/context terms (not specific POI names)
-            "parere", "despre", "vizita", "ofera", "locuri",
-        ]
-        query_lower = request.query.lower()
-        use_apartments = any(k in query_lower for k in apartment_keywords)
-        endpoint = "/query_apartments" if use_apartments else "/query"
-        logger.info(f"Using endpoint: {endpoint} (apartments={use_apartments})")
+        # Use LLM to classify query intent instead of hardcoded keywords
+        intent = await classify_query_intent(request.query)
+        endpoint = "/query_apartments" if intent == "apartments" else "/query"
+        logger.info(f"LLM classified intent: {intent} -> using endpoint: {endpoint}")
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
