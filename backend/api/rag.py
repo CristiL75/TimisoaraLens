@@ -121,6 +121,23 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
     if not HF_RAG_SPACE_URL:
         return "knowledge"
     
+    # Pre-check: If query explicitly mentions apartment-related terms, go to apartments directly
+    query_lower = query.lower()
+    apartment_keywords = [
+        "apartament", "apartamente", "apartment", "apartments",
+        "cazare", "accommodation", "lodging",
+        "inchiriere", "rent", "rental",
+        "dormitor", "bedroom", "bedrooms",
+        "listing", "listare", "listat", "listed",
+        "proprietar", "owner", "host",
+        "rezervare", "booking", "book",
+        "disponibil", "available", "availability",
+    ]
+    
+    if any(keyword in query_lower for keyword in apartment_keywords):
+        logger.info(f"[CLASSIFICATION] Pre-check: apartment keyword detected → apartments")
+        return "apartments"
+    
     try:
         # Build context from conversation history
         context = ""
