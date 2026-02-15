@@ -72,57 +72,90 @@ Make questions natural, concise (max 10 words each), and relevant to tourism/bus
 
 async def classify_query_intent(query: str) -> str:
     """
-    Use LLM to classify if query is about apartments/accommodation or general knowledge.
+    Use LLM to semantically classify if query is about apartments/accommodation or general knowledge.
     Returns: 'apartments' or 'knowledge'
     """
     if not HF_RAG_SPACE_URL:
         return "knowledge"
     
     try:
-        prompt = f"""Classify this query into ONE category. Respond with ONLY the word "apartments" OR "knowledge".
+        prompt = f"""You are a query router for a tourism chatbot about Timișoara, Romania.
 
-APARTMENTS category:
-- Accommodation searches (cheap apartments, 2 bedrooms, under 200 lei)
-- Specific owner queries (Latcu's apartment, CristiL75)
-- POI recommendations from apartment owners
-- Booking, rental, lodging, stay
+You have TWO databases:
+1. APARTMENTS database: Contains apartment listings with owners, prices, facilities, and POI recommendations from apartment owners
+2. KNOWLEDGE database: Contains general information about Timișoara's history, culture, events, attractions
 
-KNOWLEDGE category:
-- Timișoara history, culture, events
-- General tourist information not related to accommodation
+Analyze this query and decide which database to use. Think about:
+- Is the user looking for a place to stay? → APARTMENTS
+- Is the user asking about apartment features (price, rooms, facilities)? → APARTMENTS  
+- Is the user asking about POI recommendations from a specific apartment owner? → APARTMENTS
+- Is the user asking general questions about the city? → KNOWLEDGE
 
-Examples:
-"Apartamente sub 200 lei" -> apartments
-"Cazare cu 2 dormitoare" -> apartments
-"Apartamentul lui CristiL75" -> apartments
-"Ce traseu recomandă Latcu?" -> apartments
-"Istorie Timișoara" -> knowledge
-"Ce să vizitez?" -> knowledge
+Query: "{query}"
 
-Query: {query}
+Think step by step:
+1. What is the user asking for?
+2. Which database contains this information?
 
-Answer (one word only):"""
+Answer with ONLY one word: APARTMENTS or KNOWLEDGE"""
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(
                 f"{HF_RAG_SPACE_URL}/generate",
-                json={"prompt": prompt, "max_tokens": 10}
+                json={"prompt": prompt, "max_tokens": 50}
             )
             response.raise_for_status()
-            result = response.json().get("text", "").strip().lower()
-            logger.info(f"LLM classification raw response: {result}")
+            result = response.json().get("text", "").strip()
+            logger.info(f"[CLASSIFICATION] LLM raw response: '{result}'")
             
-            if "apartment" in result:
+            # Semantic analysis of response using multiple signals
+            result_lower = result.lower()
+            
+            # Strong apartment signals
+            apartment_indicators = [
+                "apartment", "apartament", "accommodation", "accomodation",
+                "lodging", "stay", "rent", "booking", "hotel", "cazare"
+            ]
+            
+            # Strong knowledge signals  
+            knowledge_indicators = [
+                "knowledge", "history", "culture", "general", "tourism",
+                "historie", "cultura", "turism"
+            ]
+            
+            # Count signals in LLM response
+            apartment_score = sum(1 for indicator in apartment_indicators if indicator in result_lower)
+            knowledge_score = sum(1 for indicator in knowledge_indicators if indicator in result_lower)
+            
+            logger.info(f"[CLASSIFICATION] Scores - apartments: {apartment_score}, knowledge: {knowledge_score}")
+            
+            # Decision based on scores
+            if apartment_score > knowledge_score:
+                logger.info("[CLASSIFICATION] Decision: apartments (based on semantic analysis)")
                 return "apartments"
-            else:
+            elif knowledge_score > apartment_score:
+                logger.info("[CLASSIFICATION] Decision: knowledge (based on semantic analysis)")
                 return "knowledge"
+            else:
+                # Tie or no clear signal - use query analysis as fallback
+                logger.warning(f"[CLASSIFICATION] LLM response unclear, analyzing query directly")
+                query_lower = query.lower()
+                apartment_query_signals = ["apartament", "cazare", "accommodation", "stay", "booking", "rent", "dormitor", "lei", "pret", "price"]
+                if any(k in query_lower for k in apartment_query_signals):
+                    logger.info("[CLASSIFICATION] Query analysis: apartments")
+                    return "apartments"
+                logger.info("[CLASSIFICATION] Query analysis: knowledge (default)")
+                return "knowledge"
+                
     except Exception as e:
-        logger.warning(f"LLM classification failed: {e}, using fallback keywords")
-        # Fallback to basic keywords
+        logger.warning(f"[CLASSIFICATION] LLM call failed: {e}, analyzing query directly")
+        # Fallback: direct query analysis
         query_lower = query.lower()
-        apartment_signals = ["apartament", "cazare", "accommodation", "stay", "booking", "rent"]
+        apartment_signals = ["apartament", "cazare", "accommodation", "stay", "booking", "rent", "dormitor", "lei", "pret", "price", "owner", "proprietar"]
         if any(k in query_lower for k in apartment_signals):
+            logger.info("[CLASSIFICATION] Fallback: apartments")
             return "apartments"
+        logger.info("[CLASSIFICATION] Fallback: knowledge")
         return "knowledge"
 
 
@@ -162,9 +195,10 @@ async def rag_query(request: RAGQueryRequest):
         logger.info(f"Proxying RAG query to HF Space: {request.query}")
         
         # Use LLM to classify query intent instead of hardcoded keywords
+        logger.info(f"[CLASSIFICATION] Starting LLM classification for query: {request.query}")
         intent = await classify_query_intent(request.query)
         endpoint = "/query_apartments" if intent == "apartments" else "/query"
-        logger.info(f"LLM classified intent: {intent} -> using endpoint: {endpoint}")
+        logger.info(f"[CLASSIFICATION] LLM classified intent: '{intent}' -> using endpoint: {endpoint}")
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
