@@ -79,13 +79,29 @@ async def classify_query_intent(query: str) -> str:
         return "knowledge"
     
     try:
-        prompt = f"""Classify this user query into one category:
-- "apartments" if asking about accommodation, apartments, hotels, places to stay, booking, lodging, rental properties, or POI recommendations from apartment owners
-- "knowledge" if asking about Timișoara history, culture, events, general tourist information
+        prompt = f"""Classify this query into ONE category. Respond with ONLY the word "apartments" OR "knowledge".
+
+APARTMENTS category:
+- Accommodation searches (cheap apartments, 2 bedrooms, under 200 lei)
+- Specific owner queries (Latcu's apartment, CristiL75)
+- POI recommendations from apartment owners
+- Booking, rental, lodging, stay
+
+KNOWLEDGE category:
+- Timișoara history, culture, events
+- General tourist information not related to accommodation
+
+Examples:
+"Apartamente sub 200 lei" -> apartments
+"Cazare cu 2 dormitoare" -> apartments
+"Apartamentul lui CristiL75" -> apartments
+"Ce traseu recomandă Latcu?" -> apartments
+"Istorie Timișoara" -> knowledge
+"Ce să vizitez?" -> knowledge
 
 Query: {query}
 
-Answer with ONLY one word: apartments OR knowledge"""
+Answer (one word only):"""
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(
@@ -94,6 +110,7 @@ Answer with ONLY one word: apartments OR knowledge"""
             )
             response.raise_for_status()
             result = response.json().get("text", "").strip().lower()
+            logger.info(f"LLM classification raw response: {result}")
             
             if "apartment" in result:
                 return "apartments"
