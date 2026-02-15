@@ -109,10 +109,15 @@ async def rag_query(request: RAGQueryRequest):
             "apartament", "apartamente", "cazare", "regim hotelier", "studio",
             "garsoniera", "accommodation", "apartment", "flat", "lodging",
             "rent", "booking", "stay",
+            # Owner names to detect apartment queries about specific owners
+            "latcu", "cristian", "simion", "popescu", "ionut", "cristil75",
+            # POI queries related to apartments
+            "traseu", "turistic", "cafenea", "restaurant", "recomandat",
         ]
         query_lower = request.query.lower()
         use_apartments = any(k in query_lower for k in apartment_keywords)
         endpoint = "/query_apartments" if use_apartments else "/query"
+        logger.info(f"Using endpoint: {endpoint} (apartments={use_apartments})")
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
