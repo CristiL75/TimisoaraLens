@@ -85,8 +85,8 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
         if conversation_history:
             recent = conversation_history[-2:]  # Last 2 messages
             for msg in recent:
-                role = msg.get('role', 'user')
-                content = msg.get('content', '')
+                role = msg.role if hasattr(msg, 'role') else 'user'
+                content = msg.content if hasattr(msg, 'content') else ''
                 context += f"{role}: {content}\n"
             context = f"\nRecent conversation:\n{context}"
         
@@ -154,7 +154,7 @@ Your answer:"""
                 # Check conversation history for apartment context
                 if conversation_history:
                     for msg in conversation_history[-3:]:  # Check last 3 messages
-                        content_lower = msg.get('content', '').lower()
+                        content_lower = msg.content.lower() if hasattr(msg, 'content') else ''
                         if any(k in content_lower for k in apartment_query_signals):
                             logger.info("[CLASSIFICATION] Conversation history context: apartments")
                             return "apartments"
@@ -176,7 +176,7 @@ Your answer:"""
         # Check conversation history
         if conversation_history:
             for msg in conversation_history[-3:]:
-                content_lower = msg.get('content', '').lower()
+                content_lower = msg.content.lower() if hasattr(msg, 'content') else ''
                 if any(k in content_lower for k in apartment_signals):
                     logger.info("[CLASSIFICATION] Fallback history: apartments")
                     return "apartments"
