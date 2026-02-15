@@ -185,11 +185,17 @@ async def rag_query(request: RAGQueryRequest):
     Proxies the request to the dedicated RAG service with optional conversation history.
     Includes LLM-generated suggested follow-up questions.
     """
+    logger.info(f"====== RAG QUERY START (v2.0 semantic classification) ======")
+    logger.info(f"Query: {request.query}")
+    
     if not HF_RAG_SPACE_URL:
+        logger.error("HF_RAG_SPACE_URL not configured!")
         raise HTTPException(
             status_code=503,
             detail="RAG service not configured. Set HF_RAG_SPACE_URL environment variable."
         )
+    
+    logger.info(f"HF_RAG_SPACE_URL configured: {HF_RAG_SPACE_URL[:50]}...")
     
     try:
         logger.info(f"Proxying RAG query to HF Space: {request.query}")
