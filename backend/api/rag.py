@@ -125,6 +125,7 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
     query_lower = query.lower()
     apartment_keywords = [
         "apartament", "apartamente", "apartment", "apartments",
+        "aprtament", "apartamnt",  # Common typos
         "cazare", "accommodation", "lodging",
         "inchiriere", "rent", "rental",
         "dormitor", "bedroom", "bedrooms",
@@ -133,6 +134,11 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
         "rezervare", "booking", "book",
         "disponibil", "available", "availability",
     ]
+    
+    # Also check with fuzzy matching for "apartament" (allow 1-2 char diff)
+    if "apartam" in query_lower or "cazare" in query_lower or "listing" in query_lower:
+        logger.info(f"[CLASSIFICATION] Pre-check: apartment-related term detected → apartments")
+        return "apartments"
     
     if any(keyword in query_lower for keyword in apartment_keywords):
         logger.info(f"[CLASSIFICATION] Pre-check: apartment keyword detected → apartments")
