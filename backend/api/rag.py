@@ -79,30 +79,26 @@ async def classify_query_intent(query: str) -> str:
         return "knowledge"
     
     try:
-        prompt = f"""You are a query router for a tourism chatbot about Timișoara, Romania.
+        prompt = f"""You are a query router. You must respond with EXACTLY one word: APARTMENTS or KNOWLEDGE
 
-You have TWO databases:
-1. APARTMENTS database: Contains apartment listings with owners, prices, facilities, and POI recommendations from apartment owners
-2. KNOWLEDGE database: Contains general information about Timișoara's history, culture, events, attractions
+APARTMENTS database contains:
+- Apartment listings with prices, facilities, locations
+- Owner information and contact details
+- POI recommendations from apartment owners
 
-Analyze this query and decide which database to use. Think about:
-- Is the user looking for a place to stay? → APARTMENTS
-- Is the user asking about apartment features (price, rooms, facilities)? → APARTMENTS  
-- Is the user asking about POI recommendations from a specific apartment owner? → APARTMENTS
-- Is the user asking general questions about the city? → KNOWLEDGE
+KNOWLEDGE database contains:
+- Timișoara history, culture, general tourism info
 
 Query: "{query}"
 
-Think step by step:
-1. What is the user asking for?
-2. Which database contains this information?
+Respond with one word only: APARTMENTS or KNOWLEDGE
 
-Answer with ONLY one word: APARTMENTS or KNOWLEDGE"""
+Your answer:"""
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(
                 f"{HF_RAG_SPACE_URL}/generate",
-                json={"prompt": prompt, "max_tokens": 50}
+                json={"prompt": prompt, "max_tokens": 5}
             )
             response.raise_for_status()
             result = response.json().get("text", "").strip()
