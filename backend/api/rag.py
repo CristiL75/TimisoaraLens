@@ -33,18 +33,27 @@ async def generate_suggested_questions(answer: str, sources: list, original_quer
         return []
     
     try:
-        # Prepare context for question generation
-        context = f"Based on this answer about Timișoara: {answer[:300]}"
-        
+        is_fallback = False
+        if answer:
+            ans_low = answer.strip().lower()
+            if ans_low.startswith("nu am informatii despre asta") or ans_low.startswith("i don't have information"):
+                is_fallback = True
+
+        if is_fallback:
+            context = f"Original question: {original_query}"
+        else:
+            context = f"Based on this answer about Timișoara: {answer[:300]}"
+
         # Prepare prompt for LLM
         prompt = f"""You are a helpful tour guide chatbot for Timișoara. 
-Based on this information: {context}
+    Based on this information: {context}
 
-Original question: {original_query}
+    Original question: {original_query}
 
-Generate exactly 3 follow-up questions that would help users explore related topics about Timișoara.
-Format: Return ONLY the questions separated by newlines, no numbering or bullets.
-Make questions natural, concise (max 10 words each), and relevant to tourism/business/culture."""
+    Generate exactly 3 follow-up questions that the USER could ask next about Timișoara.
+    Write each question from the user's perspective (e.g., "Ce pot vizita...?", "Unde pot manca...?").
+    Format: Return ONLY the questions separated by newlines, no numbering or bullets.
+    Make questions natural, concise (max 10 words each), and relevant to tourism/business/culture."""
         
         async with httpx.AsyncClient(timeout=30.0) as client:
             # Call HF Space LLM endpoint
@@ -94,7 +103,10 @@ def _detect_last_endpoint(conversation_history: Optional[list]) -> Optional[str]
             "pret de", "lei/noapte", "rezervare", "disponibil",
             "ionut popescu", "latcu", "cristian-simion",  # Specific owners
             "constructorilor", "piata libertatii", "piața libertății",  # Apartment addresses
-            "puncte de interes recomandate", "traseu", "itinerar"  # POI from owners
+            "puncte de interes recomandate", "traseu", "itinerar",  # POI from owners
+            "0721163837", "072356535",  # Phone numbers (owner contacts)
+            "narativ coffe", "hype culture",  # Specific POIs from owners
+            "owner_phone", "owner_email", "contact:"  # Contact fields
         ]
         
         # If response mentions historical facts, city info → knowledge endpoint  
@@ -142,115 +154,27 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
         return "apartments"
     
     # Everything else (including synonyms, contextual queries) → LLM classification
-    
+
     try:
-        # Build context from conversation history
-        context = ""
-        if conversation_history:
-            recent = conversation_history[-2:]  # Last 2 messages
-            for msg in recent:
-                role = msg.role if hasattr(msg, 'role') else 'user'
-                content = msg.content if hasattr(msg, 'content') else ''
-                context += f"{role}: {content}\n"
-            context = f"\nRecent conversation:\n{context}"
-        
-        prompt = f"""Classify this query. Answer ONLY: APARTMENTS or KNOWLEDGE{context}
-
-Query: "{query}"
-
-APARTMENTS database contains:
-- Accommodation listings (apartments, rooms, prices, facilities)
-- Owner information and contacts (phone, email, name)
-- POI routes/itineraries recommended by apartment owners
-- Booking, availability, reviews
-
-KNOWLEDGE database contains:
-- Timișoara city history, culture, architecture
-- General tourism info not related to specific accommodations
-- Historical events, monuments, city facts
-
-SEMANTIC CLASSIFICATION - Understand meaning, not just keywords:
-✓ "traseu/itinerary/route recommended" → APARTMENTS (owner's POI list)
-✓ "ce sugerează/propune/recomandă" → APARTMENTS (if about owner)
-✓ "gazda/proprietar/owner/host" → APARTMENTS
-✓ "puncte de interes/locuri/pois" from owner → APARTMENTS
-✓ "contact/telefon/email/numar" despre proprietar → APARTMENTS
-✓ "istoric/history/revoluție" NOT about apartments → KNOWLEDGE
-
-CONTEXT RULE:
-If recent conversation was about apartments/owners, vague queries like "ce numar de contact?", "telefon?", "cine este proprietarul?" refer to that apartment → APARTMENTS
-
-EXAMPLES:
-"apartament ieftin" → APARTMENTS
-"ce traseu turistic propune?" → APARTMENTS (owner's POI route)
-"ce locuri interesante recomandă gazda?" → APARTMENTS
-"un itinerar pentru vizitat orașul" → APARTMENTS (if owner context, else KNOWLEDGE)
-"cine este proprietarul?" → APARTMENTS
-"ce numar de contact are proprietarul?" → APARTMENTS
-"telefon/email proprietar" → APARTMENTS
-"cum il contactez?" → APARTMENTS
-"revoluția din 1989" → KNOWLEDGE
-"istoria Timișoarei" → KNOWLEDGE
-
-Answer (APARTMENTS or KNOWLEDGE):"""
-
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(
-                f"{HF_RAG_SPACE_URL}/generate",
-                json={"prompt": prompt, "max_tokens": 5}
+                f"{HF_RAG_SPACE_URL}/classify",
+                json={
+                    "query": query,
+                    "conversation_history": conversation_history or [],
+                },
             )
             response.raise_for_status()
-            result = response.json().get("text", "").strip()
+            result = response.json().get("domain", "").strip().upper()
             logger.info(f"[CLASSIFICATION] LLM raw response: '{result}'")
-            
-            # Semantic analysis of response using multiple signals
-            result_lower = result.lower()
-            
-            # Strong apartment signals
-            apartment_indicators = [
-                "apartment", "apartament", "accommodation", "accomodation",
-                "lodging", "stay", "rent", "booking", "hotel", "cazare"
-            ]
-            
-            # Strong knowledge signals  
-            knowledge_indicators = [
-                "knowledge", "history", "culture", "general", "tourism",
-                "historie", "cultura", "turism"
-            ]
-            
-            # Count signals in LLM response
-            apartment_score = sum(1 for indicator in apartment_indicators if indicator in result_lower)
-            knowledge_score = sum(1 for indicator in knowledge_indicators if indicator in result_lower)
-            
-            logger.info(f"[CLASSIFICATION] Scores - apartments: {apartment_score}, knowledge: {knowledge_score}")
-            
-            # Decision based on scores
-            if apartment_score > knowledge_score:
-                logger.info("[CLASSIFICATION] Decision: apartments (based on semantic analysis)")
+
+            if result == "APARTMENTS":
                 return "apartments"
-            elif knowledge_score > apartment_score:
-                logger.info("[CLASSIFICATION] Decision: knowledge (based on semantic analysis)")
+            if result == "KNOWLEDGE":
                 return "knowledge"
-            else:
-                # Tie or no clear signal - detect last endpoint from conversation
-                logger.warning(f"[CLASSIFICATION] LLM response unclear, using conversation context tracking")
-                
-                # Detect last endpoint used by analyzing conversation history
-                last_endpoint = _detect_last_endpoint(conversation_history)
-                
-                if last_endpoint:
-                    logger.info(f"[CLASSIFICATION] Continuing with last endpoint: {last_endpoint}")
-                    return last_endpoint
-                
-                # No history - use simple heuristic only for explicit apartment queries
-                query_lower = query.lower()
-                if any(k in query_lower for k in ["apartament", "cazare", "lei", "dormitor"]):
-                    logger.info("[CLASSIFICATION] Default: apartments (explicit query)")
-                    return "apartments"
-                
-                logger.info("[CLASSIFICATION] Default: knowledge (no context)")
-                return "knowledge"
-                
+
+            logger.warning("[CLASSIFICATION] Unexpected domain, falling back")
+
     except Exception as e:
         logger.warning(f"[CLASSIFICATION] LLM call failed: {e}, analyzing query and context")
         # Fallback: direct query + history analysis
