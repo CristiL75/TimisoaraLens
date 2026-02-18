@@ -468,6 +468,9 @@ class ExperienceBooking(BaseModel):
     class Config:
         populate_by_name = True
         json_encoders = {ObjectId: str}
+
+
+class Booking(BaseModel):
     """Customer booking/reservation"""
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     provider_id: PyObjectId

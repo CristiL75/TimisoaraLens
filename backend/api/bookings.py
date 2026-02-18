@@ -35,6 +35,7 @@ from database_mongo import (
     PyObjectId,
     Experience,
     ExperienceBooking,
+    Booking,
     RouteStop,
     ExperienceDate,
 )
