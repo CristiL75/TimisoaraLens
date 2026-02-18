@@ -26,6 +26,8 @@ export default function ServicesScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [myBookings, setMyBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
+  const [ownerExperienceBookings, setOwnerExperienceBookings] = useState([]);
+  const [loadingOwnerExperienceBookings, setLoadingOwnerExperienceBookings] = useState(false);
   const [providerTables, setProviderTables] = useState([]);
   const [providerServices, setProviderServices] = useState([]);
   const [providerRooms, setProviderRooms] = useState([]);
@@ -35,6 +37,7 @@ export default function ServicesScreen({ navigation }) {
   useEffect(() => {
     loadProviders();
     loadProviderBookings();
+    loadOwnerExperienceBookings();
     loadExperiences();
   }, []);
 
@@ -42,6 +45,7 @@ export default function ServicesScreen({ navigation }) {
     useCallback(() => {
       loadProviders();
       loadProviderBookings();
+      loadOwnerExperienceBookings();
       loadExperiences();
     }, [])
   );
@@ -82,6 +86,20 @@ export default function ServicesScreen({ navigation }) {
       // no-op
     } finally {
       setLoadingBookings(false);
+    }
+  };
+
+  const loadOwnerExperienceBookings = async () => {
+    setLoadingOwnerExperienceBookings(true);
+    try {
+      const result = await experiencesAPI.getOwnerExperienceBookings();
+      if (result.success) {
+        setOwnerExperienceBookings(result.data || []);
+      }
+    } catch (e) {
+      // no-op
+    } finally {
+      setLoadingOwnerExperienceBookings(false);
     }
   };
 
@@ -224,8 +242,20 @@ export default function ServicesScreen({ navigation }) {
   const onRefresh = () => {
     setRefreshing(true);
     loadProviders();
+    loadProviderBookings();
+    loadOwnerExperienceBookings();
     loadExperiences();
   };
+
+  const experienceById = useMemo(() => {
+    return experiences.reduce((acc, exp) => {
+      acc[String(exp.id)] = exp;
+      return acc;
+    }, {});
+  }, [experiences]);
+
+  const pendingServiceBookings = myBookings.filter((booking) => booking.status === 'pending');
+  const pendingExperienceBookings = ownerExperienceBookings.filter((booking) => booking.status === 'pending');
 
   if (loading) {
     return (
@@ -276,16 +306,15 @@ export default function ServicesScreen({ navigation }) {
         </Card>
 
         {/* Rezervari in curs pentru serviciile mele */}
-        {ownedProviders.length > 0 && (
+        {(ownedProviders.length > 0 || ownerExperienceBookings.length > 0) && (
           <>
             <Title style={styles.sectionTitle}>Rezervari in curs</Title>
-            {loadingBookings ? (
+            {(loadingBookings || loadingOwnerExperienceBookings) ? (
               <ActivityIndicator size="small" color="#4CAF50" />
-            ) : myBookings.length === 0 ? (
-              <Text style={styles.emptyText}>Nu exista rezervari in curs pentru serviciile tale.</Text>
+            ) : (pendingServiceBookings.length === 0 && pendingExperienceBookings.length === 0) ? (
+              <Text style={styles.emptyText}>Nu exista rezervari in curs pentru serviciile/experientele tale.</Text>
             ) : (
-              myBookings
-                .filter((booking) => booking.status === 'pending')
+              pendingServiceBookings
                 .map((booking) => (
                   <Card key={booking.id} style={styles.card}>
                     <Card.Content>
@@ -350,6 +379,59 @@ export default function ServicesScreen({ navigation }) {
                           if (result.success) {
                             alert('Rezervarea a fost respinsa!');
                             loadProviderBookings();
+                          } else {
+                            alert(result.error || 'Eroare la respingere');
+                          }
+                        }}
+                      >
+                        Respinge
+                      </Button>
+                    </View>
+                  </Card>
+                ))
+            )}
+
+            {pendingExperienceBookings
+                .map((booking) => (
+                  <Card key={`exp-${booking.id}`} style={styles.card}>
+                    <Card.Content>
+                      <Title>{booking.customer_name}</Title>
+                      <Paragraph>
+                        Experienta: {experienceById[String(booking.experience_id)]?.name || booking.experience_id}
+                      </Paragraph>
+                      <Paragraph>Data: {booking.date} {booking.start_time}</Paragraph>
+                      <Paragraph>Persoane: {booking.party_size}</Paragraph>
+                      <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
+                      <Paragraph>Email: {booking.customer_email}</Paragraph>
+                      <Paragraph>Pret total: {booking.total_price} lei</Paragraph>
+                      {booking.notes && <Paragraph>Notite: {booking.notes}</Paragraph>}
+                    </Card.Content>
+                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 8, gap: 8 }}>
+                      <Button
+                        mode="contained"
+                        icon="check"
+                        style={{ backgroundColor: '#388e3c' }}
+                        onPress={async () => {
+                          const result = await experiencesAPI.updateExperienceBookingStatus(booking.id, 'confirmed');
+                          if (result.success) {
+                            alert('Rezervarea experientei a fost confirmata!');
+                            loadOwnerExperienceBookings();
+                          } else {
+                            alert(result.error || 'Eroare la confirmare');
+                          }
+                        }}
+                      >
+                        Confirma
+                      </Button>
+                      <Button
+                        mode="contained"
+                        icon="close"
+                        style={{ backgroundColor: '#d32f2f' }}
+                        onPress={async () => {
+                          const result = await experiencesAPI.updateExperienceBookingStatus(booking.id, 'rejected');
+                          if (result.success) {
+                            alert('Rezervarea experientei a fost respinsa!');
+                            loadOwnerExperienceBookings();
                           } else {
                             alert(result.error || 'Eroare la respingere');
                           }
