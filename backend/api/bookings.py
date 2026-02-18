@@ -432,11 +432,27 @@ async def get_provider_bookings(current_user=Depends(get_current_user)):
     providers_col = get_providers_collection()
     bookings_col = get_bookings_collection()
     await purge_expired_bookings(bookings_col)
-    # Găsește toate serviciile deținute de user
-    providers = await providers_col.find({"user_id": current_user["id"]}).to_list(100)
-    provider_ids = [str(p["_id"]) for p in providers]
-    # Găsește rezervările pentru aceste servicii
-    bookings = await bookings_col.find({"provider_id": {"$in": provider_ids}}).to_list(200)
+
+    user_id = current_user.get("id") or current_user.get("sub")
+    if not user_id:
+        return []
+
+    user_id_candidates = [str(user_id)]
+    if ObjectId.is_valid(str(user_id)):
+        user_id_candidates.append(ObjectId(str(user_id)))
+
+    providers = await providers_col.find({"user_id": {"$in": user_id_candidates}}).to_list(200)
+    if not providers:
+        return []
+
+    provider_id_candidates = []
+    for provider in providers:
+        provider_oid = provider.get("_id")
+        if provider_oid is not None:
+            provider_id_candidates.append(provider_oid)
+            provider_id_candidates.append(str(provider_oid))
+
+    bookings = await bookings_col.find({"provider_id": {"$in": provider_id_candidates}}).to_list(500)
     result = []
     for b in bookings:
         try:
@@ -508,7 +524,16 @@ class AvailabilityResponse(BaseModel):
 async def get_my_providers(current_user=Depends(get_current_user)):
     """Return all providers created by current user"""
     providers_col = get_providers_collection()
-    providers = await providers_col.find({"user_id": current_user["id"]}).to_list(100)
+
+    user_id = current_user.get("id") or current_user.get("sub")
+    if not user_id:
+        return []
+
+    user_id_candidates = [str(user_id)]
+    if ObjectId.is_valid(str(user_id)):
+        user_id_candidates.append(ObjectId(str(user_id)))
+
+    providers = await providers_col.find({"user_id": {"$in": user_id_candidates}}).to_list(200)
     result = []
     for p in providers:
         try:
