@@ -2,7 +2,6 @@
  * Book Service Screen - Make a reservation at a provider
  */
 import React, { useState, useEffect, useMemo } from 'react';
-import { CommonActions } from '@react-navigation/native';
 import { View, StyleSheet, ScrollView, Alert, Image } from 'react-native';
 import {
   Appbar,
@@ -181,6 +180,10 @@ export default function BookServiceScreen({ navigation, route }) {
     String(provider?.booking_settings?.default_duration_minutes || 90)
   );
   const [notes, setNotes] = useState('');
+
+  const goToBookingsForum = () => {
+    navigation.navigate('Services', { refreshAt: Date.now() });
+  };
 
   useEffect(() => {
     if (providerParam && !provider) {
@@ -538,12 +541,7 @@ export default function BookServiceScreen({ navigation, route }) {
           [
             {
               text: 'OK',
-              onPress: () => navigation.dispatch(
-                CommonActions.reset({
-                  index: 0,
-                  routes: [{ name: 'Services' }],
-                })
-              ),
+              onPress: goToBookingsForum,
             },
           ]
         );
@@ -590,7 +588,6 @@ export default function BookServiceScreen({ navigation, route }) {
         null,
         null
       );
-
       if (result.success) {
         const available = result.data?.slots?.[0]?.available ?? false;
         setCarAvailability(available);
@@ -641,12 +638,7 @@ export default function BookServiceScreen({ navigation, route }) {
           `Cererea ta la ${provider.name} a fost inregistrata si asteapta confirmare.`,
           [{
             text: 'OK',
-            onPress: () => navigation.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: 'Services' }],
-              })
-            ),
+            onPress: goToBookingsForum,
           }]
         );
       } else {
@@ -712,9 +704,7 @@ export default function BookServiceScreen({ navigation, route }) {
           }.`,
           [{
             text: 'OK',
-            onPress: () => navigation.dispatch(
-              CommonActions.reset({ index: 0, routes: [{ name: 'Services' }] })
-            ),
+            onPress: goToBookingsForum,
           }]
         );
       } else {
@@ -786,12 +776,7 @@ export default function BookServiceScreen({ navigation, route }) {
           `Cererea ta de inchiriere la ${provider.name} a fost inregistrata si asteapta confirmare.`,
           [{
             text: 'OK',
-            onPress: () => navigation.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: 'Services' }],
-              })
-            ),
+            onPress: goToBookingsForum,
           }]
         );
       } else {

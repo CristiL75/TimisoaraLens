@@ -4,7 +4,7 @@ Bookings API Router
 Handles restaurant/pub table reservations
 """
 from fastapi import APIRouter, HTTPException, Depends, status, Response, Body, Request
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ValidationError
 from typing import Optional, List
 from datetime import datetime, timedelta
 from uuid import uuid4
@@ -1626,7 +1626,8 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
     
-    booking_type = provider.get("booking_settings", {}).get("type", "table_based")
+    booking_settings = provider.get("booking_settings") or {}
+    booking_type = booking_settings.get("type", "table_based")
 
     if booking_type == "fleet_based":
         if not request.car_id:
@@ -1797,10 +1798,10 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
             duration = int(service.get("duration_minutes", 0))
             buffer_minutes = service.get("buffer_minutes")
         else:
-            duration = int(provider.get("booking_settings", {}).get("default_duration_minutes") or 60)
+            duration = int(booking_settings.get("default_duration_minutes") or 60)
             buffer_minutes = None
         if buffer_minutes is None:
-            buffer_minutes = provider.get("booking_settings", {}).get("buffer_minutes", 0)
+            buffer_minutes = booking_settings.get("buffer_minutes", 0)
 
         if duration <= 0 or duration > 240:
             raise HTTPException(status_code=400, detail="Invalid service duration")
@@ -1880,10 +1881,13 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
                     raise HTTPException(status_code=409, detail="Employee already booked for this time")
     else:
         # Calculate end time based on selected duration or provider settings
-        duration = request.duration_minutes or provider["booking_settings"]["default_duration_minutes"]
+        duration = request.duration_minutes or int(booking_settings.get("default_duration_minutes") or 90)
         if duration <= 0 or duration > 180:
             raise HTTPException(status_code=400, detail="Invalid duration")
-        start_dt = datetime.strptime(f"{request.booking_date} {request.start_time}", "%Y-%m-%d %H:%M")
+        try:
+            start_dt = datetime.strptime(f"{request.booking_date} {request.start_time}", "%Y-%m-%d %H:%M")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date/time format")
         end_dt = start_dt + timedelta(minutes=duration)
         end_time = end_dt.strftime("%H:%M")
         party_size_value = request.party_size
@@ -1926,40 +1930,43 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
     
     # TODO: Check availability before confirming
     
-    booking = Booking(
-        provider_id=PyObjectId(request.provider_id),
-        table_id=PyObjectId(request.table_id) if request.table_id else None,
-        service_id=PyObjectId(request.service_id) if request.service_id else None,
-        employee_id=PyObjectId(request.employee_id) if request.employee_id else None,
-        car_id=request.car_id,
-        room_id=PyObjectId(request.room_id) if request.room_id else None,
-        room_layout=request.room_layout,
-        pricing_unit=request.pricing_unit,
-        customer_name=request.customer_name,
-        customer_email=current_user["email"] if current_user else request.customer_email,
-        customer_phone=request.customer_phone,
-        user_id=PyObjectId(current_user["id"]) if current_user and current_user.get("id") and ObjectId.is_valid(current_user["id"]) else None,
-        booking_date=request.booking_date,
-        start_time=request.start_time,
-        end_time=end_time,
-        rental_end_date=request.rental_end_date,
-        rental_end_time=request.rental_end_time,
-        party_size=party_size_value,
-        party_adults=request.party_adults or 0,
-        party_children=request.party_children or 0,
-        table_preference=request.table_preference or "fara_preferinta",
-        special_occasion=request.special_occasion or "nicio_ocazie",
-        notes=request.notes,
-        delivery_address=request.delivery_address,
-        delivery_latitude=request.delivery_latitude,
-        delivery_longitude=request.delivery_longitude,
-        reservation_type_id=request.reservation_type_id,
-        booking_type=request.booking_type or "table",
-        event_type=request.event_type,
-        estimated_budget=request.estimated_budget,
-        requirements=request.requirements or [],
-        status="pending"
-    )
+    try:
+        booking = Booking(
+            provider_id=PyObjectId(request.provider_id),
+            table_id=PyObjectId(request.table_id) if request.table_id else None,
+            service_id=PyObjectId(request.service_id) if request.service_id else None,
+            employee_id=PyObjectId(request.employee_id) if request.employee_id else None,
+            car_id=request.car_id,
+            room_id=PyObjectId(request.room_id) if request.room_id else None,
+            room_layout=request.room_layout,
+            pricing_unit=request.pricing_unit,
+            customer_name=request.customer_name,
+            customer_email=current_user["email"] if current_user else request.customer_email,
+            customer_phone=request.customer_phone,
+            user_id=PyObjectId(current_user["id"]) if current_user and current_user.get("id") and ObjectId.is_valid(current_user["id"]) else None,
+            booking_date=request.booking_date,
+            start_time=request.start_time,
+            end_time=end_time,
+            rental_end_date=request.rental_end_date,
+            rental_end_time=request.rental_end_time,
+            party_size=party_size_value,
+            party_adults=request.party_adults or 0,
+            party_children=request.party_children or 0,
+            table_preference=request.table_preference or "fara_preferinta",
+            special_occasion=request.special_occasion or "nicio_ocazie",
+            notes=request.notes,
+            delivery_address=request.delivery_address,
+            delivery_latitude=request.delivery_latitude,
+            delivery_longitude=request.delivery_longitude,
+            reservation_type_id=request.reservation_type_id,
+            booking_type=request.booking_type or "table",
+            event_type=request.event_type,
+            estimated_budget=request.estimated_budget,
+            requirements=request.requirements or [],
+            status="pending"
+        )
+    except ValidationError as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid booking payload: {exc.errors()}")
     
     result = await bookings_col.insert_one(booking.model_dump(by_alias=True, exclude={"id"}))
     
