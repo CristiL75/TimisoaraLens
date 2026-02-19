@@ -442,7 +442,7 @@ export default function ServicesScreen({ navigation }) {
                     </View>
                   </Card>
                 ))
-            )}
+            }
 
             <Title style={styles.sectionTitle}>Rezervari anulate</Title>
             {loadingBookings ? (

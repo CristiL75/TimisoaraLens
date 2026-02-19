@@ -176,7 +176,10 @@ export default function ChatWidget() {
                 contentContainerStyle={styles.messagesContent}
                 showsVerticalScrollIndicator={false}
               >
-                {messages.map((msg) => (
+                {messages.map((msg) => {
+                  const hasListingSources = msg.sources?.some(s => s.listing);
+                  const hasServiceSources = msg.sources?.some(s => s.service);
+                  return (
                   <View key={msg.id}>
                     <View
                       style={[
@@ -188,7 +191,7 @@ export default function ChatWidget() {
                       {msg.sources && msg.sources.length > 0 && (
                         <View style={styles.sourcesContainer}>
                           {/* Afișează carduri apartamente dacă există */}
-                          {msg.sources.some(s => s.listing) && (
+                          {hasListingSources && (
                             <View style={styles.listingsContainer}>
                               {msg.sources
                                 .filter(s => s.listing)
@@ -228,8 +231,42 @@ export default function ChatWidget() {
                                 })}
                             </View>
                           )}
+                          {hasServiceSources && (
+                            <View style={styles.listingsContainer}>
+                              {msg.sources
+                                .filter(s => s.service)
+                                .map((source, idx) => {
+                                  const service = source.service;
+                                  const firstImage = service.image;
+                                  const addressLabel = service.address || service.city || 'Timișoara';
+                                  const subtitle = service.category || service.provider_name || 'Serviciu local';
+                                  return (
+                                    <View key={`service-${idx}`} style={styles.listingCard}>
+                                      {firstImage && (
+                                        <Image
+                                          source={{ uri: firstImage }}
+                                          style={styles.listingImage}
+                                          resizeMode="cover"
+                                        />
+                                      )}
+                                      <View style={styles.listingInfo}>
+                                        <Text style={styles.listingTitle}>
+                                          {service.name || 'Serviciu'}
+                                        </Text>
+                                        <Text style={styles.listingPrice}>
+                                          {subtitle}
+                                        </Text>
+                                        <Text style={styles.listingAddress}>
+                                          📍 {addressLabel}
+                                        </Text>
+                                      </View>
+                                    </View>
+                                  );
+                                })}
+                            </View>
+                          )}
                           {/* Afișează surse normale dacă nu sunt apartamente */}
-                          {!msg.sources.some(s => s.listing) && (
+                          {!hasListingSources && !hasServiceSources && (
                             <>
                               <Text style={styles.sourcesLabel}>Surse:</Text>
                               {msg.sources.slice(0, 2).map((source, idx) => (
@@ -249,7 +286,8 @@ export default function ChatWidget() {
                       />
                     )}
                   </View>
-                ))}
+                  );
+                })}
                 {isLoading && (
                   <View style={styles.loadingBubble}>
                     <ActivityIndicator size="small" color="#6200ee" />
