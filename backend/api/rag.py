@@ -49,6 +49,7 @@ def _serialize_conversation_history(conversation_history: Optional[list]) -> lis
 
     return serialized
 
+
 # Helper function to generate suggested questions
 async def generate_suggested_questions(answer: str, sources: list, original_query: str) -> list:
     """
