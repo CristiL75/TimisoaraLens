@@ -97,6 +97,47 @@ def _service_entity_location_from_provider(provider_doc: Optional[dict]) -> dict
     }
 
 
+_CATEGORY_ALIASES = {
+    "food_drinks": ["food and drinks", "restaurant", "bar", "cafenea", "restaurant"],
+    "nightlife": ["club", "pub", "night life", "viata de noapte"],
+    "rent_a_car": ["rent a car", "car rental", "inchiriere auto", "inchirieri auto"],
+    "car_rental": ["rent a car", "car rental", "inchiriere auto", "inchirieri auto"],
+    "guided_tour": ["guided tour", "tur ghidat", "city tour"],
+    "workshop": ["atelier", "workshop", "curs"],
+    "indoor_activity": ["activitate indoor", "indoor activity", "recreere"],
+    "spa": ["wellness", "spa", "relaxare"],
+    "barber": ["barbershop", "frizerie", "barber"],
+    "salon": ["beauty salon", "coafor", "salon"],
+    "massage": ["masaj", "massage", "terapie"],
+    "event_space": ["event venue", "sala evenimente", "event space"],
+    "table_booking": ["table reservation", "rezervare masa", "book table"],
+    "room_booking": ["room reservation", "rezervare spatiu", "book room"],
+}
+
+
+def _category_aliases(category: Optional[str]) -> list[str]:
+    raw = (category or "").strip()
+    if not raw:
+        return []
+
+    normalized = raw.lower().replace("-", "_").replace(" ", "_")
+    base = [raw, raw.replace("_", " "), raw.replace("-", " ")]
+    extras = _CATEGORY_ALIASES.get(normalized, [])
+
+    aliases = []
+    seen = set()
+    for value in [*base, *extras]:
+        text = str(value or "").strip()
+        if not text:
+            continue
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        aliases.append(text)
+    return aliases
+
+
 def _provider_to_rag_entity(provider_doc: dict) -> dict:
     provider_id = str(provider_doc.get("_id") or provider_doc.get("id") or "")
     return {
@@ -107,11 +148,13 @@ def _provider_to_rag_entity(provider_doc: dict) -> dict:
         "name": provider_doc.get("name"),
         "description": provider_doc.get("description"),
         "category": provider_doc.get("category"),
+        "category_aliases": _category_aliases(provider_doc.get("category")),
         "status": provider_doc.get("status", "active"),
         "location": _service_entity_location_from_provider(provider_doc),
         "working_hours": provider_doc.get("working_hours") or [],
         "reservation_types": provider_doc.get("reservation_types") or [],
         "facilities": provider_doc.get("facilities") or {},
+        "cars": provider_doc.get("cars") or [],
     }
 
 
@@ -138,6 +181,7 @@ def _reservation_type_entities(provider_doc: dict) -> list[dict]:
                 "name": rt_name,
                 "description": description,
                 "category": provider_doc.get("category"),
+                "category_aliases": _category_aliases(provider_doc.get("category")),
                 "status": provider_doc.get("status", "active"),
                 "location": _service_entity_location_from_provider(provider_doc),
                 "reservation_types": [rt],
@@ -161,6 +205,7 @@ def _service_to_rag_entity(service_doc: dict, provider_doc: Optional[dict]) -> d
         "name": service_doc.get("name"),
         "description": f"Durata: {service_doc.get('duration_minutes')} min, Pret: {service_doc.get('price')} lei",
         "category": provider_doc.get("category") or service_doc.get("category"),
+        "category_aliases": _category_aliases(provider_doc.get("category") or service_doc.get("category")),
         "status": service_doc.get("status", "active"),
         "location": _service_entity_location_from_provider(provider_doc),
         "amenities": service_doc.get("images") or [],
@@ -178,6 +223,7 @@ def _table_to_rag_entity(table_doc: dict, provider_doc: Optional[dict]) -> dict:
         "name": table_doc.get("name"),
         "description": f"Locuri: {table_doc.get('seats')}, Zona: {table_doc.get('zone')}",
         "category": provider_doc.get("category"),
+        "category_aliases": _category_aliases(provider_doc.get("category")),
         "status": table_doc.get("status", "active"),
         "location": _service_entity_location_from_provider(provider_doc),
         "amenities": table_doc.get("special_options") or [],
@@ -195,6 +241,7 @@ def _room_to_rag_entity(room_doc: dict, provider_doc: Optional[dict]) -> dict:
         "name": room_doc.get("name"),
         "description": f"Tip: {room_doc.get('space_type')}, Capacitate: {room_doc.get('capacity')}",
         "category": provider_doc.get("category"),
+        "category_aliases": _category_aliases(provider_doc.get("category")),
         "status": room_doc.get("status", "active"),
         "location": _service_entity_location_from_provider(provider_doc),
         "amenities": room_doc.get("amenities") or [],
@@ -210,6 +257,7 @@ def _experience_to_rag_entity(experience_doc: dict) -> dict:
         "name": experience_doc.get("name"),
         "description": experience_doc.get("description"),
         "category": "experience",
+        "category_aliases": _category_aliases(experience_doc.get("experience_type") or "experience"),
         "experience_type": experience_doc.get("experience_type"),
         "status": experience_doc.get("status", "active"),
         "location": {
