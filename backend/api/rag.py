@@ -24,6 +24,31 @@ router = APIRouter(tags=["RAG"])
 HF_RAG_SPACE_URL = os.getenv("HF_RAG_SPACE_URL", "")
 TOP_K = 5
 
+
+def _serialize_conversation_history(conversation_history: Optional[list]) -> list:
+    if not conversation_history:
+        return []
+
+    serialized = []
+    for msg in conversation_history:
+        if msg is None:
+            continue
+        if isinstance(msg, dict):
+            role = msg.get("role")
+            content = msg.get("content")
+        else:
+            role = getattr(msg, "role", None)
+            content = getattr(msg, "content", None)
+
+        if role is None and content is None:
+            continue
+        serialized.append({
+            "role": str(role or "user"),
+            "content": str(content or ""),
+        })
+
+    return serialized
+
 # Helper function to generate suggested questions
 async def generate_suggested_questions(answer: str, sources: list, original_query: str) -> list:
     """
@@ -166,11 +191,12 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
+            serialized_history = _serialize_conversation_history(conversation_history)
             response = await client.post(
                 f"{HF_RAG_SPACE_URL}/classify",
                 json={
                     "query": query,
-                    "conversation_history": conversation_history or [],
+                    "conversation_history": serialized_history,
                 },
             )
             response.raise_for_status()
@@ -191,7 +217,11 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
         # Fallback: direct query + history analysis
         query_lower = query.lower()
         apartment_signals = ["apartament", "cazare", "accommodation", "stay", "dormitor", "lei", "pret", "price", "owner", "proprietar"]
-        service_signals = ["serviciu", "service", "provider", "restaurant", "pub", "club", "barber", "spa", "workshop", "experienta", "experience", "masa", "table", "room", "spatiu", "event", "tur ghidat", "guided tour"]
+        service_signals = [
+            "serviciu", "service", "provider", "restaurant", "pub", "club", "barber", "spa",
+            "workshop", "experienta", "experience", "masa", "table", "room", "spatiu",
+            "event", "tur ghidat", "guided tour", "rent a car", "rent-a-car", "masina", "inchiriere",
+        ]
         
         # Check query (services first)
         if any(k in query_lower for k in service_signals):
@@ -269,9 +299,14 @@ async def rag_query(request: RAGQueryRequest):
         logger.info(f"[CLASSIFICATION] LLM classified intent: '{intent}' -> using endpoint: {endpoint}")
 
         async with httpx.AsyncClient(timeout=60.0) as client:
+            request_payload = {
+                "query": request.query,
+                "conversation_history": _serialize_conversation_history(request.conversation_history),
+                "top_k": request.top_k,
+            }
             response = await client.post(
                 f"{HF_RAG_SPACE_URL}{endpoint}",
-                json=request.dict(),
+                json=request_payload,
             )
             response.raise_for_status()
             data = response.json()
