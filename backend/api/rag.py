@@ -130,14 +130,14 @@ def _detect_last_endpoint(conversation_history: Optional[list]) -> Optional[str]
 
 async def classify_query_intent(query: str, conversation_history: Optional[list] = None) -> str:
     """
-    Use LLM to semantically classify if query is about apartments/accommodation or general knowledge.
+    Use LLM to semantically classify if query is about apartments, services, or general knowledge.
     Takes conversation history into account for contextual queries.
-    Returns: 'apartments' or 'knowledge'
+    Returns: 'apartments' or 'services' or 'knowledge'
     """
     if not HF_RAG_SPACE_URL:
         return "knowledge"
     
-    # Pre-check: ONLY for very explicit apartment queries (fast path)
+    # Pre-check: explicit domains (fast path)
     # Let LLM handle semantic variants and synonyms
     query_lower = query.lower()
     explicit_apartment_keywords = [
@@ -147,11 +147,22 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
         "listing", "listare", "listat",
         "rezervare", "booking",
     ]
+    explicit_services_keywords = [
+        "serviciu", "servicii", "service", "services",
+        "provider", "restaurant", "pub", "club", "nightlife",
+        "barber", "spa", "masaj", "massage", "rent a car", "rent-a-car", "masina",
+        "eveniment", "event", "workshop", "tur ghidat", "guided tour", "activitate indoor",
+        "experienta", "experiente", "experience", "experiences",
+        "masa", "table", "room", "spatiu",
+    ]
     
     # Fast path for explicit queries only
     if any(keyword in query_lower for keyword in explicit_apartment_keywords):
         logger.info(f"[CLASSIFICATION] Pre-check: explicit apartment keyword → apartments")
         return "apartments"
+    if any(keyword in query_lower for keyword in explicit_services_keywords):
+        logger.info(f"[CLASSIFICATION] Pre-check: explicit services keyword → services")
+        return "services"
     
     # Everything else (including synonyms, contextual queries) → LLM classification
 
@@ -170,6 +181,8 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
 
             if result == "APARTMENTS":
                 return "apartments"
+            if result == "SERVICES":
+                return "services"
             if result == "KNOWLEDGE":
                 return "knowledge"
 
@@ -180,11 +193,15 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
         # Fallback: direct query + history analysis
         query_lower = query.lower()
         apartment_signals = ["apartament", "cazare", "accommodation", "stay", "booking", "rent", "dormitor", "lei", "pret", "price", "owner", "proprietar"]
+        service_signals = ["serviciu", "service", "provider", "restaurant", "pub", "club", "barber", "spa", "workshop", "experienta", "experience", "masa", "table", "room", "spatiu", "event", "tur ghidat", "guided tour"]
         
         # Check query
         if any(k in query_lower for k in apartment_signals):
             logger.info("[CLASSIFICATION] Fallback query: apartments")
             return "apartments"
+        if any(k in query_lower for k in service_signals):
+            logger.info("[CLASSIFICATION] Fallback query: services")
+            return "services"
         
         # Check conversation history
         if conversation_history:
@@ -193,6 +210,9 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
                 if any(k in content_lower for k in apartment_signals):
                     logger.info("[CLASSIFICATION] Fallback history: apartments")
                     return "apartments"
+                if any(k in content_lower for k in service_signals):
+                    logger.info("[CLASSIFICATION] Fallback history: services")
+                    return "services"
         
         logger.info("[CLASSIFICATION] Fallback: knowledge")
         return "knowledge"
@@ -242,7 +262,12 @@ async def rag_query(request: RAGQueryRequest):
         # Use LLM to classify query intent with conversation context
         logger.info(f"[CLASSIFICATION] Starting LLM classification for query: {request.query}")
         intent = await classify_query_intent(request.query, request.conversation_history)
-        endpoint = "/query_apartments" if intent == "apartments" else "/query"
+        if intent == "apartments":
+            endpoint = "/query_apartments"
+        elif intent == "services":
+            endpoint = "/query_services"
+        else:
+            endpoint = "/query"
         logger.info(f"[CLASSIFICATION] LLM classified intent: '{intent}' -> using endpoint: {endpoint}")
 
         async with httpx.AsyncClient(timeout=60.0) as client:

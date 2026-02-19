@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 from uuid import uuid4
 import math
 import re
+import os
+import httpx
 from bson import ObjectId
 from jose import JWTError, jwt
 
@@ -51,6 +53,9 @@ NO_EMPLOYEE_CATEGORIES = {
     "instalator",
 }
 
+RAG_BASE_URL = (os.getenv("RAG_BASE_URL") or os.getenv("HF_RAG_SPACE_URL") or "").rstrip("/")
+RAG_SYNC_TIMEOUT = float(os.getenv("RAG_SYNC_TIMEOUT", "8"))
+
 
 
 async def purge_expired_bookings(bookings_col) -> None:
@@ -79,6 +84,168 @@ async def get_optional_user_from_request(request: Request) -> Optional[dict]:
     user_doc = await users_col.find_one({"email": email})
     user_id = str(user_doc["_id"]) if user_doc and "_id" in user_doc else None
     return {"email": email, "id": user_id, "username": payload.get("username")}
+
+
+def _service_entity_location_from_provider(provider_doc: Optional[dict]) -> dict:
+    provider_doc = provider_doc or {}
+    return {
+        "address": provider_doc.get("address"),
+        "city": provider_doc.get("city") or "Timisoara",
+        "country": provider_doc.get("country") or "Romania",
+        "latitude": provider_doc.get("latitude"),
+        "longitude": provider_doc.get("longitude"),
+    }
+
+
+def _provider_to_rag_entity(provider_doc: dict) -> dict:
+    provider_id = str(provider_doc.get("_id") or provider_doc.get("id") or "")
+    return {
+        "id": provider_id,
+        "entity_type": "provider",
+        "provider_id": provider_id,
+        "provider_name": provider_doc.get("name"),
+        "name": provider_doc.get("name"),
+        "description": provider_doc.get("description"),
+        "category": provider_doc.get("category"),
+        "status": provider_doc.get("status", "active"),
+        "location": _service_entity_location_from_provider(provider_doc),
+        "working_hours": provider_doc.get("working_hours") or [],
+        "reservation_types": provider_doc.get("reservation_types") or [],
+        "facilities": provider_doc.get("facilities") or {},
+    }
+
+
+def _reservation_type_entities(provider_doc: dict) -> list[dict]:
+    provider_id = str(provider_doc.get("_id") or provider_doc.get("id") or "")
+    provider_name = provider_doc.get("name")
+    items = []
+    for idx, rt in enumerate(provider_doc.get("reservation_types") or []):
+        if isinstance(rt, dict):
+            rt_id = rt.get("id") or f"{provider_id}:reservation_type:{idx}"
+            rt_name = rt.get("name") or rt.get("type_key") or f"Reservation type {idx + 1}"
+            description = ", ".join(rt.get("benefits") or []) if isinstance(rt.get("benefits"), list) else None
+        else:
+            rt_id = f"{provider_id}:reservation_type:{idx}"
+            rt_name = str(rt)
+            description = None
+
+        items.append(
+            {
+                "id": str(rt_id),
+                "entity_type": "reservation_type",
+                "provider_id": provider_id,
+                "provider_name": provider_name,
+                "name": rt_name,
+                "description": description,
+                "category": provider_doc.get("category"),
+                "status": provider_doc.get("status", "active"),
+                "location": _service_entity_location_from_provider(provider_doc),
+                "reservation_types": [rt],
+            }
+        )
+    return items
+
+
+def _reservation_type_entity_ids(provider_doc: dict) -> set[str]:
+    return {str(item.get("id")) for item in _reservation_type_entities(provider_doc) if item.get("id")}
+
+
+def _service_to_rag_entity(service_doc: dict, provider_doc: Optional[dict]) -> dict:
+    provider_id = str(service_doc.get("provider_id") or "")
+    provider_doc = provider_doc or {}
+    return {
+        "id": str(service_doc.get("_id") or service_doc.get("id") or ""),
+        "entity_type": "service",
+        "provider_id": provider_id,
+        "provider_name": provider_doc.get("name"),
+        "name": service_doc.get("name"),
+        "description": f"Durata: {service_doc.get('duration_minutes')} min, Pret: {service_doc.get('price')} lei",
+        "category": provider_doc.get("category") or service_doc.get("category"),
+        "status": service_doc.get("status", "active"),
+        "location": _service_entity_location_from_provider(provider_doc),
+        "amenities": service_doc.get("images") or [],
+    }
+
+
+def _table_to_rag_entity(table_doc: dict, provider_doc: Optional[dict]) -> dict:
+    provider_id = str(table_doc.get("provider_id") or "")
+    provider_doc = provider_doc or {}
+    return {
+        "id": str(table_doc.get("_id") or table_doc.get("id") or ""),
+        "entity_type": "table",
+        "provider_id": provider_id,
+        "provider_name": provider_doc.get("name"),
+        "name": table_doc.get("name"),
+        "description": f"Locuri: {table_doc.get('seats')}, Zona: {table_doc.get('zone')}",
+        "category": provider_doc.get("category"),
+        "status": table_doc.get("status", "active"),
+        "location": _service_entity_location_from_provider(provider_doc),
+        "amenities": table_doc.get("special_options") or [],
+    }
+
+
+def _room_to_rag_entity(room_doc: dict, provider_doc: Optional[dict]) -> dict:
+    provider_id = str(room_doc.get("provider_id") or "")
+    provider_doc = provider_doc or {}
+    return {
+        "id": str(room_doc.get("_id") or room_doc.get("id") or ""),
+        "entity_type": "room",
+        "provider_id": provider_id,
+        "provider_name": provider_doc.get("name"),
+        "name": room_doc.get("name"),
+        "description": f"Tip: {room_doc.get('space_type')}, Capacitate: {room_doc.get('capacity')}",
+        "category": provider_doc.get("category"),
+        "status": room_doc.get("status", "active"),
+        "location": _service_entity_location_from_provider(provider_doc),
+        "amenities": room_doc.get("amenities") or [],
+    }
+
+
+def _experience_to_rag_entity(experience_doc: dict) -> dict:
+    return {
+        "id": str(experience_doc.get("_id") or experience_doc.get("id") or ""),
+        "entity_type": "experience",
+        "provider_id": str(experience_doc.get("user_id") or ""),
+        "provider_name": None,
+        "name": experience_doc.get("name"),
+        "description": experience_doc.get("description"),
+        "category": "experience",
+        "experience_type": experience_doc.get("experience_type"),
+        "status": experience_doc.get("status", "active"),
+        "location": {
+            "address": experience_doc.get("meeting_point"),
+            "city": "Timisoara",
+            "country": "Romania",
+            "latitude": experience_doc.get("meeting_latitude"),
+            "longitude": experience_doc.get("meeting_longitude"),
+        },
+        "working_hours": experience_doc.get("available_dates") or [],
+    }
+
+
+async def _rag_services_upsert(entity: dict) -> None:
+    if not RAG_BASE_URL or not entity:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=RAG_SYNC_TIMEOUT) as client:
+            response = await client.post(f"{RAG_BASE_URL}/rag/services/upsert", json={"entity": entity})
+            response.raise_for_status()
+    except Exception as exc:
+        print(f"[WARN] RAG services upsert failed for {entity.get('entity_type')}:{entity.get('id')}: {exc}")
+
+
+async def _rag_services_delete(entity_type: str, entity_id: str) -> None:
+    if not RAG_BASE_URL or not entity_type or not entity_id:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=RAG_SYNC_TIMEOUT) as client:
+            response = await client.post(
+                f"{RAG_BASE_URL}/rag/services/delete",
+                json={"entity_type": entity_type, "entity_id": str(entity_id)},
+            )
+            response.raise_for_status()
+    except Exception as exc:
+        print(f"[WARN] RAG services delete failed for {entity_type}:{entity_id}: {exc}")
 
 # ============================================================
 # REQUEST/RESPONSE MODELS
@@ -698,6 +865,12 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
         result = await providers_col.insert_one(provider.model_dump(by_alias=True, exclude={"id"}))
         print("[DEBUG] Provider created with id:", str(result.inserted_id))
 
+        created_provider_doc = await providers_col.find_one({"_id": result.inserted_id})
+        if created_provider_doc:
+            await _rag_services_upsert(_provider_to_rag_entity(created_provider_doc))
+            for rt_entity in _reservation_type_entities(created_provider_doc):
+                await _rag_services_upsert(rt_entity)
+
         if request.category in {"curatenie_zilnica", "curatenie_generala", "electrician", "instalator"}:
             try:
                 services_col = get_services_collection()
@@ -715,6 +888,9 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
                 service_result = await services_col.insert_one(
                     service.model_dump(by_alias=True, exclude={"id"})
                 )
+                created_service_doc = await services_col.find_one({"_id": service_result.inserted_id})
+                if created_service_doc:
+                    await _rag_services_upsert(_service_to_rag_entity(created_service_doc, created_provider_doc))
                 employee = Employee(
                     provider_id=result.inserted_id,
                     name="Echipa",
@@ -843,6 +1019,8 @@ async def update_provider(
     # Check ownership
     if str(provider["user_id"]) != current_user["id"]:
         raise HTTPException(status_code=403, detail="Not authorized to update this provider")
+
+    old_reservation_type_ids = _reservation_type_entity_ids(provider)
     
     # Log incoming request data for debugging
     print("[DEBUG] Incoming update request:", request.dict())
@@ -882,6 +1060,13 @@ async def update_provider(
     
     # Log updated provider for debugging
     print("[DEBUG] Updated provider:", updated_provider)
+
+    await _rag_services_upsert(_provider_to_rag_entity(updated_provider))
+    for rt_entity in _reservation_type_entities(updated_provider):
+        await _rag_services_upsert(rt_entity)
+    new_reservation_type_ids = _reservation_type_entity_ids(updated_provider)
+    for removed_rt_id in old_reservation_type_ids - new_reservation_type_ids:
+        await _rag_services_delete("reservation_type", removed_rt_id)
     
     return ProviderResponse(
         id=str(updated_provider["_id"]),
@@ -921,6 +1106,10 @@ async def delete_provider(provider_id: str, user=Depends(get_current_user)):
     result = await providers_col.delete_one({"_id": ObjectId(provider_id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Provider not found")
+
+    await _rag_services_delete("provider", provider_id)
+    for rt_id in _reservation_type_entity_ids(provider):
+        await _rag_services_delete("reservation_type", rt_id)
     return Response(status_code=204)
 
 
@@ -958,6 +1147,10 @@ async def create_table(request: TableCreateRequest, current_user: dict = Depends
     )
     
     result = await tables_col.insert_one(table.model_dump(by_alias=True, exclude={"id"}))
+
+    created_table_doc = await tables_col.find_one({"_id": result.inserted_id})
+    if created_table_doc:
+        await _rag_services_upsert(_table_to_rag_entity(created_table_doc, provider))
     
     return TableResponse(
         id=str(result.inserted_id),
@@ -1032,6 +1225,8 @@ async def delete_table(table_id: str, current_user: dict = Depends(get_current_u
         {"$set": {"status": "inactive"}}
     )
 
+    await _rag_services_delete("table", table_id)
+
     return Response(status_code=204)
 
 
@@ -1070,6 +1265,10 @@ async def create_room(request: RoomCreateRequest, current_user: dict = Depends(g
     )
 
     result = await rooms_col.insert_one(room.model_dump(by_alias=True, exclude={"id"}))
+
+    created_room_doc = await rooms_col.find_one({"_id": result.inserted_id})
+    if created_room_doc:
+        await _rag_services_upsert(_room_to_rag_entity(created_room_doc, provider))
 
     return RoomResponse(
         id=str(result.inserted_id),
@@ -1161,6 +1360,8 @@ async def update_room(room_id: str, request: RoomCreateRequest, current_user: di
     if not updated_room:
         raise HTTPException(status_code=404, detail="Room not found")
 
+    await _rag_services_upsert(_room_to_rag_entity(updated_room, provider))
+
     return RoomResponse(
         id=str(updated_room["_id"]),
         provider_id=str(updated_room["provider_id"]),
@@ -1206,6 +1407,8 @@ async def delete_room(room_id: str, current_user: dict = Depends(get_current_use
         {"$set": {"status": "inactive"}}
     )
 
+    await _rag_services_delete("room", room_id)
+
     return Response(status_code=204)
 
 
@@ -1242,6 +1445,10 @@ async def create_service(request: ServiceCreateRequest, current_user: dict = Dep
     )
 
     result = await services_col.insert_one(service.model_dump(by_alias=True, exclude={"id"}))
+
+    created_service_doc = await services_col.find_one({"_id": result.inserted_id})
+    if created_service_doc:
+        await _rag_services_upsert(_service_to_rag_entity(created_service_doc, provider))
 
     return ServiceResponse(
         id=str(result.inserted_id),
@@ -1317,6 +1524,8 @@ async def update_service(service_id: str, request: ServiceCreateRequest, current
     if not updated:
         raise HTTPException(status_code=404, detail="Service not found")
 
+    await _rag_services_upsert(_service_to_rag_entity(updated, provider))
+
     return ServiceResponse(
         id=str(updated["_id"]),
         provider_id=str(updated["provider_id"]),
@@ -1353,6 +1562,8 @@ async def delete_service(service_id: str, current_user: dict = Depends(get_curre
         {"_id": ObjectId(service_id)},
         {"$set": {"status": "inactive"}}
     )
+
+    await _rag_services_delete("service", service_id)
 
     return Response(status_code=204)
 
@@ -2581,6 +2792,8 @@ async def create_experience(request: ExperienceCreateRequest, current_user=Depen
     }
     result = await experiences_col.insert_one(exp_data)
     exp_data["_id"] = result.inserted_id
+
+    await _rag_services_upsert(_experience_to_rag_entity(exp_data))
     return _serialize_experience(exp_data)
 
 
@@ -2637,6 +2850,8 @@ async def update_experience(experience_id: str, request: ExperienceCreateRequest
     }
     await experiences_col.update_one({"_id": ObjectId(experience_id)}, {"$set": update_data})
     updated = await experiences_col.find_one({"_id": ObjectId(experience_id)})
+    if updated:
+        await _rag_services_upsert(_experience_to_rag_entity(updated))
     return _serialize_experience(updated)
 
 
@@ -2649,6 +2864,7 @@ async def delete_experience(experience_id: str, current_user=Depends(get_current
     if existing.get("user_id") != str(current_user["_id"]):
         raise HTTPException(status_code=403, detail="Not your experience")
     await experiences_col.delete_one({"_id": ObjectId(experience_id)})
+    await _rag_services_delete("experience", experience_id)
     return {"message": "Experience deleted"}
 
 

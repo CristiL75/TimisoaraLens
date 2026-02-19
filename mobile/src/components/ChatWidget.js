@@ -7,6 +7,8 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  TouchableOpacity,
+  Image,
 } from 'react-native';
 import {
   Portal,
@@ -16,6 +18,7 @@ import {
   Button,
   FAB,
 } from 'react-native-paper';
+import { useNavigation } from '@react-navigation/native';
 import { ragAPI } from '../services/api';
 import SuggestedQuestions from './SuggestedQuestions';
 
@@ -24,6 +27,7 @@ import SuggestedQuestions from './SuggestedQuestions';
  * Connects to backend /rag/query endpoint for intelligent responses.
  */
 export default function ChatWidget() {
+  const navigation = useNavigation();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([
@@ -106,16 +110,34 @@ export default function ChatWidget() {
   };
 
   const renderMessageText = (text) => {
-    const parts = text
-      .split(/\n+/)
-      .map((p) => p.trim())
-      .filter(Boolean);
+    const lines = text.split('\n');
 
-    return parts.map((p, idx) => (
-      <Text key={idx} style={styles.bubbleText}>
-        {p}
-      </Text>
-    ));
+    return lines.map((line, idx) => {
+      const trimmed = line.trim();
+
+      if (!trimmed) {
+        return <View key={`blank-${idx}`} style={styles.blankLine} />;
+      }
+
+      const isTitle = trimmed.startsWith('**') && trimmed.endsWith('**');
+      const content = isTitle ? trimmed.slice(2, -2) : trimmed;
+      const isBullet = content.startsWith('- ');
+
+      if (isBullet) {
+        return (
+          <View key={`bullet-${idx}`} style={styles.bulletRow}>
+            <Text style={styles.bulletMarker}>•</Text>
+            <Text style={styles.bulletText}>{content.slice(2)}</Text>
+          </View>
+        );
+      }
+
+      return (
+        <Text key={`line-${idx}`} style={[styles.bubbleText, isTitle && styles.bubbleTitle]}>
+          {content}
+        </Text>
+      );
+    });
   };
 
   return (
@@ -129,6 +151,8 @@ export default function ChatWidget() {
             <Card.Title
               title="Chat CityLens"
               subtitle="Asistent inteligent"
+              titleStyle={styles.headerTitle}
+              subtitleStyle={styles.headerSubtitle}
               right={(props) => (
                 <View style={{ flexDirection: 'row' }}>
                   <IconButton
@@ -163,12 +187,58 @@ export default function ChatWidget() {
                       {renderMessageText(msg.text)}
                       {msg.sources && msg.sources.length > 0 && (
                         <View style={styles.sourcesContainer}>
-                          <Text style={styles.sourcesLabel}>Surse:</Text>
-                          {msg.sources.slice(0, 2).map((source, idx) => (
-                            <Text key={idx} style={styles.sourceItem}>
-                              • {source.heading} ({source.source})
-                            </Text>
-                          ))}
+                          {/* Afișează carduri apartamente dacă există */}
+                          {msg.sources.some(s => s.listing) && (
+                            <View style={styles.listingsContainer}>
+                              {msg.sources
+                                .filter(s => s.listing)
+                                .map((source, idx) => {
+                                  const listing = source.listing;
+                                  const firstImage = listing.images?.[0];
+                                  return (
+                                    <TouchableOpacity
+                                      key={idx}
+                                      style={styles.listingCard}
+                                      onPress={() => {
+                                        navigation.navigate('ListingDetail', {
+                                          listingId: listing.id || listing._id,
+                                        });
+                                      }}
+                                    >
+                                      {firstImage && (
+                                        <Image
+                                          source={{ uri: firstImage }}
+                                          style={styles.listingImage}
+                                          resizeMode="cover"
+                                        />
+                                      )}
+                                      <View style={styles.listingInfo}>
+                                        <Text style={styles.listingTitle}>
+                                          {listing.title || 'Apartament'}
+                                        </Text>
+                                        <Text style={styles.listingPrice}>
+                                          {listing.price_per_night} lei/noapte
+                                        </Text>
+                                        <Text style={styles.listingAddress}>
+                                          📍 {listing.location?.address || listing.location?.city}
+                                        </Text>
+                                      </View>
+                                    </TouchableOpacity>
+                                  );
+                                })}
+                            </View>
+                          )}
+                          {/* Afișează surse normale dacă nu sunt apartamente */}
+                          {!msg.sources.some(s => s.listing) && (
+                            <>
+                              <Text style={styles.sourcesLabel}>Surse:</Text>
+                              {msg.sources.slice(0, 2).map((source, idx) => (
+                                <Text key={idx} style={styles.sourceItem}>
+                                  • {source.heading} ({source.source})
+                                </Text>
+                              ))}
+                            </>
+                          )}
                         </View>
                       )}
                     </View>
@@ -202,6 +272,7 @@ export default function ChatWidget() {
                 mode="contained"
                 onPress={handleSend}
                 disabled={!trimmedInput || isLoading}
+                style={styles.sendButton}
               >
                 Trimite
               </Button>
@@ -227,18 +298,18 @@ const styles = StyleSheet.create({
     right: 12,
     bottom: 96,
     left: 12,
-    alignItems: 'flex-end',
+    alignItems: 'center',
   },
   popup: {
-    width: '90%',
-    maxHeight: 420,
+    width: '95%',
+    maxHeight: 520,
     backgroundColor: '#ffffff',
     borderRadius: 16,
   },
   cardContentWrapper: {
     overflow: 'hidden',
-    maxHeight: 280,
-    paddingHorizontal: 4,
+    maxHeight: 360,
+    paddingHorizontal: 10,
   },
   messagesScroll: {
     width: '100%',
@@ -251,6 +322,14 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 8,
   },
+  blankLine: {
+    height: 6,
+  },
+  bubbleTitle: {
+    fontWeight: '700',
+    marginTop: 2,
+    marginBottom: 2,
+  },
   userBubble: {
     backgroundColor: '#E8F0FE',
     alignSelf: 'flex-end',
@@ -261,8 +340,22 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     maxWidth: '90%',
   },
+  bulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 2,
+  },
+  bulletMarker: {
+    marginRight: 6,
+    color: '#1f1f1f',
+  },
+  bulletText: {
+    flex: 1,
+    color: '#1f1f1f',
+    lineHeight: 20,
+  },
   bubbleText: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#000',
   },
   sourcesContainer: {
@@ -270,8 +363,46 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#ddd',
+  },  listingsContainer: {
+    marginTop: 8,
   },
-  sourcesLabel: {
+  listingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginBottom: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  listingImage: {
+    width: '100%',
+    height: 120,
+    backgroundColor: '#f0f0f0',
+  },
+  listingInfo: {
+    padding: 10,
+  },
+  listingTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 4,
+  },
+  listingPrice: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6200ee',
+    marginBottom: 4,
+  },
+  listingAddress: {
+    fontSize: 12,
+    color: '#666',
+  },  sourcesLabel: {
     fontSize: 12,
     fontWeight: 'bold',
     color: '#666',
@@ -296,19 +427,34 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 8,
     paddingBottom: 10,
-    gap: 8,
+    gap: 10,
   },
   input: {
     flex: 1,
-    height: 42,
+    height: 48,
     borderColor: '#E0E0E0',
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 10,
+    borderRadius: 12,
+    paddingHorizontal: 12,
     marginRight: 8,
-    fontSize: 14,
+    fontSize: 15,
+  },
+  sendButton: {
+    height: 48,
+    justifyContent: 'center',
+    borderRadius: 12,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: '#666',
   },
   fab: {
     position: 'absolute',
