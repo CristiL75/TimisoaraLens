@@ -137,15 +137,13 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
     if not HF_RAG_SPACE_URL:
         return "knowledge"
     
-    # Pre-check: explicit domains (fast path)
-    # Let LLM handle semantic variants and synonyms
+    # Build lexical hints (used only for logging/fallback, not hard routing)
     query_lower = query.lower()
     explicit_apartment_keywords = [
         "apartament", "apartamente", "apartment", "apartments",
         "aprtament", "apartamnt",  # Common typos
-        "cazare", "accommodation", "inchiriere", "rent",
+        "cazare", "accommodation",
         "listing", "listare", "listat",
-        "rezervare", "booking",
     ]
     explicit_services_keywords = [
         "serviciu", "servicii", "service", "services",
@@ -156,13 +154,13 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
         "masa", "table", "room", "spatiu",
     ]
     
-    # Fast path for explicit queries only
-    if any(keyword in query_lower for keyword in explicit_apartment_keywords):
-        logger.info(f"[CLASSIFICATION] Pre-check: explicit apartment keyword → apartments")
-        return "apartments"
-    if any(keyword in query_lower for keyword in explicit_services_keywords):
-        logger.info(f"[CLASSIFICATION] Pre-check: explicit services keyword → services")
-        return "services"
+    has_service_hint = any(keyword in query_lower for keyword in explicit_services_keywords)
+    has_apartment_hint = any(keyword in query_lower for keyword in explicit_apartment_keywords)
+    logger.info(
+        "[CLASSIFICATION] lexical hints: services=%s apartments=%s",
+        has_service_hint,
+        has_apartment_hint,
+    )
     
     # Everything else (including synonyms, contextual queries) → LLM classification
 
@@ -192,27 +190,27 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
         logger.warning(f"[CLASSIFICATION] LLM call failed: {e}, analyzing query and context")
         # Fallback: direct query + history analysis
         query_lower = query.lower()
-        apartment_signals = ["apartament", "cazare", "accommodation", "stay", "booking", "rent", "dormitor", "lei", "pret", "price", "owner", "proprietar"]
+        apartment_signals = ["apartament", "cazare", "accommodation", "stay", "dormitor", "lei", "pret", "price", "owner", "proprietar"]
         service_signals = ["serviciu", "service", "provider", "restaurant", "pub", "club", "barber", "spa", "workshop", "experienta", "experience", "masa", "table", "room", "spatiu", "event", "tur ghidat", "guided tour"]
         
-        # Check query
-        if any(k in query_lower for k in apartment_signals):
-            logger.info("[CLASSIFICATION] Fallback query: apartments")
-            return "apartments"
+        # Check query (services first)
         if any(k in query_lower for k in service_signals):
             logger.info("[CLASSIFICATION] Fallback query: services")
             return "services"
+        if any(k in query_lower for k in apartment_signals):
+            logger.info("[CLASSIFICATION] Fallback query: apartments")
+            return "apartments"
         
         # Check conversation history
         if conversation_history:
             for msg in conversation_history[-3:]:
                 content_lower = msg.content.lower() if hasattr(msg, 'content') else ''
-                if any(k in content_lower for k in apartment_signals):
-                    logger.info("[CLASSIFICATION] Fallback history: apartments")
-                    return "apartments"
                 if any(k in content_lower for k in service_signals):
                     logger.info("[CLASSIFICATION] Fallback history: services")
                     return "services"
+                if any(k in content_lower for k in apartment_signals):
+                    logger.info("[CLASSIFICATION] Fallback history: apartments")
+                    return "apartments"
         
         logger.info("[CLASSIFICATION] Fallback: knowledge")
         return "knowledge"
