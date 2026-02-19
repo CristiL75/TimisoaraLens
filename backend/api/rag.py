@@ -50,6 +50,12 @@ def _serialize_conversation_history(conversation_history: Optional[list]) -> lis
     return serialized
 
 
+def _serialize_user_history_for_classification(conversation_history: Optional[list], max_items: int = 4) -> list:
+    serialized = _serialize_conversation_history(conversation_history)
+    user_only = [msg for msg in serialized if str(msg.get("role", "")).lower() == "user"]
+    return user_only[-max_items:]
+
+
 # Helper function to generate suggested questions
 async def generate_suggested_questions(answer: str, sources: list, original_query: str) -> list:
     """
@@ -177,7 +183,7 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
         "barber", "spa", "masaj", "massage", "rent a car", "rent-a-car", "masina",
         "eveniment", "event", "workshop", "tur ghidat", "guided tour", "activitate indoor",
         "experienta", "experiente", "experience", "experiences",
-        "masa", "table", "room", "spatiu",
+        "masa", "table", "room", "spatiu", "listate", "disponibile", "oferte", "option", "optiuni",
     ]
     
     has_service_hint = any(keyword in query_lower for keyword in explicit_services_keywords)
@@ -192,7 +198,7 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            serialized_history = _serialize_conversation_history(conversation_history)
+            serialized_history = _serialize_user_history_for_classification(conversation_history)
             response = await client.post(
                 f"{HF_RAG_SPACE_URL}/classify",
                 json={
@@ -209,6 +215,9 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
             if result == "SERVICES":
                 return "services"
             if result == "KNOWLEDGE":
+                if has_service_hint and not has_apartment_hint:
+                    logger.info("[CLASSIFICATION] Guardrail override: KNOWLEDGE -> services (strong service hints)")
+                    return "services"
                 return "knowledge"
 
             logger.warning("[CLASSIFICATION] Unexpected domain, falling back")
