@@ -55,6 +55,16 @@ const NO_PRICE_EMPLOYEE_CATEGORIES = [
   'instalator',
 ];
 
+const FACILITY_ENABLED_CATEGORIES = [
+  'food_drinks',
+  'club_nightlife',
+  'restaurant',
+  'pub',
+  'bar',
+  'cafenea',
+  'cafe',
+];
+
 const TRANSMISSION_OPTIONS = [
   { key: 'manual', label: 'Manuala' },
   { key: 'automatic', label: 'Automata' },
@@ -221,6 +231,7 @@ export default function ManageProviderScreen({ navigation, route }) {
 
   const isClub = category === 'club_nightlife';
   const isExperience = ['guided_tour', 'workshop', 'indoor_activity'].includes(category);
+  const supportsFacilities = FACILITY_ENABLED_CATEGORIES.includes(category);
 
   const isNoPriceEmployeeCategory = NO_PRICE_EMPLOYEE_CATEGORIES.includes(category);
 
@@ -793,7 +804,7 @@ export default function ManageProviderScreen({ navigation, route }) {
       address: address || null,
       latitude: latitude || null,
       longitude: longitude || null,
-      facilities: (category === 'food_drinks' || category === 'club_nightlife') ? facilities : null,
+      facilities: supportsFacilities ? facilities : null,
       tables: (category === 'food_drinks' || category === 'club_nightlife') ? tables : null,
       cars: category === 'rent_a_car' ? cars : [],
       event_settings: category === 'club_nightlife' ? eventSettings : null,
@@ -1460,7 +1471,7 @@ export default function ManageProviderScreen({ navigation, route }) {
           </Card>
         )}
 
-        {(category === 'food_drinks' || category === 'club_nightlife') && (
+        {supportsFacilities && (
           <Card style={styles.card}>
             <Card.Content>
               <Title>Facilitati</Title>

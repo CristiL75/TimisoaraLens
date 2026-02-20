@@ -1039,6 +1039,7 @@ async def get_provider(provider_id: str):
         address=provider.get("address"),
         latitude=provider.get("latitude"),
         longitude=provider.get("longitude"),
+        facilities=provider.get("facilities"),
         cars=cars,
         event_settings=provider.get("event_settings"),
         reservation_types=provider.get("reservation_types", []),
