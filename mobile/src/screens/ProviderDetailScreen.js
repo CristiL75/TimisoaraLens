@@ -86,12 +86,6 @@ export default function ProviderDetailScreen({ route, navigation }) {
                 ))}
               </View>
             )}
-            {!isRentCar && !isLocationSpace && (
-              <View style={styles.tagsRow}>
-                <Chip style={styles.chip}>{provider.booking_settings?.default_duration_minutes} min</Chip>
-                <Chip style={styles.chip}>{provider.booking_settings?.auto_confirm ? 'Auto-confirm' : 'Manual'}</Chip>
-              </View>
-            )}
             {isLocationSpace && (
               <View style={styles.tagsRow}>
                 <Chip style={styles.chip}>Spatii: {rooms.length}</Chip>

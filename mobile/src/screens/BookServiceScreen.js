@@ -535,9 +535,7 @@ export default function BookServiceScreen({ navigation, route }) {
           : '';
         Alert.alert(
           'Rezervare Confirmată!',
-          `Rezervarea ta la ${provider.name} pentru ${bookingDate} la ${selectedTime} a fost ${
-            provider.booking_settings.auto_confirm ? 'confirmată' : 'înregistrată și așteaptă confirmare'
-          }.${priceLine}`,
+          `Rezervarea ta la ${provider.name} pentru ${bookingDate} la ${selectedTime} a fost înregistrată.${priceLine}`,
           [
             {
               text: 'OK',
@@ -699,9 +697,7 @@ export default function BookServiceScreen({ navigation, route }) {
         const tableName = selectedTable?.name || '';
         Alert.alert(
           'Rezervare Confirmată!',
-          `Rezervarea ta la ${provider.name} (${tableName}) pentru ${bookingDate} la ora ${selectedTime} a fost ${
-            provider.booking_settings.auto_confirm ? 'confirmată' : 'înregistrată și așteaptă confirmare'
-          }.`,
+          `Rezervarea ta la ${provider.name} (${tableName}) pentru ${bookingDate} la ora ${selectedTime} a fost înregistrată.`,
           [{
             text: 'OK',
             onPress: goToBookingsForum,
@@ -1203,11 +1199,6 @@ export default function BookServiceScreen({ navigation, route }) {
                 {provider.description && (
                   <Text style={styles.description}>{provider.description}</Text>
                 )}
-                <View style={styles.infoRow}>
-                  <Chip icon={provider.booking_settings.auto_confirm ? 'check-circle' : 'timer-sand'} mode="outlined" style={styles.chip}>
-                    {provider.booking_settings.auto_confirm ? 'Auto-confirm' : 'Manual'}
-                  </Chip>
-                </View>
               </Card.Content>
             </Card>
 
@@ -1495,16 +1486,6 @@ export default function BookServiceScreen({ navigation, route }) {
                   <Text style={styles.description}>{provider.description}</Text>
                 )}
                 <View style={styles.infoRow}>
-                  <Chip icon="clock" mode="outlined" style={styles.chip}>
-                    {provider.booking_settings.default_duration_minutes} min
-                  </Chip>
-                  <Chip
-                    icon={provider.booking_settings.auto_confirm ? 'check-circle' : 'timer-sand'}
-                    mode="outlined"
-                    style={styles.chip}
-                  >
-                    {provider.booking_settings.auto_confirm ? 'Auto-confirm' : 'Manual'}
-                  </Chip>
                   {!isNoEmployeeCategory && (
                     <Chip icon="currency-usd" mode="outlined" style={styles.chip}>
                       {selectedService?.price} RON

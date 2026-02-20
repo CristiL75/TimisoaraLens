@@ -646,20 +646,6 @@ export default function ServicesScreen({ navigation }) {
                     {provider.description && (
                       <Paragraph numberOfLines={2}>{provider.description}</Paragraph>
                     )}
-                    {!isRentCar && (
-                      <View style={styles.tagsContainer}>
-                        <Chip icon="clock" mode="outlined" style={styles.smallChip}>
-                          {provider.booking_settings.default_duration_minutes} min
-                        </Chip>
-                        <Chip
-                          icon={provider.booking_settings.auto_confirm ? 'check-circle' : 'timer-sand'}
-                          mode="outlined"
-                          style={styles.smallChip}
-                        >
-                          {provider.booking_settings.auto_confirm ? 'Auto-confirm' : 'Manual'}
-                        </Chip>
-                      </View>
-                    )}
                     {isRentCar && (
                       <View style={styles.tagsContainer}>
                         <Chip icon="car" mode="outlined" style={styles.smallChip}>
