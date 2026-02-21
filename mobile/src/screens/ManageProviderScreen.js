@@ -65,6 +65,19 @@ const FACILITY_ENABLED_CATEGORIES = [
   'cafe',
 ];
 
+const DEFAULT_FACILITIES = {
+  terasa: false,
+  nefumatori: false,
+  fumatori: false,
+  pet: false,
+  parcare: false,
+  card: false,
+  wifi: false,
+  acces: false,
+  live: false,
+  tv: false,
+};
+
 const TRANSMISSION_OPTIONS = [
   { key: 'manual', label: 'Manuala' },
   { key: 'automatic', label: 'Automata' },
@@ -185,19 +198,9 @@ export default function ManageProviderScreen({ navigation, route }) {
   );
 
   const [facilities, setFacilities] = useState(
-    existingProvider?.facilities || {
-      terasa: false,
-      nefumatori: false,
-      fumatori: false,
-      pet: false,
-      parcare: false,
-      card: false,
-      wifi: false,
-      acces: false,
-      live: false,
-      tv: false,
-    }
+    existingProvider?.facilities || DEFAULT_FACILITIES
   );
+  const [newFacilityName, setNewFacilityName] = useState('');
 
   const [tables, setTables] = useState(
     existingProvider?.tables || []
@@ -288,6 +291,24 @@ export default function ManageProviderScreen({ navigation, route }) {
 
   const toggleFacility = (key) => {
     setFacilities((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const sanitizeFacilityKey = (value) => {
+    return String(value || '')
+      .trim()
+      .replace(/[.$]/g, '')
+      .replace(/\s+/g, '_')
+      .toLowerCase();
+  };
+
+  const handleAddFacility = () => {
+    const key = sanitizeFacilityKey(newFacilityName);
+    if (!key) {
+      Alert.alert('Eroare', 'Introdu o facilitate valida');
+      return;
+    }
+    setFacilities((prev) => ({ ...prev, [key]: true }));
+    setNewFacilityName('');
   };
 
   const buildFormDraft = () => ({
@@ -1475,6 +1496,18 @@ export default function ManageProviderScreen({ navigation, route }) {
           <Card style={styles.card}>
             <Card.Content>
               <Title>Facilitati</Title>
+              <View style={styles.facilityAddRow}>
+                <TextInput
+                  label="Facilitate noua"
+                  value={newFacilityName}
+                  onChangeText={setNewFacilityName}
+                  mode="outlined"
+                  style={[styles.input, styles.facilityInput]}
+                />
+                <Button mode="contained" onPress={handleAddFacility}>
+                  Adauga
+                </Button>
+              </View>
               {Object.keys(facilities).map((key) => (
                 <View key={key} style={styles.facilityRow}>
                   <Chip style={styles.facilityChip}>{key}</Chip>
@@ -1963,6 +1996,16 @@ const styles = StyleSheet.create({
   },
   facilityChip: {
     marginRight: 12,
+  },
+  facilityAddRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  facilityInput: {
+    flex: 1,
+    marginRight: 8,
+    marginBottom: 0,
   },
   carList: {
     marginTop: 12,

@@ -19,8 +19,13 @@ import {
   FAB,
 } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
-import { ragAPI } from '../services/api';
+import { ragAPI, bookingsAPI } from '../services/api';
 import SuggestedQuestions from './SuggestedQuestions';
+
+const BOOKING_KEYWORDS = [
+  'rezerv', 'rezervare', 'book', 'booking', 'programare', 'program',
+  'disponibil', 'disponibilitate', 'slot', 'anulez', 'anuleaza', 'cancel',
+];
 
 /**
  * Floating chatbot widget with RAG integration.
@@ -40,6 +45,32 @@ export default function ChatWidget() {
   const [isLoading, setIsLoading] = useState(false);
 
   const trimmedInput = useMemo(() => input.trim(), [input]);
+
+  const shouldTryBookingAssistant = (text) => {
+    const normalized = (text || '').toLowerCase();
+    return BOOKING_KEYWORDS.some((keyword) => normalized.includes(keyword));
+  };
+
+  const extractContextCandidates = (historyMessages) => {
+    const reversed = [...historyMessages].reverse();
+    const latestWithSources = reversed.find((msg) => Array.isArray(msg.sources) && msg.sources.length > 0);
+    if (!latestWithSources) return [];
+
+    return latestWithSources.sources
+      .map((source) => {
+        const service = source?.service;
+        if (!service) return null;
+        const provider = service.provider || {};
+        return {
+          provider_id: provider.id || provider._id || service.provider_id || (service.entity_type === 'provider' ? service.id : null),
+          provider_name: provider.name || service.provider_name || null,
+          service_id: service.entity_type === 'service' ? service.id : null,
+          service_name: service.name || null,
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 6);
+  };
 
   const handleSend = async () => {
     if (!trimmedInput) return;
@@ -63,6 +94,37 @@ export default function ChatWidget() {
         content: msg.text,
       }))
       .concat({ role: 'user', content: trimmedInput }); // Add current query
+
+    if (shouldTryBookingAssistant(trimmedInput)) {
+      const assistantPayload = {
+        message: trimmedInput,
+        conversation_history: conversationHistory,
+        context_candidates: extractContextCandidates(messages),
+      };
+
+      const assistantResult = await bookingsAPI.bookingAssistant(assistantPayload);
+      if (assistantResult.success && assistantResult.data?.handled) {
+        const missingFields = assistantResult.data.missing_fields || [];
+        const suggestions = assistantResult.data.suggestions || [];
+        let assistantText = assistantResult.data.message || 'Am procesat cererea de rezervare.';
+
+        if (missingFields.length > 0) {
+          assistantText += `\n\nDate lipsă: ${missingFields.join(', ')}`;
+        }
+        if (suggestions.length > 0) {
+          assistantText += `\n\nSugestii:\n- ${suggestions.join('\n- ')}`;
+        }
+
+        const assistantMessage = {
+          id: `b-${Date.now()}`,
+          from: 'bot',
+          text: assistantText,
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+        setIsLoading(false);
+        return;
+      }
+    }
 
     // Query RAG endpoint with conversation context
     const result = await ragAPI.query(trimmedInput, conversationHistory, 5);
@@ -240,8 +302,35 @@ export default function ChatWidget() {
                                   const firstImage = service.image;
                                   const addressLabel = service.address || service.city || 'Timișoara';
                                   const subtitle = service.category || service.provider_name || 'Serviciu local';
+                                  const provider = service.provider;
+                                  const providerId = provider?.id || provider?._id || service.provider_id || (service.entity_type === 'provider' ? service.id : null);
                                   return (
-                                    <View key={`service-${idx}`} style={styles.listingCard}>
+                                    <TouchableOpacity
+                                      key={`service-${idx}`}
+                                      style={styles.listingCard}
+                                      onPress={async () => {
+                                        if (providerId) {
+                                          const providerResult = await bookingsAPI.getProvider(providerId);
+                                          if (providerResult.success && providerResult.data) {
+                                            navigation.navigate('ProviderDetail', {
+                                              provider: providerResult.data,
+                                              isOwner: false,
+                                            });
+                                            return;
+                                          }
+                                        }
+
+                                        if (provider && (provider.id || provider._id || provider.name)) {
+                                          navigation.navigate('ProviderDetail', {
+                                            provider,
+                                            isOwner: false,
+                                          });
+                                          return;
+                                        }
+
+                                        navigation.navigate('Services');
+                                      }}
+                                    >
                                       {firstImage && (
                                         <Image
                                           source={{ uri: firstImage }}
@@ -260,7 +349,7 @@ export default function ChatWidget() {
                                           📍 {addressLabel}
                                         </Text>
                                       </View>
-                                    </View>
+                                    </TouchableOpacity>
                                   );
                                 })}
                             </View>

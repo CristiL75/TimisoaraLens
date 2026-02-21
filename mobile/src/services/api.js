@@ -537,6 +537,22 @@ export const bookingsAPI = {
   },
 
   /**
+   * Booking assistant orchestration (intent, availability, create/cancel)
+   */
+  bookingAssistant: async (assistantPayload) => {
+    try {
+      const response = await api.post('/bookings/assistant', assistantPayload);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] bookingAssistant error:', formatAxiosError(error));
+      return {
+        success: false,
+        error: error.response?.data?.detail || error.message || 'Booking assistant failed',
+      };
+    }
+  },
+
+  /**
    * Check availability
    */
   checkAvailability: async (

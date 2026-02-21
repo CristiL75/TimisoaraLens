@@ -5,7 +5,7 @@ Handles restaurant/pub table reservations
 """
 from fastapi import APIRouter, HTTPException, Depends, status, Response, Body, Request
 from pydantic import BaseModel, EmailStr, Field, ValidationError
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime, timedelta
 from uuid import uuid4
 import math
@@ -731,6 +731,148 @@ class AvailabilityResponse(BaseModel):
     tables: List[TableAvailability] = []
 
 
+class BookingAssistantContextCandidate(BaseModel):
+    provider_id: Optional[str] = None
+    provider_name: Optional[str] = None
+    service_id: Optional[str] = None
+    service_name: Optional[str] = None
+    booking_id: Optional[str] = None
+
+
+class BookingAssistantRequest(BaseModel):
+    message: str
+    provider_id: Optional[str] = None
+    provider_name: Optional[str] = None
+    service_id: Optional[str] = None
+    employee_id: Optional[str] = None
+    table_id: Optional[str] = None
+    room_id: Optional[str] = None
+    car_id: Optional[str] = None
+    booking_id: Optional[str] = None
+    booking_date: Optional[str] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    duration_minutes: Optional[int] = None
+    rental_end_date: Optional[str] = None
+    rental_end_time: Optional[str] = None
+    party_size: Optional[int] = None
+    customer_name: Optional[str] = None
+    customer_email: Optional[EmailStr] = None
+    customer_phone: Optional[str] = None
+    notes: Optional[str] = None
+    conversation_history: Optional[list[Any]] = None
+    context_candidates: List[BookingAssistantContextCandidate] = []
+
+
+class BookingAssistantResponse(BaseModel):
+    intent: str
+    handled: bool
+    message: str
+    missing_fields: List[str] = []
+    provider_id: Optional[str] = None
+    service_id: Optional[str] = None
+    booking_id: Optional[str] = None
+    availability: Optional[AvailabilityResponse] = None
+    booking: Optional[BookingResponse] = None
+    suggestions: List[str] = []
+
+
+def _detect_booking_assistant_intent(message: str) -> str:
+    text = (message or "").lower()
+    cancel_markers = [
+        "anulez", "anuleaza", "anulează", "cancel", "cancelle", "renunt",
+    ]
+    create_markers = [
+        "rezerv", "rezervare", "book", "program", "programare", "vreau o masa", "vreau o masă",
+    ]
+    availability_markers = [
+        "disponibil", "disponibilitate", "liber", "slot", "ce ore", "what times", "available",
+    ]
+
+    if any(marker in text for marker in cancel_markers):
+        return "cancel_booking"
+    if any(marker in text for marker in create_markers):
+        return "create_booking"
+    if any(marker in text for marker in availability_markers):
+        return "check_availability"
+    return "unknown"
+
+
+def _extract_date_from_text(message: str) -> Optional[str]:
+    text = (message or "").strip()
+    if not text:
+        return None
+
+    match_iso = re.search(r"\b(\d{4})-(\d{2})-(\d{2})\b", text)
+    if match_iso:
+        return match_iso.group(0)
+
+    match_local = re.search(r"\b(\d{1,2})[./](\d{1,2})[./](\d{4})\b", text)
+    if match_local:
+        day, month, year = match_local.groups()
+        return f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
+    return None
+
+
+def _extract_time_from_text(message: str) -> Optional[str]:
+    text = (message or "")
+    match_time = re.search(r"\b([01]?\d|2[0-3]):([0-5]\d)\b", text)
+    if not match_time:
+        return None
+    return f"{int(match_time.group(1)):02d}:{match_time.group(2)}"
+
+
+def _extract_party_size_from_text(message: str) -> Optional[int]:
+    text = (message or "").lower()
+    match_party = re.search(r"\b(\d{1,2})\s*(pers|persoane|people|adulti|adulți|locuri)\b", text)
+    if not match_party:
+        return None
+    return int(match_party.group(1))
+
+
+async def _resolve_provider_for_assistant(payload: BookingAssistantRequest):
+    providers_col = get_providers_collection()
+
+    candidate_ids = []
+    if payload.provider_id:
+        candidate_ids.append(str(payload.provider_id))
+    for candidate in payload.context_candidates or []:
+        if candidate.provider_id:
+            candidate_ids.append(str(candidate.provider_id))
+
+    seen = set()
+    for provider_id in candidate_ids:
+        if provider_id in seen:
+            continue
+        seen.add(provider_id)
+        if not ObjectId.is_valid(provider_id):
+            continue
+        provider = await providers_col.find_one({"_id": ObjectId(provider_id), "status": "active"})
+        if provider:
+            return provider
+
+    provider_name = (payload.provider_name or "").strip()
+    if not provider_name:
+        for candidate in payload.context_candidates or []:
+            if candidate.provider_name:
+                provider_name = str(candidate.provider_name).strip()
+                break
+
+    if provider_name:
+        regex = {"$regex": re.escape(provider_name), "$options": "i"}
+        provider = await providers_col.find_one({"name": regex, "status": "active"})
+        if provider:
+            return provider
+
+    return None
+
+
+def _extract_booking_id_from_text(message: str) -> Optional[str]:
+    text = (message or "")
+    match_id = re.search(r"\b[a-fA-F0-9]{24}\b", text)
+    return match_id.group(0) if match_id else None
+
+
 # =========================
 # USER PROFILE ENDPOINTS
 # =========================
@@ -1073,6 +1215,10 @@ async def update_provider(
     
     # Log incoming request data for debugging
     print("[DEBUG] Incoming update request:", request.dict())
+
+    existing_facilities = provider.get("facilities") if isinstance(provider.get("facilities"), dict) else {}
+    incoming_facilities = request.facilities if isinstance(request.facilities, dict) else None
+    merged_facilities = {**existing_facilities, **incoming_facilities} if incoming_facilities is not None else existing_facilities
     
     # Update provider
     update_data = {
@@ -1085,7 +1231,7 @@ async def update_provider(
         "address": request.address,
         "latitude": request.latitude,
         "longitude": request.longitude,
-        "facilities": request.facilities or {},  # Default to empty dict if missing
+        "facilities": merged_facilities,
         "cars": normalize_cars(request.cars),
         "event_settings": request.event_settings.model_dump() if request.event_settings else None,
         "reservation_types": [rt.model_dump() for rt in request.reservation_types] if request.reservation_types else [],
@@ -2695,6 +2841,249 @@ async def check_availability(
         ))
 
     return AvailabilityResponse(date=date, slots=slots, tables=table_availability)
+
+
+@router.post("/assistant", response_model=BookingAssistantResponse)
+async def booking_assistant(payload: BookingAssistantRequest, http_request: Request):
+    intent = _detect_booking_assistant_intent(payload.message)
+    if intent == "unknown":
+        return BookingAssistantResponse(
+            intent="unknown",
+            handled=False,
+            message="Îți pot ajuta rezervările dacă îmi spui ce vrei: verificare disponibilitate, rezervare nouă sau anulare.",
+            suggestions=[
+                "Verifică disponibilitatea la [nume locație] pe 2026-03-10 la 19:00",
+                "Fă o rezervare pentru 2 persoane pe 2026-03-10 la 19:00",
+                "Anulează rezervarea cu ID ...",
+            ],
+        )
+
+    provider = await _resolve_provider_for_assistant(payload)
+    provider_id = str(provider.get("_id")) if provider else None
+
+    booking_date = payload.booking_date or _extract_date_from_text(payload.message)
+    start_time = payload.start_time or _extract_time_from_text(payload.message)
+    party_size = payload.party_size or _extract_party_size_from_text(payload.message) or 1
+
+    if intent == "check_availability":
+        missing_fields = []
+        if not provider_id:
+            missing_fields.append("provider_id")
+        if not booking_date:
+            missing_fields.append("booking_date")
+
+        if missing_fields:
+            return BookingAssistantResponse(
+                intent=intent,
+                handled=True,
+                provider_id=provider_id,
+                message="Am nevoie de locație și dată pentru a verifica disponibilitatea.",
+                missing_fields=missing_fields,
+                suggestions=["Exemplu: verifică disponibilitatea la [locație] pe 2026-03-10 la 19:00"],
+            )
+
+        try:
+            availability = await check_availability(
+                provider_id=provider_id,
+                date=booking_date,
+                party_size=party_size,
+                start_time=start_time,
+                duration_minutes=payload.duration_minutes,
+                service_id=payload.service_id,
+                employee_id=payload.employee_id,
+                car_id=payload.car_id,
+                room_id=payload.room_id,
+                end_date=payload.rental_end_date,
+                end_time=payload.end_time or payload.rental_end_time,
+            )
+            available_slots = [slot.time for slot in availability.slots if slot.available]
+            message = "Am verificat disponibilitatea."
+            if start_time:
+                is_available = any(slot.available for slot in availability.slots)
+                message = (
+                    f"Intervalul {start_time} este disponibil." if is_available
+                    else f"Intervalul {start_time} nu este disponibil."
+                )
+            elif available_slots:
+                message = f"Am găsit sloturi disponibile: {', '.join(available_slots[:3])}."
+            else:
+                message = "Nu sunt sloturi disponibile pe data selectată."
+
+            return BookingAssistantResponse(
+                intent=intent,
+                handled=True,
+                provider_id=provider_id,
+                service_id=payload.service_id,
+                message=message,
+                availability=availability,
+            )
+        except HTTPException as exc:
+            return BookingAssistantResponse(
+                intent=intent,
+                handled=True,
+                provider_id=provider_id,
+                message=f"Nu am putut verifica disponibilitatea: {exc.detail}",
+            )
+
+    if intent == "create_booking":
+        missing_fields = []
+        if not provider_id:
+            missing_fields.append("provider_id")
+        if not booking_date:
+            missing_fields.append("booking_date")
+        if not start_time:
+            missing_fields.append("start_time")
+        if not payload.customer_name:
+            missing_fields.append("customer_name")
+        if not payload.customer_email:
+            missing_fields.append("customer_email")
+        if not payload.customer_phone:
+            missing_fields.append("customer_phone")
+
+        if provider:
+            booking_type = (provider.get("booking_settings") or {}).get("type", "table_based")
+            is_no_employee_category = provider.get("category") in NO_EMPLOYEE_CATEGORIES
+            if booking_type == "appointment_based" and not is_no_employee_category:
+                if not payload.service_id:
+                    missing_fields.append("service_id")
+                if not payload.employee_id:
+                    missing_fields.append("employee_id")
+            if booking_type == "space_based" and not payload.room_id:
+                missing_fields.append("room_id")
+            if booking_type == "fleet_based":
+                if not payload.car_id:
+                    missing_fields.append("car_id")
+                if not payload.rental_end_date:
+                    missing_fields.append("rental_end_date")
+                if not payload.rental_end_time:
+                    missing_fields.append("rental_end_time")
+
+        if missing_fields:
+            return BookingAssistantResponse(
+                intent=intent,
+                handled=True,
+                provider_id=provider_id,
+                message="Pentru a crea rezervarea, mai am nevoie de câteva informații.",
+                missing_fields=sorted(set(missing_fields)),
+            )
+
+        create_payload = BookingCreateRequest(
+            provider_id=provider_id,
+            customer_name=payload.customer_name,
+            customer_email=payload.customer_email,
+            customer_phone=payload.customer_phone,
+            booking_date=booking_date,
+            start_time=start_time,
+            end_time=payload.end_time,
+            duration_minutes=payload.duration_minutes,
+            party_size=party_size,
+            notes=payload.notes,
+            table_id=payload.table_id,
+            service_id=payload.service_id,
+            employee_id=payload.employee_id,
+            car_id=payload.car_id,
+            room_id=payload.room_id,
+            rental_end_date=payload.rental_end_date,
+            rental_end_time=payload.rental_end_time,
+        )
+
+        try:
+            booking = await create_booking(create_payload, http_request)
+            return BookingAssistantResponse(
+                intent=intent,
+                handled=True,
+                provider_id=provider_id,
+                service_id=payload.service_id,
+                booking_id=booking.id,
+                booking=booking,
+                message=f"Rezervarea a fost creată cu succes. ID: {booking.id}",
+            )
+        except HTTPException as exc:
+            return BookingAssistantResponse(
+                intent=intent,
+                handled=True,
+                provider_id=provider_id,
+                message=f"Nu am putut crea rezervarea: {exc.detail}",
+            )
+
+    booking_id = payload.booking_id or _extract_booking_id_from_text(payload.message)
+    if not booking_id:
+        return BookingAssistantResponse(
+            intent="cancel_booking",
+            handled=True,
+            message="Pentru anulare am nevoie de ID-ul rezervării.",
+            missing_fields=["booking_id"],
+        )
+
+    current_user = await get_optional_user_from_request(http_request)
+    if not current_user:
+        return BookingAssistantResponse(
+            intent="cancel_booking",
+            handled=True,
+            booking_id=booking_id,
+            message="Trebuie să fii autentificat ca să anulezi o rezervare.",
+            suggestions=["Autentifică-te și încearcă din nou."],
+        )
+
+    bookings_col = get_bookings_collection()
+    if not ObjectId.is_valid(booking_id):
+        return BookingAssistantResponse(
+            intent="cancel_booking",
+            handled=True,
+            booking_id=booking_id,
+            message="ID rezervare invalid.",
+        )
+
+    booking_doc = await bookings_col.find_one({"_id": ObjectId(booking_id)})
+    if not booking_doc:
+        return BookingAssistantResponse(
+            intent="cancel_booking",
+            handled=True,
+            booking_id=booking_id,
+            message="Rezervarea nu a fost găsită.",
+        )
+
+    if booking_doc.get("customer_email") != current_user.get("email"):
+        return BookingAssistantResponse(
+            intent="cancel_booking",
+            handled=True,
+            booking_id=booking_id,
+            message="Nu ai permisiunea să anulezi această rezervare.",
+        )
+
+    try:
+        booking_date_obj = datetime.strptime(booking_doc["booking_date"], "%Y-%m-%d").date()
+        if booking_date_obj == datetime.utcnow().date():
+            return BookingAssistantResponse(
+                intent="cancel_booking",
+                handled=True,
+                booking_id=booking_id,
+                message="Nu poți anula rezervarea în aceeași zi.",
+            )
+    except ValueError:
+        return BookingAssistantResponse(
+            intent="cancel_booking",
+            handled=True,
+            booking_id=booking_id,
+            message="Data rezervării este invalidă.",
+        )
+
+    await bookings_col.update_one(
+        {"_id": ObjectId(booking_id)},
+        {
+            "$set": {
+                "status": "canceled",
+                "canceled_at": datetime.utcnow(),
+            }
+        },
+    )
+
+    return BookingAssistantResponse(
+        intent="cancel_booking",
+        handled=True,
+        booking_id=booking_id,
+        message=f"Rezervarea {booking_id} a fost anulată cu succes.",
+    )
 
 
 # ============================================================
