@@ -11,6 +11,7 @@ from uuid import uuid4
 import math
 import re
 import os
+import json
 import httpx
 from bson import ObjectId
 from jose import JWTError, jwt
@@ -835,6 +836,123 @@ def _extract_party_size_from_text(message: str) -> Optional[int]:
     if not match_party:
         return None
     return int(match_party.group(1))
+
+
+def _extract_email_from_text(message: str) -> Optional[str]:
+    text = (message or "")
+    match_email = re.search(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", text)
+    if not match_email:
+        return None
+    return match_email.group(0).strip()
+
+
+def _extract_phone_from_text(message: str) -> Optional[str]:
+    text = (message or "")
+    match_phone = re.search(r"(?:\+\d{8,15}|\b0\d{8,10}\b)", text)
+    if not match_phone:
+        return None
+    return match_phone.group(0).strip()
+
+
+def _extract_customer_name_from_text(message: str) -> Optional[str]:
+    text = (message or "")
+    patterns = [
+        r"(?:\bnume\b|\bname\b)\s*[:=-]\s*([^,;\n]+)",
+        r"\bpe numele\s+([^,;\n]+)",
+    ]
+    for pattern in patterns:
+        match_name = re.search(pattern, text, flags=re.IGNORECASE)
+        if not match_name:
+            continue
+        value = (match_name.group(1) or "").strip(" \"'“”").strip()
+        value = re.split(r"\b(?:email|telefon|phone)\b", value, flags=re.IGNORECASE)[0].strip(" ,;.-")
+        if value and len(value) >= 2:
+            return value
+    return None
+
+
+async def _extract_booking_entities_with_llm(message: str) -> dict:
+    text = (message or "").strip()
+    if not text or not RAG_BASE_URL:
+        return {}
+
+    prompt = f"""Extract booking fields from this user message and return ONLY JSON.
+Allowed keys: provider_name, booking_date, start_time, party_size, customer_name, customer_email, customer_phone.
+Rules:
+- booking_date format must be YYYY-MM-DD
+- start_time format must be HH:MM (24h)
+- party_size must be integer
+- unknown values must be null
+- return only a JSON object, no markdown, no explanation
+
+Message: {text}
+"""
+
+    try:
+        async with httpx.AsyncClient(timeout=RAG_SYNC_TIMEOUT) as client:
+            response = await client.post(
+                f"{RAG_BASE_URL}/generate",
+                json={"prompt": prompt, "max_tokens": 220},
+            )
+            response.raise_for_status()
+            generated_text = (response.json() or {}).get("generated_text", "")
+    except Exception:
+        return {}
+
+    if not generated_text:
+        return {}
+
+    parsed = None
+    try:
+        parsed = json.loads(generated_text)
+    except Exception:
+        json_match = re.search(r"\{[\s\S]*\}", generated_text)
+        if json_match:
+            try:
+                parsed = json.loads(json_match.group(0))
+            except Exception:
+                parsed = None
+
+    if not isinstance(parsed, dict):
+        return {}
+
+    normalized = {}
+    provider_name = parsed.get("provider_name")
+    if provider_name:
+        normalized["provider_name"] = str(provider_name).strip()
+
+    date_value = parsed.get("booking_date")
+    if date_value:
+        normalized_date = _extract_date_from_text(str(date_value))
+        if normalized_date:
+            normalized["booking_date"] = normalized_date
+
+    time_value = parsed.get("start_time")
+    if time_value:
+        normalized_time = _extract_time_from_text(str(time_value))
+        if normalized_time:
+            normalized["start_time"] = normalized_time
+
+    party_size_value = parsed.get("party_size")
+    if party_size_value is not None:
+        try:
+            normalized["party_size"] = int(party_size_value)
+        except Exception:
+            pass
+
+    customer_name = parsed.get("customer_name")
+    if customer_name:
+        normalized["customer_name"] = str(customer_name).strip()
+
+    customer_email = parsed.get("customer_email")
+    if customer_email:
+        normalized["customer_email"] = str(customer_email).strip()
+
+    customer_phone = parsed.get("customer_phone")
+    if customer_phone:
+        normalized["customer_phone"] = str(customer_phone).strip()
+
+    return normalized
 
 
 def _extract_provider_name_hint_from_text(message: str) -> Optional[str]:
@@ -2889,6 +3007,11 @@ async def check_availability(
 @router.post("/assistant", response_model=BookingAssistantResponse)
 async def booking_assistant(payload: BookingAssistantRequest, http_request: Request):
     intent = _detect_booking_assistant_intent(payload.message)
+
+    llm_entities = await _extract_booking_entities_with_llm(payload.message)
+    if not payload.provider_name and llm_entities.get("provider_name"):
+        payload.provider_name = llm_entities.get("provider_name")
+
     if intent == "unknown":
         return BookingAssistantResponse(
             intent="unknown",
@@ -2905,9 +3028,9 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
     provider = await _resolve_provider_for_assistant(payload)
     provider_id = str(provider.get("_id")) if provider else None
 
-    booking_date = payload.booking_date or _extract_date_from_text(payload.message)
-    start_time = payload.start_time or _extract_time_from_text(payload.message)
-    party_size = payload.party_size or _extract_party_size_from_text(payload.message) or 1
+    booking_date = payload.booking_date or _extract_date_from_text(payload.message) or llm_entities.get("booking_date")
+    start_time = payload.start_time or _extract_time_from_text(payload.message) or llm_entities.get("start_time")
+    party_size = payload.party_size or _extract_party_size_from_text(payload.message) or llm_entities.get("party_size") or 1
 
     if intent == "service_inquiry":
         if not provider_id:
@@ -3064,6 +3187,14 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             )
 
     if intent == "create_booking":
+        customer_name = (payload.customer_name or "").strip() or _extract_customer_name_from_text(payload.message) or llm_entities.get("customer_name")
+        customer_email = (
+            str(payload.customer_email).strip()
+            if payload.customer_email
+            else (_extract_email_from_text(payload.message) or llm_entities.get("customer_email"))
+        )
+        customer_phone = (payload.customer_phone or "").strip() or _extract_phone_from_text(payload.message) or llm_entities.get("customer_phone")
+
         missing_fields = []
         if not provider_id:
             missing_fields.append("provider_id")
@@ -3071,11 +3202,11 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             missing_fields.append("booking_date")
         if not start_time:
             missing_fields.append("start_time")
-        if not payload.customer_name:
+        if not customer_name:
             missing_fields.append("customer_name")
-        if not payload.customer_email:
+        if not customer_email:
             missing_fields.append("customer_email")
-        if not payload.customer_phone:
+        if not customer_phone:
             missing_fields.append("customer_phone")
 
         if provider:
@@ -3107,9 +3238,9 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
 
         create_payload = BookingCreateRequest(
             provider_id=provider_id,
-            customer_name=payload.customer_name,
-            customer_email=payload.customer_email,
-            customer_phone=payload.customer_phone,
+            customer_name=customer_name,
+            customer_email=customer_email,
+            customer_phone=customer_phone,
             booking_date=booking_date,
             start_time=start_time,
             end_time=payload.end_time,
