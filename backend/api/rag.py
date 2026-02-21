@@ -184,6 +184,7 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
         "eveniment", "event", "workshop", "tur ghidat", "guided tour", "activitate indoor",
         "experienta", "experiente", "experience", "experiences",
         "masa", "table", "room", "spatiu", "listate", "disponibile", "oferte", "option", "optiuni",
+        "rezerv", "rezerva", "rezervare", "book", "booking", "programare", "programa",
     ]
     
     has_service_hint = any(keyword in query_lower for keyword in explicit_services_keywords)
@@ -231,6 +232,7 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
             "serviciu", "service", "provider", "restaurant", "pub", "club", "barber", "spa",
             "workshop", "experienta", "experience", "masa", "table", "room", "spatiu",
             "event", "tur ghidat", "guided tour", "rent a car", "rent-a-car", "masina", "inchiriere",
+            "rezerv", "rezerva", "rezervare", "book", "booking", "programare",
         ]
         
         # Check query (services first)

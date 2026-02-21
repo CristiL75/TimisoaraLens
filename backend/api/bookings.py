@@ -830,6 +830,25 @@ def _extract_party_size_from_text(message: str) -> Optional[int]:
     return int(match_party.group(1))
 
 
+def _extract_provider_name_hint_from_text(message: str) -> Optional[str]:
+    text = (message or "").strip()
+    if not text:
+        return None
+
+    patterns = [
+        r"\bla\s+([^,.;\n]+?)(?:\s+pe\b|\s+pentru\b|\s+in\b|\s+în\b|$)",
+        r"\bat\s+([^,.;\n]+?)(?:\s+on\b|\s+for\b|$)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if not match:
+            continue
+        candidate = (match.group(1) or "").strip(" \"'“”").strip()
+        if candidate:
+            return candidate
+    return None
+
+
 async def _resolve_provider_for_assistant(payload: BookingAssistantRequest):
     providers_col = get_providers_collection()
 
@@ -857,12 +876,29 @@ async def _resolve_provider_for_assistant(payload: BookingAssistantRequest):
             if candidate.provider_name:
                 provider_name = str(candidate.provider_name).strip()
                 break
+    if not provider_name:
+        provider_name = _extract_provider_name_hint_from_text(payload.message) or ""
 
     if provider_name:
-        regex = {"$regex": re.escape(provider_name), "$options": "i"}
-        provider = await providers_col.find_one({"name": regex, "status": "active"})
+        exact_regex = {"$regex": f"^{re.escape(provider_name)}$", "$options": "i"}
+        provider = await providers_col.find_one({"name": exact_regex, "status": "active"})
         if provider:
             return provider
+
+        contains_regex = {"$regex": re.escape(provider_name), "$options": "i"}
+        provider = await providers_col.find_one({"name": contains_regex, "status": "active"})
+        if provider:
+            return provider
+
+    text_lower = (payload.message or "").lower()
+    if text_lower:
+        active_providers = await providers_col.find({"status": "active"}, {"name": 1}).to_list(300)
+        for provider_doc in active_providers:
+            name = str(provider_doc.get("name") or "").strip()
+            if name and name.lower() in text_lower:
+                provider = await providers_col.find_one({"_id": provider_doc["_id"]})
+                if provider:
+                    return provider
 
     return None
 
