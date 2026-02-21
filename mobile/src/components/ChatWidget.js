@@ -25,6 +25,11 @@ import SuggestedQuestions from './SuggestedQuestions';
 const BOOKING_KEYWORDS = [
   'rezerv', 'rezervare', 'book', 'booking', 'programare', 'program',
   'disponibil', 'disponibilitate', 'slot', 'anulez', 'anuleaza', 'cancel',
+  'serviciu', 'servicii', 'service', 'services', 'provider',
+  'ce servicii', 'ce oferi', 'ce aveti', 'ce aveți', 'ce pot rezerva',
+  'restaurant', 'pub', 'club', 'masa', 'table',
+  'salon', 'barber', 'spa', 'masaj', 'workshop', 'tur ghidat',
+  'inchiriere auto', 'rent a car', 'room', 'spatiu',
 ];
 
 /**

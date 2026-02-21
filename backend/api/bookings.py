@@ -788,6 +788,11 @@ def _detect_booking_assistant_intent(message: str) -> str:
     availability_markers = [
         "disponibil", "disponibilitate", "liber", "slot", "ce ore", "what times", "available",
     ]
+    service_inquiry_markers = [
+        "serviciu", "servicii", "service", "services", "ce ofer", "ce aveti", "ce aveți",
+        "ce pot rezerva", "ce pot programa", "ce tipuri", "meniu", "menu", "lista servicii",
+        "ce gasesc", "ce găsesc", "provider", "oferte",
+    ]
 
     if any(marker in text for marker in cancel_markers):
         return "cancel_booking"
@@ -795,6 +800,8 @@ def _detect_booking_assistant_intent(message: str) -> str:
         return "create_booking"
     if any(marker in text for marker in availability_markers):
         return "check_availability"
+    if any(marker in text for marker in service_inquiry_markers):
+        return "service_inquiry"
     return "unknown"
 
 
@@ -2886,8 +2893,9 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
         return BookingAssistantResponse(
             intent="unknown",
             handled=False,
-            message="Îți pot ajuta rezervările dacă îmi spui ce vrei: verificare disponibilitate, rezervare nouă sau anulare.",
+            message="Te pot ajuta cu servicii și rezervări: ce servicii există, disponibilitate, rezervare nouă sau anulare.",
             suggestions=[
+                "Ce servicii sunt disponibile la [nume locație]?",
                 "Verifică disponibilitatea la [nume locație] pe 2026-03-10 la 19:00",
                 "Fă o rezervare pentru 2 persoane pe 2026-03-10 la 19:00",
                 "Anulează rezervarea cu ID ...",
@@ -2900,6 +2908,100 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
     booking_date = payload.booking_date or _extract_date_from_text(payload.message)
     start_time = payload.start_time or _extract_time_from_text(payload.message)
     party_size = payload.party_size or _extract_party_size_from_text(payload.message) or 1
+
+    if intent == "service_inquiry":
+        if not provider_id:
+            return BookingAssistantResponse(
+                intent=intent,
+                handled=True,
+                message="Spune-mi locația sau providerul pentru care vrei lista de servicii.",
+                missing_fields=["provider_id"],
+                suggestions=["Exemplu: Ce servicii sunt disponibile la The House of LU?"],
+            )
+
+        booking_type = (provider.get("booking_settings") or {}).get("type", "table_based")
+        provider_name = provider.get("name") or "locația selectată"
+        summary_lines = [f"Servicii disponibile la {provider_name}:"]
+        suggestions = []
+
+        if booking_type == "appointment_based":
+            services_col = get_services_collection()
+            services = await services_col.find({
+                "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
+                "status": "active"
+            }).to_list(12)
+
+            if services:
+                for item in services[:8]:
+                    summary_lines.append(
+                        f"- {item.get('name')} ({item.get('duration_minutes')} min, {item.get('price')} lei)"
+                    )
+                suggestions.append("Spune serviciul, data și ora dorită ca să verific disponibilitatea.")
+            else:
+                summary_lines.append("- Nu există servicii active în listă.")
+
+        elif booking_type == "space_based":
+            rooms_col = get_rooms_collection()
+            rooms = await rooms_col.find({
+                "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
+                "status": "active"
+            }).to_list(12)
+
+            if rooms:
+                for item in rooms[:8]:
+                    summary_lines.append(
+                        f"- {item.get('name')} (capacitate {item.get('capacity')}, tip {item.get('space_type')})"
+                    )
+                suggestions.append("Spune data, intervalul și numărul de participanți pentru verificare.")
+            else:
+                summary_lines.append("- Nu există spații active în listă.")
+
+        elif booking_type == "fleet_based":
+            cars = provider.get("cars") or []
+            if cars:
+                for car in cars[:8]:
+                    label = f"{car.get('brand', '')} {car.get('model', '')}".strip() or "Mașină"
+                    summary_lines.append(f"- {label}")
+                suggestions.append("Spune data de start și data de final pentru disponibilitate.")
+            else:
+                summary_lines.append("- Nu există mașini active în listă.")
+
+        else:
+            tables_col = get_tables_collection()
+            tables = await tables_col.find({
+                "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
+                "status": "active"
+            }).to_list(20)
+
+            if tables:
+                seats_values = [int(t.get("seats", 0) or 0) for t in tables if t.get("seats") is not None]
+                min_seats = min(seats_values) if seats_values else None
+                max_seats = max(seats_values) if seats_values else None
+                summary_lines.append(f"- Tip rezervare: masă ({len(tables)} mese active)")
+                if min_seats and max_seats:
+                    summary_lines.append(f"- Capacitate mese: {min_seats}-{max_seats} persoane")
+
+                reservation_types = provider.get("reservation_types") or []
+                if reservation_types:
+                    labels = []
+                    for rt in reservation_types[:6]:
+                        if isinstance(rt, dict):
+                            labels.append(str(rt.get("name") or rt.get("type_key") or "tip rezervare"))
+                        else:
+                            labels.append(str(rt))
+                    summary_lines.append(f"- Tipuri speciale: {', '.join(labels)}")
+
+                suggestions.append("Spune data, ora și numărul de persoane ca să verific disponibilitatea.")
+            else:
+                summary_lines.append("- Nu există mese active în listă.")
+
+        return BookingAssistantResponse(
+            intent=intent,
+            handled=True,
+            provider_id=provider_id,
+            message="\n".join(summary_lines),
+            suggestions=suggestions,
+        )
 
     if intent == "check_availability":
         missing_fields = []
