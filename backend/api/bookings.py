@@ -3641,6 +3641,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             missing_fields.append("provider_id")
         if not booking_date:
             missing_fields.append("booking_date")
+        booking_type = (provider.get("booking_settings") or {}).get("type", "table_based") if provider else "table_based"
 
         if missing_fields:
             return BookingAssistantResponse(
@@ -3668,7 +3669,52 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             )
             available_slots = [slot.time for slot in availability.slots if slot.available]
             message = "Am verificat disponibilitatea."
-            if start_time:
+
+            if booking_type == "fleet_based":
+                is_available = any(slot.available for slot in availability.slots)
+                selected_car = None
+                if provider and car_id:
+                    selected_car = next(
+                        (car for car in (provider.get("cars") or []) if str(car.get("id")) == str(car_id)),
+                        None,
+                    )
+
+                car_label = "Mașina selectată"
+                if selected_car:
+                    brand = str(selected_car.get("brand") or "").strip()
+                    model = str(selected_car.get("model") or "").strip()
+                    car_label = f"{brand} {model}".strip() or car_label
+
+                period_start = f"{booking_date} {start_time}".strip() if booking_date and start_time else booking_date or start_time or ""
+                period_end = f"{rental_end_date} {rental_end_time}".strip() if rental_end_date and rental_end_time else rental_end_date or rental_end_time or ""
+
+                if is_available:
+                    if period_start and period_end:
+                        message = f"{car_label} este disponibilă pentru perioada {period_start} - {period_end}."
+                    else:
+                        message = f"{car_label} este disponibilă pentru perioada solicitată."
+
+                    price_per_day = None
+                    if selected_car and selected_car.get("price_per_day") is not None:
+                        try:
+                            price_per_day = float(selected_car.get("price_per_day"))
+                        except Exception:
+                            price_per_day = None
+
+                    if price_per_day is not None and booking_date and start_time and rental_end_date and rental_end_time:
+                        try:
+                            rental_start_dt = datetime.strptime(f"{booking_date} {start_time}", "%Y-%m-%d %H:%M")
+                            rental_end_dt = datetime.strptime(f"{rental_end_date} {rental_end_time}", "%Y-%m-%d %H:%M")
+                            if rental_end_dt > rental_start_dt:
+                                rental_days = max(1, math.ceil((rental_end_dt - rental_start_dt).total_seconds() / 86400))
+                                estimated_total = round(rental_days * price_per_day, 2)
+                                message += f" Cost estimat total: {estimated_total} lei ({rental_days} zile x {price_per_day} lei/zi)."
+                        except Exception:
+                            pass
+                else:
+                    message = f"{car_label} nu este disponibilă pentru perioada solicitată."
+
+            elif start_time:
                 is_available = any(slot.available for slot in availability.slots)
                 message = (
                     f"Intervalul {start_time} este disponibil." if is_available
