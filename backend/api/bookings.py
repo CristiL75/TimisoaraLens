@@ -3395,6 +3395,10 @@ async def check_availability(
 async def booking_assistant(payload: BookingAssistantRequest, http_request: Request):
     llm_entities = await _extract_booking_entities_with_llm(payload.message)
     intent = llm_entities.get("intent") or _detect_booking_assistant_intent(payload.message)
+    text_lower = (payload.message or "").lower()
+    create_markers = ASSISTANT_INTENT_MARKERS.get("create_markers", [])
+    if intent == "check_availability" and _contains_any(text_lower, create_markers):
+        intent = "create_booking"
     if not payload.provider_name and llm_entities.get("provider_name"):
         payload.provider_name = llm_entities.get("provider_name")
 
