@@ -53,6 +53,9 @@ NO_EMPLOYEE_CATEGORIES = {
     "curatenie_generala",
     "electrician",
     "instalator",
+    "guided_tour",
+    "workshop",
+    "indoor_activity",
 }
 
 RAG_BASE_URL = (os.getenv("RAG_BASE_URL") or os.getenv("HF_RAG_SPACE_URL") or "").rstrip("/")
