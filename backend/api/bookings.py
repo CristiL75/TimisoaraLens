@@ -781,8 +781,20 @@ class BookingAssistantResponse(BaseModel):
     message: str
     missing_fields: List[str] = []
     provider_id: Optional[str] = None
+    provider_name: Optional[str] = None
     service_id: Optional[str] = None
+    employee_id: Optional[str] = None
+    table_id: Optional[str] = None
+    room_id: Optional[str] = None
+    car_id: Optional[str] = None
     booking_id: Optional[str] = None
+    booking_date: Optional[str] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    duration_minutes: Optional[int] = None
+    rental_end_date: Optional[str] = None
+    rental_end_time: Optional[str] = None
+    party_size: Optional[int] = None
     availability: Optional[AvailabilityResponse] = None
     booking: Optional[BookingResponse] = None
     suggestions: List[str] = []
@@ -3520,11 +3532,39 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
                 llm_entities.get("car_hint") or combined_text,
             )
 
+    # Build resolved context — sent back in every response so the frontend
+    # can re-inject it as explicit fields in subsequent messages, avoiding
+    # loss of resolved values when the original message falls out of the
+    # conversation-history window.
+    # party_size is intentionally excluded: it defaults to 1 and re-injecting
+    # the default would shadow a user-specified value in a later message.
+    def _ctx(**overrides):
+        base = dict(
+            provider_id=provider_id,
+            provider_name=provider.get("name") if provider else None,
+            service_id=payload.service_id,
+            employee_id=payload.employee_id,
+            table_id=payload.table_id,
+            room_id=payload.room_id,
+            car_id=car_id,
+            booking_date=booking_date,
+            start_time=start_time,
+            end_time=end_time,
+            duration_minutes=duration_minutes,
+            rental_end_date=rental_end_date,
+            rental_end_time=rental_end_time,
+            # Carry party_size only when explicitly specified (>1 or from LLM)
+            party_size=party_size if (party_size and party_size > 1) else None,
+        )
+        base.update(overrides)
+        return {k: v for k, v in base.items() if v is not None and v != 0}
+
     if intent == "service_inquiry":
         if not provider_id:
             return BookingAssistantResponse(
                 intent=intent,
                 handled=True,
+                **_ctx(),
                 message="Spune-mi locația sau providerul pentru care vrei lista de servicii.",
                 missing_fields=["provider_id"],
                 suggestions=["Exemplu: Ce servicii sunt disponibile la The House of LU?"],
@@ -3630,7 +3670,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
         return BookingAssistantResponse(
             intent=intent,
             handled=True,
-            provider_id=provider_id,
+            **_ctx(),
             message="\n".join(summary_lines),
             suggestions=suggestions,
         )
@@ -3647,7 +3687,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             return BookingAssistantResponse(
                 intent=intent,
                 handled=True,
-                provider_id=provider_id,
+                **_ctx(),
                 message="Am nevoie de locație și dată pentru a verifica disponibilitatea.",
                 missing_fields=missing_fields,
                 suggestions=["Exemplu: verifică disponibilitatea la [locație] pe 2026-03-10 la 19:00"],
@@ -3728,8 +3768,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             return BookingAssistantResponse(
                 intent=intent,
                 handled=True,
-                provider_id=provider_id,
-                service_id=payload.service_id,
+                **_ctx(),
                 message=message,
                 availability=availability,
             )
@@ -3737,7 +3776,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             return BookingAssistantResponse(
                 intent=intent,
                 handled=True,
-                provider_id=provider_id,
+                **_ctx(),
                 message=f"Nu am putut verifica disponibilitatea: {exc.detail}",
             )
 
@@ -3851,7 +3890,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             return BookingAssistantResponse(
                 intent=intent,
                 handled=True,
-                provider_id=provider_id,
+                **_ctx(),
                 message="Pentru a crea rezervarea, mai am nevoie de câteva informații.",
                 missing_fields=sorted(set(missing_fields)),
             )
@@ -3881,8 +3920,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             return BookingAssistantResponse(
                 intent=intent,
                 handled=True,
-                provider_id=provider_id,
-                service_id=payload.service_id,
+                **_ctx(),
                 booking_id=booking.id,
                 booking=booking,
                 message=f"Rezervarea a fost creată cu succes. ID: {booking.id}",
@@ -3891,7 +3929,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             return BookingAssistantResponse(
                 intent=intent,
                 handled=True,
-                provider_id=provider_id,
+                **_ctx(),
                 message=f"Nu am putut crea rezervarea: {exc.detail}",
             )
 
