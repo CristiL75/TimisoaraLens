@@ -1317,6 +1317,8 @@ def _extract_provider_name_hint_from_text(message: str) -> Optional[str]:
 
 async def _resolve_provider_for_assistant(payload: BookingAssistantRequest):
     providers_col = get_providers_collection()
+    history_text = _conversation_history_to_text(payload.conversation_history)
+    combined_text = "\n".join(filter(None, [payload.message, history_text]))
 
     candidate_ids = []
     if payload.provider_id:
@@ -1343,7 +1345,7 @@ async def _resolve_provider_for_assistant(payload: BookingAssistantRequest):
                 provider_name = str(candidate.provider_name).strip()
                 break
     if not provider_name:
-        provider_name = _extract_provider_name_hint_from_text(payload.message) or ""
+        provider_name = _extract_provider_name_hint_from_text(combined_text) or ""
 
     if provider_name:
         exact_regex = {"$regex": f"^{re.escape(provider_name)}$", "$options": "i"}
@@ -1356,7 +1358,7 @@ async def _resolve_provider_for_assistant(payload: BookingAssistantRequest):
         if provider:
             return provider
 
-    text_lower = (payload.message or "").lower()
+    text_lower = (combined_text or "").lower()
     if text_lower:
         active_providers = await providers_col.find({"status": "active"}, {"name": 1}).to_list(300)
         for provider_doc in active_providers:
@@ -3398,9 +3400,12 @@ async def check_availability(
 async def booking_assistant(payload: BookingAssistantRequest, http_request: Request):
     llm_entities = await _extract_booking_entities_with_llm(payload.message)
     intent = llm_entities.get("intent") or _detect_booking_assistant_intent(payload.message)
+    history_text = _conversation_history_to_text(payload.conversation_history)
     text_lower = (payload.message or "").lower()
     create_markers = ASSISTANT_INTENT_MARKERS.get("create_markers", [])
     if intent == "check_availability" and _contains_any(text_lower, create_markers):
+        intent = "create_booking"
+    if intent == "unknown" and _contains_any((history_text or "").lower(), create_markers):
         intent = "create_booking"
     if not payload.provider_name and llm_entities.get("provider_name"):
         payload.provider_name = llm_entities.get("provider_name")
@@ -3421,13 +3426,34 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
     provider = await _resolve_provider_for_assistant(payload)
     provider_id = str(provider.get("_id")) if provider else None
 
-    booking_date = payload.booking_date or _extract_date_from_text(payload.message) or llm_entities.get("booking_date")
-    start_time = payload.start_time or _extract_time_from_text(payload.message) or llm_entities.get("start_time")
+    booking_date = (
+        payload.booking_date
+        or _extract_date_from_text(payload.message)
+        or llm_entities.get("booking_date")
+        or _extract_date_from_text(history_text)
+    )
+    start_time = (
+        payload.start_time
+        or _extract_time_from_text(payload.message)
+        or llm_entities.get("start_time")
+        or _extract_time_from_text(history_text)
+    )
     end_time = payload.end_time or llm_entities.get("end_time")
-    duration_minutes = payload.duration_minutes or _extract_duration_minutes_from_text(payload.message) or llm_entities.get("duration_minutes")
+    duration_minutes = (
+        payload.duration_minutes
+        or _extract_duration_minutes_from_text(payload.message)
+        or llm_entities.get("duration_minutes")
+        or _extract_duration_minutes_from_text(history_text)
+    )
     if not end_time:
         end_time = _compute_end_time_from_duration(start_time, duration_minutes)
-    party_size = payload.party_size or _extract_party_size_from_text(payload.message) or llm_entities.get("party_size") or 1
+    party_size = (
+        payload.party_size
+        or _extract_party_size_from_text(payload.message)
+        or llm_entities.get("party_size")
+        or _extract_party_size_from_text(history_text)
+        or 1
+    )
 
     if intent == "service_inquiry":
         if not provider_id:
