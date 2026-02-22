@@ -785,32 +785,106 @@ class BookingAssistantResponse(BaseModel):
     suggestions: List[str] = []
 
 
-def _detect_booking_assistant_intent(message: str) -> str:
-    text = (message or "").lower()
-    cancel_markers = [
+def _contains_any(text: str, markers: List[str]) -> bool:
+    return any(marker in text for marker in markers)
+
+
+DEFAULT_ASSISTANT_INTENT_MARKERS = {
+    "cancel_markers": [
         "anulez", "anuleaza", "anulează", "cancel", "cancelle", "renunt",
-    ]
-    create_markers = [
+    ],
+    "create_markers": [
         "rezerv", "rezervare", "book", "program", "programare", "vreau o masa", "vreau o masă",
-    ]
-    availability_markers = [
+    ],
+    "availability_markers": [
         "disponibil", "disponibilitate", "liber", "slot", "ce ore", "what times", "available",
-    ]
-    service_inquiry_markers = [
+    ],
+    "service_inquiry_markers": [
         "serviciu", "servicii", "service", "services", "ce ofer", "ce aveti", "ce aveți",
         "ce pot rezerva", "ce pot programa", "ce tipuri", "meniu", "menu", "lista servicii",
         "ce gasesc", "ce găsesc", "provider", "oferte",
-    ]
+    ],
+    "service_detail_markers": [
+        "mese", "masa", "masă", "table", "tables",
+        "angajati", "angajați", "employee", "employees", "staff", "specialisti", "specialiști",
+        "spatii", "spații", "sali", "săli", "sala", "sală", "room", "rooms", "space", "spaces",
+        "servicii", "serviciu", "services", "service",
+    ],
+    "service_question_markers": [
+        "ce", "care", "lista", "listă", "arat", "arată", "show", "what", "which", "list",
+    ],
+}
 
-    if any(marker in text for marker in cancel_markers):
+
+def _load_assistant_intent_markers_from_env() -> dict:
+    raw = (os.getenv("BOOKING_ASSISTANT_INTENT_MARKERS_JSON") or "").strip()
+    defaults = {key: list(values) for key, values in DEFAULT_ASSISTANT_INTENT_MARKERS.items()}
+    if not raw:
+        return defaults
+
+    try:
+        parsed = json.loads(raw)
+    except Exception as exc:
+        print(f"[WARN] Invalid BOOKING_ASSISTANT_INTENT_MARKERS_JSON: {exc}")
+        return defaults
+
+    if not isinstance(parsed, dict):
+        return defaults
+
+    normalized = {key: list(values) for key, values in defaults.items()}
+    for key, value in parsed.items():
+        if key not in normalized or not isinstance(value, list):
+            continue
+        cleaned = [str(item).strip().lower() for item in value if str(item).strip()]
+        if cleaned:
+            normalized[key] = cleaned
+    return normalized
+
+
+ASSISTANT_INTENT_MARKERS = _load_assistant_intent_markers_from_env()
+
+
+def _is_service_details_query(message: str) -> bool:
+    text = (message or "").lower()
+    detail_markers = ASSISTANT_INTENT_MARKERS.get("service_detail_markers", [])
+    question_markers = ASSISTANT_INTENT_MARKERS.get("service_question_markers", [])
+
+    has_detail_marker = _contains_any(text, detail_markers)
+    has_question_marker = _contains_any(text, question_markers)
+    has_date_or_time = _extract_date_from_text(message) is not None or _extract_time_from_text(message) is not None
+
+    return has_detail_marker and (has_question_marker or not has_date_or_time)
+
+
+def _detect_booking_assistant_intent(message: str) -> str:
+    text = (message or "").lower()
+    cancel_markers = ASSISTANT_INTENT_MARKERS.get("cancel_markers", [])
+    create_markers = ASSISTANT_INTENT_MARKERS.get("create_markers", [])
+    availability_markers = ASSISTANT_INTENT_MARKERS.get("availability_markers", [])
+    service_inquiry_markers = ASSISTANT_INTENT_MARKERS.get("service_inquiry_markers", [])
+
+    if _contains_any(text, cancel_markers):
         return "cancel_booking"
-    if any(marker in text for marker in create_markers):
+    if _contains_any(text, create_markers):
         return "create_booking"
-    if any(marker in text for marker in availability_markers):
+
+    if _is_service_details_query(message):
+        return "service_inquiry"
+
+    if _contains_any(text, availability_markers):
         return "check_availability"
-    if any(marker in text for marker in service_inquiry_markers):
+    if _contains_any(text, service_inquiry_markers):
         return "service_inquiry"
     return "unknown"
+
+
+ASSISTANT_ALLOWED_INTENTS = {
+    "create_booking",
+    "check_availability",
+    "service_inquiry",
+    "cancel_booking",
+    "unknown",
+}
 
 
 def _extract_date_from_text(message: str) -> Optional[str]:
@@ -1006,8 +1080,9 @@ async def _extract_booking_entities_with_llm(message: str) -> dict:
         return {}
 
     prompt = f"""Extract booking fields from this user message and return ONLY JSON.
-Allowed keys: provider_name, booking_date, start_time, end_time, duration_minutes, party_size, customer_name, customer_email, customer_phone.
+Allowed keys: intent, provider_name, booking_date, start_time, end_time, duration_minutes, party_size, customer_name, customer_email, customer_phone.
 Rules:
+- intent must be one of: create_booking, check_availability, service_inquiry, cancel_booking, unknown
 - booking_date format must be YYYY-MM-DD
 - start_time format must be HH:MM (24h)
 - end_time format must be HH:MM (24h)
@@ -1048,6 +1123,12 @@ Message: {text}
         return {}
 
     normalized = {}
+    intent_value = parsed.get("intent")
+    if intent_value:
+        normalized_intent = str(intent_value).strip().lower()
+        if normalized_intent in ASSISTANT_ALLOWED_INTENTS:
+            normalized["intent"] = normalized_intent
+
     provider_name = parsed.get("provider_name")
     if provider_name:
         normalized["provider_name"] = str(provider_name).strip()
@@ -3186,9 +3267,8 @@ async def check_availability(
 
 @router.post("/assistant", response_model=BookingAssistantResponse)
 async def booking_assistant(payload: BookingAssistantRequest, http_request: Request):
-    intent = _detect_booking_assistant_intent(payload.message)
-
     llm_entities = await _extract_booking_entities_with_llm(payload.message)
+    intent = llm_entities.get("intent") or _detect_booking_assistant_intent(payload.message)
     if not payload.provider_name and llm_entities.get("provider_name"):
         payload.provider_name = llm_entities.get("provider_name")
 
@@ -3231,7 +3311,12 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
 
         if booking_type == "appointment_based":
             services_col = get_services_collection()
+            employees_col = get_employees_collection()
             services = await services_col.find({
+                "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
+                "status": "active"
+            }).to_list(12)
+            employees = await employees_col.find({
                 "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
                 "status": "active"
             }).to_list(12)
@@ -3241,9 +3326,18 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
                     summary_lines.append(
                         f"- {item.get('name')} ({item.get('duration_minutes')} min, {item.get('price')} lei)"
                     )
-                suggestions.append("Spune serviciul, data și ora dorită ca să verific disponibilitatea.")
             else:
                 summary_lines.append("- Nu există servicii active în listă.")
+
+            if employees:
+                summary_lines.append("- Angajați disponibili:")
+                for employee in employees[:6]:
+                    role_label = employee.get("role") or "specialist"
+                    summary_lines.append(f"  • {employee.get('name')} ({role_label})")
+            else:
+                summary_lines.append("- Nu există angajați activi în listă.")
+
+            suggestions.append("Spune serviciul, data și ora dorită ca să verific disponibilitatea.")
 
         elif booking_type == "space_based":
             rooms_col = get_rooms_collection()
@@ -3285,6 +3379,13 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
                 summary_lines.append(f"- Tip rezervare: masă ({len(tables)} mese active)")
                 if min_seats and max_seats:
                     summary_lines.append(f"- Capacitate mese: {min_seats}-{max_seats} persoane")
+
+                summary_lines.append("- Mese disponibile:")
+                for table_item in tables[:8]:
+                    zone_label = table_item.get("zone") or "fără zonă specifică"
+                    summary_lines.append(
+                        f"  • {table_item.get('name')} ({table_item.get('seats')} locuri, zonă: {zone_label})"
+                    )
 
                 reservation_types = provider.get("reservation_types") or []
                 if reservation_types:
