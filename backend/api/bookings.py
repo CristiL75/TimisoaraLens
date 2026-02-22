@@ -1286,6 +1286,46 @@ def _extract_booking_id_from_text(message: str) -> Optional[str]:
     return match_id.group(0) if match_id else None
 
 
+def _conversation_history_to_text(conversation_history: Optional[list[Any]], max_items: int = 8) -> str:
+    if not conversation_history:
+        return ""
+
+    tail = conversation_history[-max_items:]
+    parts = []
+    for item in tail:
+        if isinstance(item, dict):
+            content = item.get("content")
+        else:
+            content = getattr(item, "content", None)
+        content_text = str(content or "").strip()
+        if content_text:
+            parts.append(content_text)
+    return "\n".join(parts)
+
+
+async def _resolve_experience_for_assistant(payload: BookingAssistantRequest) -> Optional[dict]:
+    experiences_col = get_experiences_collection()
+    combined_text = "\n".join(filter(None, [payload.message, _conversation_history_to_text(payload.conversation_history)])).strip()
+    if not combined_text:
+        return None
+
+    quoted_candidates = re.findall(r"[\"“”']([^\"“”']{3,120})[\"“”']", combined_text)
+    for candidate in quoted_candidates:
+        exact_regex = {"$regex": f"^{re.escape(candidate.strip())}$", "$options": "i"}
+        experience = await experiences_col.find_one({"name": exact_regex, "status": "active"})
+        if experience:
+            return experience
+
+    normalized_text = combined_text.lower()
+    active_experiences = await experiences_col.find({"status": "active"}, {"name": 1}).to_list(300)
+    for item in active_experiences:
+        name = str(item.get("name") or "").strip()
+        if name and name.lower() in normalized_text:
+            return await experiences_col.find_one({"_id": item.get("_id")})
+
+    return None
+
+
 # =========================
 # USER PROFILE ENDPOINTS
 # =========================
@@ -3482,6 +3522,54 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             customer_name = customer_name or current_user.get("full_name") or current_user.get("username")
             customer_email = customer_email or current_user.get("email")
             customer_phone = customer_phone or current_user.get("phone")
+
+        experience = await _resolve_experience_for_assistant(payload)
+        if experience:
+            exp_missing_fields = []
+            if not booking_date:
+                exp_missing_fields.append("booking_date")
+            if not start_time:
+                exp_missing_fields.append("start_time")
+            if not customer_name:
+                exp_missing_fields.append("customer_name")
+            if not customer_email:
+                exp_missing_fields.append("customer_email")
+            if not customer_phone:
+                exp_missing_fields.append("customer_phone")
+
+            if exp_missing_fields:
+                return BookingAssistantResponse(
+                    intent=intent,
+                    handled=True,
+                    message="Pentru rezervarea experienței, mai am nevoie de câteva informații.",
+                    missing_fields=sorted(set(exp_missing_fields)),
+                )
+
+            experience_payload = ExperienceBookingCreateRequest(
+                experience_id=str(experience.get("_id")),
+                customer_name=customer_name,
+                customer_email=customer_email,
+                customer_phone=customer_phone,
+                date=booking_date,
+                start_time=start_time,
+                party_size=party_size,
+                notes=payload.notes,
+            )
+
+            try:
+                experience_booking = await create_experience_booking(experience_payload, http_request)
+                return BookingAssistantResponse(
+                    intent=intent,
+                    handled=True,
+                    booking_id=experience_booking.id,
+                    message=f"Rezervarea pentru experiența „{experience.get('name', 'selectată')}” a fost creată. ID: {experience_booking.id}",
+                )
+            except HTTPException as exc:
+                return BookingAssistantResponse(
+                    intent=intent,
+                    handled=True,
+                    message=f"Nu am putut crea rezervarea pentru experiență: {exc.detail}",
+                )
 
         missing_fields = []
         if not provider_id:
