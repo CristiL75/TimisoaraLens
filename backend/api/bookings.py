@@ -13,6 +13,7 @@ import re
 import os
 import json
 import httpx
+import unicodedata
 from bson import ObjectId
 from jose import JWTError, jwt
 
@@ -84,7 +85,13 @@ async def get_optional_user_from_request(request: Request) -> Optional[dict]:
     users_col = get_users_collection()
     user_doc = await users_col.find_one({"email": email})
     user_id = str(user_doc["_id"]) if user_doc and "_id" in user_doc else None
-    return {"email": email, "id": user_id, "username": payload.get("username")}
+    return {
+        "email": email,
+        "id": user_id,
+        "username": payload.get("username"),
+        "full_name": (user_doc or {}).get("full_name"),
+        "phone": (user_doc or {}).get("phone") or (user_doc or {}).get("phone_number"),
+    }
 
 
 def _service_entity_location_from_provider(provider_doc: Optional[dict]) -> dict:
@@ -811,6 +818,16 @@ def _extract_date_from_text(message: str) -> Optional[str]:
     if not text:
         return None
 
+    normalized_text = "".join(
+        char for char in unicodedata.normalize("NFD", text.lower()) if unicodedata.category(char) != "Mn"
+    )
+
+    now_date = datetime.utcnow().date()
+    if re.search(r"\b(azi|astazi|today)\b", normalized_text):
+        return now_date.isoformat()
+    if re.search(r"\b(maine|tomorrow)\b", normalized_text):
+        return (now_date + timedelta(days=1)).isoformat()
+
     match_iso = re.search(r"\b(\d{4})-(\d{2})-(\d{2})\b", text)
     if match_iso:
         return match_iso.group(0)
@@ -819,6 +836,37 @@ def _extract_date_from_text(message: str) -> Optional[str]:
     if match_local:
         day, month, year = match_local.groups()
         return f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
+
+    weekday_to_index = {
+        "luni": 0,
+        "monday": 0,
+        "marti": 1,
+        "marți": 1,
+        "tuesday": 1,
+        "miercuri": 2,
+        "wednesday": 2,
+        "joi": 3,
+        "thursday": 3,
+        "vineri": 4,
+        "friday": 4,
+        "sambata": 5,
+        "sâmbătă": 5,
+        "saturday": 5,
+        "duminica": 6,
+        "duminică": 6,
+        "sunday": 6,
+    }
+
+    for token, target_weekday in weekday_to_index.items():
+        normalized_token = "".join(
+            char for char in unicodedata.normalize("NFD", token.lower()) if unicodedata.category(char) != "Mn"
+        )
+        if re.search(rf"\b{re.escape(normalized_token)}\b", normalized_text):
+            delta_days = (target_weekday - now_date.weekday()) % 7
+            if delta_days == 0:
+                delta_days = 7
+            return (now_date + timedelta(days=delta_days)).isoformat()
+
     return None
 
 
@@ -836,6 +884,22 @@ def _extract_party_size_from_text(message: str) -> Optional[int]:
     if not match_party:
         return None
     return int(match_party.group(1))
+
+
+def _extract_duration_minutes_from_text(message: str) -> Optional[int]:
+    text = (message or "").lower()
+    if not text:
+        return None
+
+    hour_match = re.search(r"(?:pentru|timp de|for)\s+(\d{1,3})\s*(?:h|ora|ore|hour|hours)\b", text)
+    if hour_match:
+        return int(hour_match.group(1)) * 60
+
+    minute_match = re.search(r"(?:pentru|timp de|for)\s+(\d{1,3})\s*(?:min|minut|minute|minutes)\b", text)
+    if minute_match:
+        return int(minute_match.group(1))
+
+    return None
 
 
 def _extract_email_from_text(message: str) -> Optional[str]:
@@ -877,10 +941,12 @@ async def _extract_booking_entities_with_llm(message: str) -> dict:
         return {}
 
     prompt = f"""Extract booking fields from this user message and return ONLY JSON.
-Allowed keys: provider_name, booking_date, start_time, party_size, customer_name, customer_email, customer_phone.
+Allowed keys: provider_name, booking_date, start_time, end_time, duration_minutes, party_size, customer_name, customer_email, customer_phone.
 Rules:
 - booking_date format must be YYYY-MM-DD
 - start_time format must be HH:MM (24h)
+- end_time format must be HH:MM (24h)
+- duration_minutes must be integer
 - party_size must be integer
 - unknown values must be null
 - return only a JSON object, no markdown, no explanation
@@ -933,6 +999,21 @@ Message: {text}
         if normalized_time:
             normalized["start_time"] = normalized_time
 
+    end_time_value = parsed.get("end_time")
+    if end_time_value:
+        normalized_end_time = _extract_time_from_text(str(end_time_value))
+        if normalized_end_time:
+            normalized["end_time"] = normalized_end_time
+
+    duration_value = parsed.get("duration_minutes")
+    if duration_value is not None:
+        try:
+            parsed_duration = int(duration_value)
+            if parsed_duration > 0:
+                normalized["duration_minutes"] = parsed_duration
+        except Exception:
+            pass
+
     party_size_value = parsed.get("party_size")
     if party_size_value is not None:
         try:
@@ -953,6 +1034,31 @@ Message: {text}
         normalized["customer_phone"] = str(customer_phone).strip()
 
     return normalized
+
+
+async def _resolve_space_room_id(provider_id: str, payload: BookingAssistantRequest, message: str) -> Optional[str]:
+    if payload.room_id:
+        return str(payload.room_id)
+
+    if not provider_id or not ObjectId.is_valid(provider_id):
+        return None
+
+    rooms_col = get_rooms_collection()
+    rooms = await rooms_col.find({
+        "provider_id": {"$in": [ObjectId(provider_id), provider_id]},
+        "status": "active"
+    }).to_list(30)
+
+    if len(rooms) == 1:
+        return str(rooms[0].get("_id"))
+
+    text_normalized = (message or "").lower()
+    for room in rooms:
+        room_name = str(room.get("name") or "").strip().lower()
+        if room_name and room_name in text_normalized:
+            return str(room.get("_id"))
+
+    return None
 
 
 def _extract_provider_name_hint_from_text(message: str) -> Optional[str]:
@@ -2279,14 +2385,23 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
         party_size_value = request.party_size or 1
 
     elif booking_type == "space_based":
-        if not request.room_id:
+        room_id_value = request.room_id
+        if not room_id_value:
+            available_rooms = await rooms_col.find({
+                "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
+                "status": "active"
+            }).to_list(5)
+            if len(available_rooms) == 1:
+                room_id_value = str(available_rooms[0].get("_id"))
+
+        if not room_id_value:
             raise HTTPException(status_code=400, detail="Room selection is required")
 
-        if not ObjectId.is_valid(request.room_id):
+        if not ObjectId.is_valid(room_id_value):
             raise HTTPException(status_code=400, detail="Invalid room ID")
 
         room = await rooms_col.find_one({
-            "_id": ObjectId(request.room_id),
+            "_id": ObjectId(room_id_value),
             "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
             "status": "active"
         })
@@ -2329,7 +2444,7 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
 
         existing_room_bookings = await bookings_col.find({
             "provider_id": {"$in": [ObjectId(request.provider_id), request.provider_id]},
-            "room_id": {"$in": [ObjectId(request.room_id), request.room_id]},
+            "room_id": {"$in": [ObjectId(room_id_value), room_id_value]},
             "booking_date": request.booking_date,
             "status": "confirmed"
         }).to_list(1000)
@@ -2529,7 +2644,7 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
             service_id=PyObjectId(request.service_id) if request.service_id else None,
             employee_id=PyObjectId(request.employee_id) if request.employee_id else None,
             car_id=request.car_id,
-            room_id=PyObjectId(request.room_id) if request.room_id else None,
+            room_id=PyObjectId(room_id_value) if booking_type == "space_based" and room_id_value else (PyObjectId(request.room_id) if request.room_id else None),
             room_layout=request.room_layout,
             pricing_unit=request.pricing_unit,
             customer_name=request.customer_name,
@@ -3030,6 +3145,8 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
 
     booking_date = payload.booking_date or _extract_date_from_text(payload.message) or llm_entities.get("booking_date")
     start_time = payload.start_time or _extract_time_from_text(payload.message) or llm_entities.get("start_time")
+    end_time = payload.end_time or llm_entities.get("end_time")
+    duration_minutes = payload.duration_minutes or _extract_duration_minutes_from_text(payload.message) or llm_entities.get("duration_minutes")
     party_size = payload.party_size or _extract_party_size_from_text(payload.message) or llm_entities.get("party_size") or 1
 
     if intent == "service_inquiry":
@@ -3194,6 +3311,11 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             else (_extract_email_from_text(payload.message) or llm_entities.get("customer_email"))
         )
         customer_phone = (payload.customer_phone or "").strip() or _extract_phone_from_text(payload.message) or llm_entities.get("customer_phone")
+        current_user = await get_optional_user_from_request(http_request)
+        if current_user:
+            customer_name = customer_name or current_user.get("full_name") or current_user.get("username")
+            customer_email = customer_email or current_user.get("email")
+            customer_phone = customer_phone or current_user.get("phone")
 
         missing_fields = []
         if not provider_id:
@@ -3217,8 +3339,13 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
                     missing_fields.append("service_id")
                 if not payload.employee_id:
                     missing_fields.append("employee_id")
-            if booking_type == "space_based" and not payload.room_id:
-                missing_fields.append("room_id")
+            resolved_room_id = None
+            if booking_type == "space_based":
+                resolved_room_id = await _resolve_space_room_id(provider_id, payload, payload.message)
+                if not resolved_room_id:
+                    missing_fields.append("room_id")
+                if not end_time and not duration_minutes:
+                    missing_fields.append("duration_minutes")
             if booking_type == "fleet_based":
                 if not payload.car_id:
                     missing_fields.append("car_id")
@@ -3226,6 +3353,8 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
                     missing_fields.append("rental_end_date")
                 if not payload.rental_end_time:
                     missing_fields.append("rental_end_time")
+        else:
+            resolved_room_id = None
 
         if missing_fields:
             return BookingAssistantResponse(
@@ -3243,15 +3372,15 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             customer_phone=customer_phone,
             booking_date=booking_date,
             start_time=start_time,
-            end_time=payload.end_time,
-            duration_minutes=payload.duration_minutes,
+            end_time=end_time,
+            duration_minutes=duration_minutes,
             party_size=party_size,
             notes=payload.notes,
             table_id=payload.table_id,
             service_id=payload.service_id,
             employee_id=payload.employee_id,
             car_id=payload.car_id,
-            room_id=payload.room_id,
+            room_id=resolved_room_id or payload.room_id,
             rental_end_date=payload.rental_end_date,
             rental_end_time=payload.rental_end_time,
         )
