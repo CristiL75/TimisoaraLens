@@ -3465,6 +3465,11 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
     intent = llm_entities.get("intent") or _detect_booking_assistant_intent(payload.message)
     text_lower = (payload.message or "").lower()
     create_markers = ASSISTANT_INTENT_MARKERS.get("create_markers", [])
+    # Service-detail queries ("ce specialisti", "ce angajati", etc.) must always
+    # route to service_inquiry, even if LLM classified them as check_availability
+    # based on the context having booking_date/start_time in history.
+    if _is_service_details_query(payload.message) and intent != "service_inquiry":
+        intent = "service_inquiry"
     if intent == "check_availability" and _contains_any(text_lower, create_markers):
         intent = "create_booking"
     if intent == "unknown" and _contains_any((history_text or "").lower(), create_markers):
@@ -3682,13 +3687,21 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
         if not booking_date:
             missing_fields.append("booking_date")
         booking_type = (provider.get("booking_settings") or {}).get("type", "table_based") if provider else "table_based"
+        is_no_employee_category = (provider.get("category") in NO_EMPLOYEE_CATEGORIES) if provider else False
+        # For appointment-based providers, service and employee are required by the
+        # availability endpoint — catch them here instead of letting the API crash.
+        if booking_type == "appointment_based" and not is_no_employee_category:
+            if not payload.service_id:
+                missing_fields.append("service_id")
+            if not payload.employee_id:
+                missing_fields.append("employee_id")
 
         if missing_fields:
             return BookingAssistantResponse(
                 intent=intent,
                 handled=True,
                 **_ctx(),
-                message="Am nevoie de locație și dată pentru a verifica disponibilitatea.",
+                message="Am nevoie de câteva informații pentru a verifica disponibilitatea.",
                 missing_fields=missing_fields,
                 suggestions=["Exemplu: verifică disponibilitatea la [locație] pe 2026-03-10 la 19:00"],
             )
