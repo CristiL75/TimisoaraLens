@@ -837,6 +837,71 @@ def _extract_date_from_text(message: str) -> Optional[str]:
         day, month, year = match_local.groups()
         return f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
 
+    month_names = {
+        "ianuarie": 1,
+        "ian": 1,
+        "januarie": 1,
+        "january": 1,
+        "februarie": 2,
+        "feb": 2,
+        "february": 2,
+        "martie": 3,
+        "mart": 3,
+        "mar": 3,
+        "march": 3,
+        "aprilie": 4,
+        "apr": 4,
+        "april": 4,
+        "mai": 5,
+        "may": 5,
+        "iunie": 6,
+        "iun": 6,
+        "june": 6,
+        "iulie": 7,
+        "iul": 7,
+        "july": 7,
+        "august": 8,
+        "aug": 8,
+        "septembrie": 9,
+        "sept": 9,
+        "sep": 9,
+        "september": 9,
+        "octombrie": 10,
+        "oct": 10,
+        "october": 10,
+        "noiembrie": 11,
+        "noi": 11,
+        "nov": 11,
+        "november": 11,
+        "decembrie": 12,
+        "dec": 12,
+        "december": 12,
+    }
+
+    month_pattern = "|".join(sorted((re.escape(name) for name in month_names.keys()), key=len, reverse=True))
+    match_day_month = re.search(
+        rf"\b(\d{{1,2}})\s+(?:de\s+)?({month_pattern})(?:\s+(\d{{4}}))?\b",
+        normalized_text,
+    )
+    if match_day_month:
+        day_value = int(match_day_month.group(1))
+        month_token = match_day_month.group(2)
+        year_token = match_day_month.group(3)
+        month_value = month_names.get(month_token)
+
+        if month_value:
+            try:
+                if year_token:
+                    year_value = int(year_token)
+                    return datetime(year_value, month_value, day_value).date().isoformat()
+
+                candidate_date = datetime(now_date.year, month_value, day_value).date()
+                if candidate_date < now_date:
+                    candidate_date = datetime(now_date.year + 1, month_value, day_value).date()
+                return candidate_date.isoformat()
+            except ValueError:
+                pass
+
     weekday_to_index = {
         "luni": 0,
         "monday": 0,

@@ -32,6 +32,25 @@ const BOOKING_KEYWORDS = [
   'inchiriere auto', 'rent a car', 'room', 'spatiu',
 ];
 
+const MISSING_FIELD_LABELS = {
+  provider_id: 'locația / serviciul',
+  booking_date: 'data rezervării',
+  start_time: 'ora de început',
+  end_time: 'ora de final',
+  duration_minutes: 'durata',
+  customer_name: 'numele tău',
+  customer_email: 'email',
+  customer_phone: 'telefon',
+  room_id: 'sala dorită',
+  table_id: 'masa dorită',
+  service_id: 'serviciul dorit',
+  employee_id: 'specialistul dorit',
+  car_id: 'mașina dorită',
+  rental_end_date: 'data de final',
+  rental_end_time: 'ora de final',
+  booking_id: 'ID-ul rezervării',
+};
+
 /**
  * Floating chatbot widget with RAG integration.
  * Connects to backend /rag/query endpoint for intelligent responses.
@@ -114,7 +133,17 @@ export default function ChatWidget() {
         let assistantText = assistantResult.data.message || 'Am procesat cererea de rezervare.';
 
         if (missingFields.length > 0) {
-          assistantText += `\n\nDate lipsă: ${missingFields.join(', ')}`;
+          const translatedMissingFields = missingFields.map(
+            (field) => MISSING_FIELD_LABELS[field] || field
+          );
+          assistantText += `\n\nDate lipsă: ${translatedMissingFields.join(', ')}`;
+
+          if (missingFields.includes('room_id')) {
+            assistantText += '\nExemplu: „Sala Mare” sau „Iulius Congress Hall”.';
+          }
+          if (missingFields.includes('duration_minutes') && !missingFields.includes('end_time')) {
+            assistantText += '\nExemplu durată: „pentru 2 ore”.';
+          }
         }
         if (suggestions.length > 0) {
           assistantText += `\n\nSugestii:\n- ${suggestions.join('\n- ')}`;
