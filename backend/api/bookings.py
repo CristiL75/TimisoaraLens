@@ -1458,24 +1458,66 @@ async def _resolve_service_for_assistant(
     if not services:
         return None
 
-    hint = (service_hint or "").strip().lower()
-    text_lower = (combined_text or "").lower()
+    _STOP = {"", "si", "and", "cu", "de", "la", "in", "un", "o"}
 
-    # Exact hint match first
+    def _norm(s: str) -> str:
+        import unicodedata as _ud
+        return _ud.normalize("NFD", s.lower()).encode("ascii", "ignore").decode()
+
+    def _words(s: str) -> set:
+        return set(re.split(r"[\s\-\+\/\,\.]+", _norm(s))) - _STOP
+
+    def _word_overlap(a: str, b: str) -> float:
+        wa, wb = _words(a), _words(b)
+        if not wa or not wb:
+            return 0.0
+        return len(wa & wb) / max(len(wa), len(wb))
+
+    hint = (service_hint or "").strip()
+    text_norm = _norm(combined_text or "")
+
+    # 1. Exact hint match (normalised)
     if hint:
         for svc in services:
-            if hint == str(svc.get("name") or "").strip().lower():
+            if _norm(hint) == _norm(str(svc.get("name") or "")):
                 return svc
+        # 2. Substring in either direction
         for svc in services:
-            name_lower = str(svc.get("name") or "").strip().lower()
-            if hint in name_lower or name_lower in hint:
+            hn, sn = _norm(hint), _norm(str(svc.get("name") or ""))
+            if hn in sn or sn in hn:
                 return svc
+        # 3. Word-overlap between hint and service name (>=50%)
+        best, best_svc = 0.0, None
+        for svc in services:
+            score = _word_overlap(hint, str(svc.get("name") or ""))
+            if score > best:
+                best, best_svc = score, svc
+        if best >= 0.5:
+            return best_svc
 
-    # Fallback: any service name found in the combined text
+    # 4. Service name appears verbatim in combined text
     for svc in services:
-        name_lower = str(svc.get("name") or "").strip().lower()
-        if name_lower and name_lower in text_lower:
+        sn = _norm(str(svc.get("name") or ""))
+        if sn and sn in text_norm:
             return svc
+
+    # 5. ALL meaningful words of the service name are present in combined text
+    #    (handles "Tuns Si Barba" vs text "tuns + barbă": words {tuns,barba} both in text)
+    text_words = _words(combined_text or "")
+    for svc in services:
+        svc_words = _words(str(svc.get("name") or ""))
+        if svc_words and svc_words.issubset(text_words):
+            return svc
+
+    # 6. Word-overlap between service name and hint/combined — fallback (>=60%)
+    search_text = hint or (combined_text or "")
+    best, best_svc = 0.0, None
+    for svc in services:
+        score = _word_overlap(str(svc.get("name") or ""), search_text)
+        if score > best:
+            best, best_svc = score, svc
+    if best >= 0.6:
+        return best_svc
 
     return None
 
@@ -3554,6 +3596,19 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
         intent = "service_inquiry"
     if intent == "check_availability" and _contains_any(text_lower, create_markers):
         intent = "create_booking"
+    # If the LLM returns check_availability on a short follow-up message (e.g. just
+    # a phone number or a name) but the conversation history clearly shows an ongoing
+    # create_booking flow, keep the create_booking intent.
+    if intent == "check_availability" and _contains_any((history_text or "").lower(), create_markers):
+        # Only override when the current message itself has no standalone availability
+        # request (no date/time query that would justify a fresh check_availability)
+        current_has_date = _extract_date_from_text(payload.message) is not None
+        current_has_avail_marker = _contains_any(
+            text_lower,
+            ASSISTANT_INTENT_MARKERS.get("availability_markers", []),
+        )
+        if not (current_has_date and current_has_avail_marker):
+            intent = "create_booking"
     if intent == "unknown" and _contains_any((history_text or "").lower(), create_markers):
         intent = "create_booking"
     if not payload.provider_name and llm_entities.get("provider_name"):
