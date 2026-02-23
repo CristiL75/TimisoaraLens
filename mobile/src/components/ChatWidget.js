@@ -59,6 +59,7 @@ export default function ChatWidget() {
   const navigation = useNavigation();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
+  const [isInputFocused, setIsInputFocused] = useState(false);
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
@@ -438,21 +439,28 @@ export default function ChatWidget() {
                 )}
               </ScrollView>
             </View>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                placeholder="Scrie un mesaj..."
-                value={input}
-                onChangeText={setInput}
-                onSubmitEditing={handleSend}
-                returnKeyType="send"
-                editable={!isLoading}
-              />
+            <View style={[styles.inputRow, isInputFocused && styles.inputRowFocused]}>
+              <View style={[styles.inputContainer, isInputFocused && styles.inputContainerFocused]}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Scrie un mesaj..."
+                  placeholderTextColor="#9AA0A6"
+                  value={input}
+                  onChangeText={setInput}
+                  onSubmitEditing={handleSend}
+                  onFocus={() => setIsInputFocused(true)}
+                  onBlur={() => setIsInputFocused(false)}
+                  returnKeyType="send"
+                  editable={!isLoading}
+                />
+              </View>
               <Button
                 mode="contained"
                 onPress={handleSend}
                 disabled={!trimmedInput || isLoading}
                 style={styles.sendButton}
+                contentStyle={styles.sendButtonContent}
+                labelStyle={styles.sendButtonLabel}
               >
                 Trimite
               </Button>
@@ -609,24 +617,50 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingBottom: 10,
-    gap: 10,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 12,
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#EFEFEF',
+    backgroundColor: '#FFFFFF',
   },
-  input: {
+  inputRowFocused: {
+    borderTopColor: '#E4E7EC',
+  },
+  inputContainer: {
     flex: 1,
-    height: 48,
-    borderColor: '#E0E0E0',
+    height: 46,
+    borderColor: '#D0D5DD',
     borderWidth: 1,
     borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+  },
+  inputContainerFocused: {
+    borderColor: '#6200EE',
+    backgroundColor: '#FFFFFF',
+  },
+  input: {
     paddingHorizontal: 12,
-    marginRight: 8,
+    paddingVertical: 0,
     fontSize: 15,
+    color: '#101828',
   },
   sendButton: {
-    height: 48,
+    height: 46,
     justifyContent: 'center',
     borderRadius: 12,
+    minWidth: 86,
+  },
+  sendButtonContent: {
+    height: 46,
+    paddingHorizontal: 10,
+  },
+  sendButtonLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   headerTitle: {
     fontSize: 18,
