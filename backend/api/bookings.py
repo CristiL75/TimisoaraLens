@@ -3581,6 +3581,41 @@ async def check_availability(
     return AvailabilityResponse(date=date, slots=slots, tables=table_availability)
 
 
+_MISSING_FIELD_LABELS: dict[str, str] = {
+    "provider_id":      "locația / furnizorul (ex: \"la Barber Shop X\")",
+    "booking_date":     "data rezervării (ex: \"15 martie\", \"mâine\")",
+    "start_time":       "ora de începere (ex: \"14:30\")",
+    "end_time":         "ora de terminare (ex: \"16:00\")",
+    "duration_minutes": "durata (ex: \"2 ore\", \"90 de minute\")",
+    "customer_name":    "numele tău complet (ex: \"Nume: Ion Popescu\")",
+    "customer_email":   "adresa de email (ex: \"email@exemplu.com\")",
+    "customer_phone":   "numărul de telefon (ex: \"0721123456\")",
+    "service_id":       "serviciul dorit (ex: \"Tuns\", \"Tuns Si Barbă\")",
+    "employee_id":      "specialistul / angajatul dorit (ex: \"la George\")",
+    "table_id":         "masa dorită",
+    "room_id":          "sala sau spațiul dorit",
+    "car_id":           "mașina selectată (ex: \"Dacia Logan\")",
+    "rental_end_date":  "data de returnare a mașinii",
+    "rental_end_time":  "ora de returnare a mașinii",
+    "booking_id":       "ID-ul rezervării",
+    "party_size":       "numărul de persoane (ex: \"2 persoane\")",
+}
+
+
+def _build_missing_fields_message(missing: list[str], context: str = "") -> str:
+    """Return a human-friendly Romanian message listing what the user still needs to provide."""
+    if not missing:
+        return context or "Toate informațiile necesare au fost completate."
+
+    labels = [_MISSING_FIELD_LABELS.get(f, f) for f in missing]
+
+    intro = context or "Pentru a continua, mai am nevoie de câteva informații:"
+    if len(labels) == 1:
+        return f"{intro}\n• {labels[0]}"
+    bullet_list = "\n".join(f"• {label}" for label in labels)
+    return f"{intro}\n{bullet_list}"
+
+
 @router.post("/assistant", response_model=BookingAssistantResponse)
 async def booking_assistant(payload: BookingAssistantRequest, http_request: Request):
     history_text = _conversation_history_to_text(payload.conversation_history)
@@ -3862,7 +3897,10 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
                 intent=intent,
                 handled=True,
                 **_ctx(),
-                message="Am nevoie de câteva informații pentru a verifica disponibilitatea.",
+                message=_build_missing_fields_message(
+                    missing_fields,
+                    "Pentru a verifica disponibilitatea, mai am nevoie de:",
+                ),
                 missing_fields=missing_fields,
                 suggestions=["Exemplu: verifică disponibilitatea la [locație] pe 2026-03-10 la 19:00"],
             )
@@ -3991,7 +4029,10 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
                 return BookingAssistantResponse(
                     intent=intent,
                     handled=True,
-                    message="Pentru rezervarea experienței, mai am nevoie de câteva informații.",
+                    message=_build_missing_fields_message(
+                        sorted(set(exp_missing_fields)),
+                        "Pentru a rezerva experiența, mai am nevoie de:",
+                    ),
                     missing_fields=sorted(set(exp_missing_fields)),
                 )
 
@@ -4065,7 +4106,10 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
                 intent=intent,
                 handled=True,
                 **_ctx(),
-                message="Pentru a crea rezervarea, mai am nevoie de câteva informații.",
+                message=_build_missing_fields_message(
+                    sorted(set(missing_fields)),
+                    "Pentru a crea rezervarea, mai am nevoie de:",
+                ),
                 missing_fields=sorted(set(missing_fields)),
             )
 
