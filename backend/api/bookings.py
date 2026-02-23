@@ -3619,11 +3619,18 @@ def _build_missing_fields_message(missing: list[str], context: str = "") -> str:
 @router.post("/assistant", response_model=BookingAssistantResponse)
 async def booking_assistant(payload: BookingAssistantRequest, http_request: Request):
     history_text = _conversation_history_to_text(payload.conversation_history)
-    llm_input = "\n".join(filter(None, [history_text, payload.message]))
-    llm_entities = await _extract_booking_entities_with_llm(llm_input)
+    llm_entities = await _extract_booking_entities_with_llm(payload.message)
     intent = llm_entities.get("intent") or _detect_booking_assistant_intent(payload.message)
     text_lower = (payload.message or "").lower()
     create_markers = ASSISTANT_INTENT_MARKERS.get("create_markers", [])
+    message_has_booking_fields = any([
+        _extract_date_from_text(payload.message) is not None,
+        _extract_time_from_text(payload.message) is not None,
+        _extract_duration_minutes_from_text(payload.message) is not None,
+        _extract_party_size_from_text(payload.message) is not None,
+        _extract_email_from_text(payload.message) is not None,
+        _extract_phone_from_text(payload.message) is not None,
+    ])
     # Service-detail queries ("ce specialisti", "ce angajati", etc.) must always
     # route to service_inquiry, even if LLM classified them as check_availability
     # based on the context having booking_date/start_time in history.
@@ -3644,7 +3651,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
         )
         if not (current_has_date and current_has_avail_marker):
             intent = "create_booking"
-    if intent == "unknown" and _contains_any((history_text or "").lower(), create_markers):
+    if intent == "unknown" and message_has_booking_fields and _contains_any((history_text or "").lower(), create_markers):
         intent = "create_booking"
     if not payload.provider_name and llm_entities.get("provider_name"):
         payload.provider_name = llm_entities.get("provider_name")
