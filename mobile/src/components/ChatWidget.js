@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -209,9 +209,9 @@ export default function ChatWidget() {
 
   const toggleOpen = () => setIsOpen((prev) => !prev);
 
-  const handleSelectSuggestedQuestion = (question) => {
+  const handleSelectSuggestedQuestion = useCallback((question) => {
     setInput(question);
-  };
+  }, []);
 
   const handleClearConversation = () => {
     setMessages([
@@ -225,7 +225,7 @@ export default function ChatWidget() {
     setPendingBookingCtx({});
   };
 
-  const renderMessageText = (text) => {
+  const renderMessageText = useCallback((text) => {
     const lines = text.split('\n');
 
     return lines.map((line, idx) => {
@@ -254,7 +254,147 @@ export default function ChatWidget() {
         </Text>
       );
     });
-  };
+  }, []);
+
+  const renderedMessages = useMemo(() => (
+    messages.map((msg) => {
+      const hasListingSources = msg.sources?.some((s) => s.listing);
+      const hasServiceSources = msg.sources?.some((s) => s.service);
+      return (
+        <View key={msg.id}>
+          <View
+            style={[
+              styles.bubble,
+              msg.from === 'user' ? styles.userBubble : styles.botBubble,
+            ]}
+          >
+            {renderMessageText(msg.text)}
+            {msg.sources && msg.sources.length > 0 && (
+              <View style={styles.sourcesContainer}>
+                {hasListingSources && (
+                  <View style={styles.listingsContainer}>
+                    {msg.sources
+                      .filter((s) => s.listing)
+                      .map((source, idx) => {
+                        const listing = source.listing;
+                        const firstImage = listing.images?.[0];
+                        return (
+                          <TouchableOpacity
+                            key={idx}
+                            style={styles.listingCard}
+                            onPress={() => {
+                              navigation.navigate('ListingDetail', {
+                                listingId: listing.id || listing._id,
+                              });
+                            }}
+                          >
+                            {firstImage && (
+                              <Image
+                                source={{ uri: firstImage }}
+                                style={styles.listingImage}
+                                resizeMode="cover"
+                              />
+                            )}
+                            <View style={styles.listingInfo}>
+                              <Text style={styles.listingTitle}>
+                                {listing.title || 'Apartament'}
+                              </Text>
+                              <Text style={styles.listingPrice}>
+                                {listing.price_per_night} lei/noapte
+                              </Text>
+                              <Text style={styles.listingAddress}>
+                                📍 {listing.location?.address || listing.location?.city}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                  </View>
+                )}
+                {hasServiceSources && (
+                  <View style={styles.listingsContainer}>
+                    {msg.sources
+                      .filter((s) => s.service)
+                      .map((source, idx) => {
+                        const service = source.service;
+                        const firstImage = service.image;
+                        const addressLabel = service.address || service.city || 'Timișoara';
+                        const subtitle = service.category || service.provider_name || 'Serviciu local';
+                        const provider = service.provider;
+                        const providerId = provider?.id || provider?._id || service.provider_id || (service.entity_type === 'provider' ? service.id : null);
+                        return (
+                          <TouchableOpacity
+                            key={`service-${idx}`}
+                            style={styles.listingCard}
+                            onPress={async () => {
+                              if (providerId) {
+                                const providerResult = await bookingsAPI.getProvider(providerId);
+                                if (providerResult.success && providerResult.data) {
+                                  navigation.navigate('ProviderDetail', {
+                                    provider: providerResult.data,
+                                    isOwner: false,
+                                  });
+                                  return;
+                                }
+                              }
+
+                              if (provider && (provider.id || provider._id || provider.name)) {
+                                navigation.navigate('ProviderDetail', {
+                                  provider,
+                                  isOwner: false,
+                                });
+                                return;
+                              }
+
+                              navigation.navigate('Services');
+                            }}
+                          >
+                            {firstImage && (
+                              <Image
+                                source={{ uri: firstImage }}
+                                style={styles.listingImage}
+                                resizeMode="cover"
+                              />
+                            )}
+                            <View style={styles.listingInfo}>
+                              <Text style={styles.listingTitle}>
+                                {service.name || 'Serviciu'}
+                              </Text>
+                              <Text style={styles.listingPrice}>
+                                {subtitle}
+                              </Text>
+                              <Text style={styles.listingAddress}>
+                                📍 {addressLabel}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                  </View>
+                )}
+                {!hasListingSources && !hasServiceSources && (
+                  <>
+                    <Text style={styles.sourcesLabel}>Surse:</Text>
+                    {msg.sources.slice(0, 2).map((source, idx) => (
+                      <Text key={idx} style={styles.sourceItem}>
+                        • {source.heading} ({source.source})
+                      </Text>
+                    ))}
+                  </>
+                )}
+              </View>
+            )}
+          </View>
+          {msg.suggestedQuestions && msg.suggestedQuestions.length > 0 && (
+            <SuggestedQuestions
+              questions={msg.suggestedQuestions}
+              onSelectQuestion={handleSelectSuggestedQuestion}
+            />
+          )}
+        </View>
+      );
+    })
+  ), [messages, navigation, renderMessageText, handleSelectSuggestedQuestion]);
 
   return (
     <Portal>
@@ -292,145 +432,7 @@ export default function ChatWidget() {
                 contentContainerStyle={styles.messagesContent}
                 showsVerticalScrollIndicator={false}
               >
-                {messages.map((msg) => {
-                  const hasListingSources = msg.sources?.some(s => s.listing);
-                  const hasServiceSources = msg.sources?.some(s => s.service);
-                  return (
-                  <View key={msg.id}>
-                    <View
-                      style={[
-                        styles.bubble,
-                        msg.from === 'user' ? styles.userBubble : styles.botBubble,
-                      ]}
-                    >
-                      {renderMessageText(msg.text)}
-                      {msg.sources && msg.sources.length > 0 && (
-                        <View style={styles.sourcesContainer}>
-                          {/* Afișează carduri apartamente dacă există */}
-                          {hasListingSources && (
-                            <View style={styles.listingsContainer}>
-                              {msg.sources
-                                .filter(s => s.listing)
-                                .map((source, idx) => {
-                                  const listing = source.listing;
-                                  const firstImage = listing.images?.[0];
-                                  return (
-                                    <TouchableOpacity
-                                      key={idx}
-                                      style={styles.listingCard}
-                                      onPress={() => {
-                                        navigation.navigate('ListingDetail', {
-                                          listingId: listing.id || listing._id,
-                                        });
-                                      }}
-                                    >
-                                      {firstImage && (
-                                        <Image
-                                          source={{ uri: firstImage }}
-                                          style={styles.listingImage}
-                                          resizeMode="cover"
-                                        />
-                                      )}
-                                      <View style={styles.listingInfo}>
-                                        <Text style={styles.listingTitle}>
-                                          {listing.title || 'Apartament'}
-                                        </Text>
-                                        <Text style={styles.listingPrice}>
-                                          {listing.price_per_night} lei/noapte
-                                        </Text>
-                                        <Text style={styles.listingAddress}>
-                                          📍 {listing.location?.address || listing.location?.city}
-                                        </Text>
-                                      </View>
-                                    </TouchableOpacity>
-                                  );
-                                })}
-                            </View>
-                          )}
-                          {hasServiceSources && (
-                            <View style={styles.listingsContainer}>
-                              {msg.sources
-                                .filter(s => s.service)
-                                .map((source, idx) => {
-                                  const service = source.service;
-                                  const firstImage = service.image;
-                                  const addressLabel = service.address || service.city || 'Timișoara';
-                                  const subtitle = service.category || service.provider_name || 'Serviciu local';
-                                  const provider = service.provider;
-                                  const providerId = provider?.id || provider?._id || service.provider_id || (service.entity_type === 'provider' ? service.id : null);
-                                  return (
-                                    <TouchableOpacity
-                                      key={`service-${idx}`}
-                                      style={styles.listingCard}
-                                      onPress={async () => {
-                                        if (providerId) {
-                                          const providerResult = await bookingsAPI.getProvider(providerId);
-                                          if (providerResult.success && providerResult.data) {
-                                            navigation.navigate('ProviderDetail', {
-                                              provider: providerResult.data,
-                                              isOwner: false,
-                                            });
-                                            return;
-                                          }
-                                        }
-
-                                        if (provider && (provider.id || provider._id || provider.name)) {
-                                          navigation.navigate('ProviderDetail', {
-                                            provider,
-                                            isOwner: false,
-                                          });
-                                          return;
-                                        }
-
-                                        navigation.navigate('Services');
-                                      }}
-                                    >
-                                      {firstImage && (
-                                        <Image
-                                          source={{ uri: firstImage }}
-                                          style={styles.listingImage}
-                                          resizeMode="cover"
-                                        />
-                                      )}
-                                      <View style={styles.listingInfo}>
-                                        <Text style={styles.listingTitle}>
-                                          {service.name || 'Serviciu'}
-                                        </Text>
-                                        <Text style={styles.listingPrice}>
-                                          {subtitle}
-                                        </Text>
-                                        <Text style={styles.listingAddress}>
-                                          📍 {addressLabel}
-                                        </Text>
-                                      </View>
-                                    </TouchableOpacity>
-                                  );
-                                })}
-                            </View>
-                          )}
-                          {/* Afișează surse normale dacă nu sunt apartamente */}
-                          {!hasListingSources && !hasServiceSources && (
-                            <>
-                              <Text style={styles.sourcesLabel}>Surse:</Text>
-                              {msg.sources.slice(0, 2).map((source, idx) => (
-                                <Text key={idx} style={styles.sourceItem}>
-                                  • {source.heading} ({source.source})
-                                </Text>
-                              ))}
-                            </>
-                          )}
-                        </View>
-                      )}
-                    </View>
-                    {msg.suggestedQuestions && msg.suggestedQuestions.length > 0 && (
-                      <SuggestedQuestions
-                        questions={msg.suggestedQuestions}
-                        onSelectQuestion={handleSelectSuggestedQuestion}
-                      />
-                    )}
-                  </View>
-                  );
-                })}
+                {renderedMessages}
                 {isLoading && (
                   <View style={styles.loadingBubble}>
                     <ActivityIndicator size="small" color="#6200ee" />
@@ -447,10 +449,13 @@ export default function ChatWidget() {
                   placeholderTextColor="#9AA0A6"
                   value={input}
                   onChangeText={setInput}
-                  onSubmitEditing={handleSend}
+                  multiline
+                  textAlignVertical="top"
                   onFocus={() => setIsInputFocused(true)}
                   onBlur={() => setIsInputFocused(false)}
-                  returnKeyType="send"
+                  returnKeyType="default"
+                  blurOnSubmit={false}
+                  scrollEnabled
                   editable={!isLoading}
                 />
               </View>
@@ -616,7 +621,7 @@ const styles = StyleSheet.create({
   },
   inputRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     paddingHorizontal: 12,
     paddingTop: 10,
     paddingBottom: 12,
@@ -630,21 +635,25 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     flex: 1,
-    height: 46,
+    minHeight: 46,
+    maxHeight: 120,
     borderColor: '#D0D5DD',
     borderWidth: 1,
     borderRadius: 12,
     backgroundColor: '#F8FAFC',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   inputContainerFocused: {
     borderColor: '#6200EE',
     backgroundColor: '#FFFFFF',
   },
   input: {
+    minHeight: 44,
+    maxHeight: 104,
     paddingHorizontal: 12,
-    paddingVertical: 0,
+    paddingVertical: 8,
     fontSize: 15,
+    lineHeight: 20,
     color: '#101828',
   },
   sendButton: {
@@ -652,6 +661,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 12,
     minWidth: 86,
+    alignSelf: 'flex-end',
   },
   sendButtonContent: {
     height: 46,
