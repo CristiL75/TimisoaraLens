@@ -3813,6 +3813,15 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
     if not payload.provider_name and llm_entities.get("provider_name"):
         payload.provider_name = llm_entities.get("provider_name")
 
+    provider = await _resolve_provider_for_assistant(payload)
+    provider_id = str(provider.get("_id")) if provider else None
+    if intent == "unknown" and provider_id and rule_intent in {
+        "create_booking",
+        "check_availability",
+        "service_inquiry",
+    }:
+        intent = rule_intent
+
     if intent == "unknown":
         return BookingAssistantResponse(
             intent="unknown",
@@ -3826,14 +3835,6 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             ],
         )
 
-    provider = await _resolve_provider_for_assistant(payload)
-    provider_id = str(provider.get("_id")) if provider else None
-    if intent == "unknown" and provider_id and rule_intent in {
-        "create_booking",
-        "check_availability",
-        "service_inquiry",
-    }:
-        intent = rule_intent
     combined_text = "\n".join(filter(None, [payload.message, history_text]))
 
     booking_date = (
