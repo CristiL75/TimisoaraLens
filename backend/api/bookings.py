@@ -2102,6 +2102,21 @@ def _conversation_history_to_text(conversation_history: Optional[list[Any]], max
     return "\n".join(parts)
 
 
+def _latest_non_empty_history_message(conversation_history: Optional[list[Any]]) -> str:
+    if not conversation_history:
+        return ""
+
+    for item in reversed(conversation_history):
+        if isinstance(item, dict):
+            content = item.get("content")
+        else:
+            content = getattr(item, "content", None)
+        content_text = str(content or "").strip()
+        if content_text:
+            return content_text
+    return ""
+
+
 async def _resolve_experience_for_assistant(payload: BookingAssistantRequest, experience_hint: Optional[str] = None) -> Optional[dict]:
     experiences_col = get_experiences_collection()
     hint = (experience_hint or "").strip()
@@ -4153,6 +4168,10 @@ def _build_missing_fields_message(missing: list[str], context: str = "") -> str:
 
 @router.post("/assistant", response_model=BookingAssistantResponse)
 async def booking_assistant(payload: BookingAssistantRequest, http_request: Request):
+    effective_message = (payload.message or "").strip() or _latest_non_empty_history_message(payload.conversation_history)
+    if effective_message:
+        payload.message = effective_message
+
     history_text = _conversation_history_to_text(payload.conversation_history)
     assistant_language = await _detect_booking_assistant_language_with_llm(
         payload.message,
