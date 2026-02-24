@@ -22,25 +22,6 @@ import { useNavigation } from '@react-navigation/native';
 import { ragAPI, bookingsAPI } from '../services/api';
 import SuggestedQuestions from './SuggestedQuestions';
 
-const MISSING_FIELD_LABELS = {
-  provider_id: 'locația / serviciul',
-  booking_date: 'data rezervării',
-  start_time: 'ora de început',
-  end_time: 'ora de final',
-  duration_minutes: 'durata',
-  customer_name: 'numele tău',
-  customer_email: 'email',
-  customer_phone: 'telefon',
-  room_id: 'sala dorită',
-  table_id: 'masa dorită',
-  service_id: 'serviciul dorit',
-  employee_id: 'specialistul dorit',
-  car_id: 'mașina dorită',
-  rental_end_date: 'data de final',
-  rental_end_time: 'ora de final',
-  booking_id: 'ID-ul rezervării',
-};
-
 const CONVERSATION_CONTEXT_MESSAGES = 6;
 
 // Fields carried forward so resolved IDs/dates survive beyond the context window
@@ -49,6 +30,7 @@ const BOOKING_CTX_FIELDS = [
   'table_id', 'room_id', 'car_id',
   'booking_date', 'start_time', 'end_time', 'duration_minutes',
   'rental_end_date', 'rental_end_time', 'party_size',
+  'customer_name', 'customer_email', 'customer_phone',
 ];
 
 /**
@@ -131,6 +113,7 @@ export default function ChatWidget() {
     };
 
     const assistantResult = await bookingsAPI.bookingAssistant(assistantPayload);
+    console.log('Booking Assistant Result:', assistantResult);
     if (assistantResult.success && assistantResult.data?.handled) {
       // Update persisted booking context with any newly resolved fields
       const responseData = assistantResult.data || {};
@@ -149,25 +132,7 @@ export default function ChatWidget() {
       }
 
       const missingFields = responseData.missing_fields || [];
-      const suggestions = responseData.suggestions || [];
       let assistantText = responseData.message || 'Am procesat cererea de rezervare.';
-
-      if (missingFields.length > 0) {
-        const translatedMissingFields = missingFields.map(
-          (field) => MISSING_FIELD_LABELS[field] || field
-        );
-        assistantText += `\n\nDate lipsă: ${translatedMissingFields.join(', ')}`;
-
-        if (missingFields.includes('room_id')) {
-          assistantText += '\nExemplu: „Sala Mare” sau „Iulius Congress Hall”.';
-        }
-        if (missingFields.includes('duration_minutes') && !missingFields.includes('end_time')) {
-          assistantText += '\nExemplu durată: „pentru 2 ore”.';
-        }
-      }
-      if (suggestions.length > 0) {
-        assistantText += `\n\nSugestii:\n- ${suggestions.join('\n- ')}`;
-      }
 
       const assistantMessage = {
         id: `b-${Date.now()}`,
@@ -177,6 +142,12 @@ export default function ChatWidget() {
       setMessages((prev) => [...prev, assistantMessage]);
       setIsLoading(false);
       return;
+    }
+
+    if (!assistantResult.success) {
+      console.log('Booking assistant fallback reason: request failed', assistantResult.error);
+    } else if (!assistantResult.data?.handled) {
+      console.log('Booking assistant fallback reason: handled=false', assistantResult.data);
     }
 
     // Query RAG endpoint with conversation context

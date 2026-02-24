@@ -805,6 +805,9 @@ class BookingAssistantResponse(BaseModel):
     rental_end_date: Optional[str] = None
     rental_end_time: Optional[str] = None
     party_size: Optional[int] = None
+    customer_name: Optional[str] = None
+    customer_email: Optional[str] = None
+    customer_phone: Optional[str] = None
     availability: Optional[AvailabilityResponse] = None
     booking: Optional[BookingResponse] = None
     suggestions: List[str] = []
@@ -4436,39 +4439,111 @@ async def check_availability(
     return AvailabilityResponse(date=date, slots=slots, tables=table_availability)
 
 
-_MISSING_FIELD_LABELS: dict[str, str] = {
-    "provider_id":      "locația / furnizorul (ex: \"la Barber Shop X\")",
-    "booking_date":     "data rezervării (ex: \"15 martie\", \"mâine\")",
-    "start_time":       "ora de începere (ex: \"14:30\")",
-    "end_time":         "ora de terminare (ex: \"16:00\")",
-    "duration_minutes": "durata (ex: \"2 ore\", \"90 de minute\")",
-    "customer_name":    "numele tău complet (ex: \"Nume: Ion Popescu\")",
-    "customer_email":   "adresa de email (ex: \"email@exemplu.com\")",
-    "customer_phone":   "numărul de telefon (ex: \"0721123456\")",
-    "service_id":       "serviciul dorit (ex: \"Tuns\", \"Tuns Si Barbă\")",
-    "employee_id":      "specialistul / angajatul dorit (ex: \"la George\")",
-    "table_id":         "masa dorită",
-    "room_id":          "sala sau spațiul dorit",
-    "car_id":           "mașina selectată (ex: \"Dacia Logan\")",
-    "rental_end_date":  "data de returnare a mașinii",
-    "rental_end_time":  "ora de returnare a mașinii",
-    "booking_id":       "ID-ul rezervării",
-    "party_size":       "numărul de persoane (ex: \"2 persoane\")",
-}
-
-
-def _build_missing_fields_message(missing: list[str], context: str = "") -> str:
-    """Return a human-friendly Romanian message listing what the user still needs to provide."""
+async def _build_missing_fields_message_with_llm(
+    missing: list[str],
+    context: str = "",
+    target_language: str = "ro",
+) -> str:
     if not missing:
-        return context or "Toate informațiile necesare au fost completate."
+        if context:
+            return context
+        return "All required booking details are available."
 
-    labels = [_MISSING_FIELD_LABELS.get(f, f) for f in missing]
+    normalized_language = _normalize_assistant_language_code(target_language) or "en"
+    fields = [str(item).strip() for item in missing if str(item).strip()]
+    if not fields:
+        return context or "Please provide the missing details to continue."
 
-    intro = context or "Pentru a continua, mai am nevoie de câteva informații:"
-    if len(labels) == 1:
-        return f"{intro}\n• {labels[0]}"
-    bullet_list = "\n".join(f"• {label}" for label in labels)
-    return f"{intro}\n{bullet_list}"
+    if not RAG_BASE_URL:
+        intro = context or "Please provide the following details:"
+        bullets = "\n".join(f"• {field.replace('_', ' ')}" for field in fields)
+        return f"{intro}\n{bullets}"
+
+    context_line = context or "Please provide the missing details so I can continue the booking."
+    fields_json = json.dumps(fields, ensure_ascii=False)
+    prompt = f"""You are writing booking-assistant UX text.
+Target language: {normalized_language}
+
+Create a concise plain-text message for missing booking fields.
+Requirements:
+- Return ONLY plain text (no JSON, no XML tags, no markdown code fences).
+- Keep it short and actionable.
+- First line should be the context sentence.
+- Then include one bullet per field using natural user-facing wording.
+- For phone/email/date/time fields, optionally include a short example format.
+- Preserve field intent exactly from this list: {fields_json}
+
+Context sentence:
+{context_line}
+"""
+
+    try:
+        async with httpx.AsyncClient(timeout=RAG_SYNC_TIMEOUT) as client:
+            response = await client.post(
+                f"{RAG_BASE_URL}/generate",
+                json={"prompt": prompt, "max_tokens": 220},
+            )
+            response.raise_for_status()
+            generated = _sanitize_llm_text_output(((response.json() or {}).get("generated_text") or "").strip())
+            if generated:
+                return generated
+    except Exception:
+        pass
+
+    intro = context or "Please provide the following details:"
+    bullets = "\n".join(f"• {field.replace('_', ' ')}" for field in fields)
+    return f"{intro}\n{bullets}"
+
+
+async def _compose_assistant_message_with_suggestions_with_llm(
+    message: str,
+    suggestions: list[str],
+    target_language: str = "ro",
+) -> str:
+    base_message = str(message or "").strip()
+    items = [str(item).strip() for item in (suggestions or []) if str(item).strip()]
+    if not items:
+        return base_message
+
+    normalized_language = _normalize_assistant_language_code(target_language) or "en"
+    if not RAG_BASE_URL:
+        bullet_lines = "\n".join(f"- {item}" for item in items)
+        return f"{base_message}\n\n{bullet_lines}" if base_message else bullet_lines
+
+    suggestions_json = json.dumps(items, ensure_ascii=False)
+    prompt = f"""You are writing the final booking assistant reply.
+Target language: {normalized_language}
+
+Task:
+- Merge the base message and suggestions into one concise plain-text response.
+- Keep the original meaning intact.
+- Suggestions should be phrased as optional next steps.
+- Return ONLY plain text (no JSON/XML/markdown code fences).
+
+Base message:
+<message>
+{base_message}
+</message>
+
+Suggestions list:
+{suggestions_json}
+"""
+
+    try:
+        async with httpx.AsyncClient(timeout=RAG_SYNC_TIMEOUT) as client:
+            response = await client.post(
+                f"{RAG_BASE_URL}/generate",
+                json={"prompt": prompt, "max_tokens": 320},
+            )
+            response.raise_for_status()
+            generated = _sanitize_llm_text_output(((response.json() or {}).get("generated_text") or "").strip())
+            if generated:
+                return generated
+    except Exception:
+        pass
+
+    bullet_lines = "\n".join(f"- {item}" for item in items)
+    return f"{base_message}\n\n{bullet_lines}" if base_message else bullet_lines
 
 
 @router.post("/assistant", response_model=BookingAssistantResponse)
@@ -4511,7 +4586,28 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
 
     async def _respond(**kwargs) -> BookingAssistantResponse:
         response = BookingAssistantResponse(**kwargs)
+        if response.suggestions:
+            merged_message = await _compose_assistant_message_with_suggestions_with_llm(
+                response.message,
+                response.suggestions,
+                target_language=assistant_language,
+            )
+            updates = {
+                "message": merged_message,
+                "suggestions": [],
+            }
+            if hasattr(response, "model_copy"):
+                response = response.model_copy(update=updates)
+            else:
+                response = response.copy(update=updates)
         return await _localize_booking_assistant_response(response, assistant_language)
+
+    async def _missing_fields_message(missing: list[str], context: str) -> str:
+        return await _build_missing_fields_message_with_llm(
+            sorted(set(missing)),
+            context=context,
+            target_language=assistant_language,
+        )
 
     llm_entities = await _extract_booking_entities_with_llm(payload.message)
 
@@ -4548,7 +4644,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
         booking_action = await _is_booking_action_request_with_llm(payload.message, history_text)
         if booking_action is True:
             intent = "create_booking"
-    if intent == "service_inquiry" and _has_structured_booking_progress(payload, llm_entities, payload.message):
+    if intent in {"unknown", "service_inquiry"} and _has_structured_booking_progress(payload, llm_entities, payload.message):
         intent = "create_booking"
     if intent not in ASSISTANT_ALLOWED_INTENTS:
         intent = "unknown"
@@ -4838,10 +4934,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
                 intent=intent,
                 handled=True,
                 **_ctx(),
-                message=_build_missing_fields_message(
-                    missing_fields,
-                    "Pentru a verifica disponibilitatea, mai am nevoie de:",
-                ),
+                message=await _missing_fields_message(missing_fields, "Please provide the following details to check availability:"),
                 missing_fields=missing_fields,
                 suggestions=["Exemplu: verifică disponibilitatea la [locație] pe 2026-03-10 la 19:00"],
             )
@@ -4970,10 +5063,12 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
                 return await _respond(
                     intent=intent,
                     handled=True,
-                    message=_build_missing_fields_message(
-                        sorted(set(exp_missing_fields)),
-                        "Pentru a rezerva experiența, mai am nevoie de:",
+                    **_ctx(
+                        customer_name=customer_name,
+                        customer_email=customer_email,
+                        customer_phone=customer_phone,
                     ),
+                    message=await _missing_fields_message(exp_missing_fields, "Please provide the following details to book this experience:"),
                     missing_fields=sorted(set(exp_missing_fields)),
                 )
 
@@ -4993,6 +5088,11 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
                 return await _respond(
                     intent=intent,
                     handled=True,
+                    **_ctx(
+                        customer_name=customer_name,
+                        customer_email=customer_email,
+                        customer_phone=customer_phone,
+                    ),
                     booking_id=experience_booking.id,
                     message=f"Rezervarea pentru experiența „{experience.get('name', 'selectată')}” a fost creată. ID: {experience_booking.id}",
                 )
@@ -5000,6 +5100,11 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
                 return await _respond(
                     intent=intent,
                     handled=True,
+                    **_ctx(
+                        customer_name=customer_name,
+                        customer_email=customer_email,
+                        customer_phone=customer_phone,
+                    ),
                     message=f"Nu am putut crea rezervarea pentru experiență: {exc.detail}",
                 )
 
@@ -5044,11 +5149,12 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             return await _respond(
                 intent=intent,
                 handled=True,
-                **_ctx(),
-                message=_build_missing_fields_message(
-                    sorted(set(missing_fields)),
-                    "Pentru a crea rezervarea, mai am nevoie de:",
+                **_ctx(
+                    customer_name=customer_name,
+                    customer_email=customer_email,
+                    customer_phone=customer_phone,
                 ),
+                message=await _missing_fields_message(missing_fields, "Please provide the following details to create the booking:"),
                 missing_fields=sorted(set(missing_fields)),
             )
 
@@ -5077,7 +5183,11 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             return await _respond(
                 intent=intent,
                 handled=True,
-                **_ctx(),
+                **_ctx(
+                    customer_name=customer_name,
+                    customer_email=customer_email,
+                    customer_phone=customer_phone,
+                ),
                 booking_id=booking.id,
                 booking=booking,
                 message=f"Rezervarea a fost creată cu succes. ID: {booking.id}",
@@ -5086,7 +5196,11 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             return await _respond(
                 intent=intent,
                 handled=True,
-                **_ctx(),
+                **_ctx(
+                    customer_name=customer_name,
+                    customer_email=customer_email,
+                    customer_phone=customer_phone,
+                ),
                 message=f"Nu am putut crea rezervarea: {exc.detail}",
             )
 
