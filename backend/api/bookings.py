@@ -60,14 +60,24 @@ NO_EMPLOYEE_CATEGORIES = {
 
 RAG_BASE_URL = (os.getenv("RAG_BASE_URL") or os.getenv("HF_RAG_SPACE_URL") or "").rstrip("/")
 RAG_SYNC_TIMEOUT = float(os.getenv("RAG_SYNC_TIMEOUT", "8"))
+BOOKINGS_PURGE_INTERVAL_SECONDS = int(os.getenv("BOOKINGS_PURGE_INTERVAL_SECONDS", "900"))
+_LAST_BOOKINGS_PURGE_AT: Optional[datetime] = None
 
 
 
 async def purge_expired_bookings(bookings_col) -> None:
     """Delete bookings that expired one day after booking_date."""
+    global _LAST_BOOKINGS_PURGE_AT
     try:
+        now = datetime.utcnow()
+        if _LAST_BOOKINGS_PURGE_AT and BOOKINGS_PURGE_INTERVAL_SECONDS > 0:
+            elapsed = (now - _LAST_BOOKINGS_PURGE_AT).total_seconds()
+            if elapsed < BOOKINGS_PURGE_INTERVAL_SECONDS:
+                return
+
         today_str = datetime.utcnow().date().isoformat()
         await bookings_col.delete_many({"booking_date": {"$lt": today_str}})
+        _LAST_BOOKINGS_PURGE_AT = now
     except Exception as exc:
         print(f"[ERROR] Failed to purge expired bookings: {exc}")
 
@@ -1292,7 +1302,7 @@ Text:
                 json={"prompt": prompt, "max_tokens": min(500, max(120, len(content) * 2))},
             )
             response.raise_for_status()
-            translated = ((response.json() or {}).get("generated_text") or "").strip()
+            translated = _sanitize_llm_text_output(((response.json() or {}).get("generated_text") or "").strip())
             if not translated:
                 return _localize_placeholder_tokens(text, lang)
 
@@ -1305,7 +1315,7 @@ Text:
                 json={"prompt": retry_prompt, "max_tokens": min(500, max(120, len(content) * 2))},
             )
             retry_response.raise_for_status()
-            retry_translated = ((retry_response.json() or {}).get("generated_text") or "").strip()
+            retry_translated = _sanitize_llm_text_output(((retry_response.json() or {}).get("generated_text") or "").strip())
             if not retry_translated:
                 return _localize_placeholder_tokens(translated, lang)
 
@@ -2119,6 +2129,30 @@ async def _resolve_provider_for_assistant(payload: BookingAssistantRequest):
     history_text = _conversation_history_to_text(payload.conversation_history)
     combined_text = "\n".join(filter(None, [payload.message, history_text]))
 
+    current_message = (payload.message or "").strip()
+    current_text_lower = current_message.lower()
+
+    if current_text_lower:
+        active_providers = await providers_col.find({"status": "active"}, {"name": 1}).to_list(300)
+        for provider_doc in active_providers:
+            name = str(provider_doc.get("name") or "").strip()
+            if name and name.lower() in current_text_lower:
+                provider = await providers_col.find_one({"_id": provider_doc["_id"]})
+                if provider:
+                    return provider
+
+        current_hint = _extract_provider_name_hint_from_text(current_message) or ""
+        if current_hint:
+            exact_regex = {"$regex": f"^{re.escape(current_hint)}$", "$options": "i"}
+            provider = await providers_col.find_one({"name": exact_regex, "status": "active"})
+            if provider:
+                return provider
+
+            contains_regex = {"$regex": re.escape(current_hint), "$options": "i"}
+            provider = await providers_col.find_one({"name": contains_regex, "status": "active"})
+            if provider:
+                return provider
+
     candidate_ids = []
     if payload.provider_id:
         candidate_ids.append(str(payload.provider_id))
@@ -2361,6 +2395,24 @@ def _latest_language_signal_line(text: str) -> str:
         if candidate and _has_language_signal(candidate):
             return candidate
     return ""
+
+
+def _sanitize_llm_text_output(text: str) -> str:
+    content = str(text or "").strip()
+    if not content:
+        return ""
+
+    content = re.sub(r"^```(?:text|txt|markdown)?\s*", "", content, flags=re.IGNORECASE)
+    content = re.sub(r"\s*```$", "", content)
+
+    wrappers = ["text", "response", "translated_text", "translation", "output"]
+    for wrapper in wrappers:
+        pattern = rf"^\s*<{wrapper}>\s*(.*?)\s*</{wrapper}>\s*$"
+        match = re.match(pattern, content, flags=re.IGNORECASE | re.DOTALL)
+        if match:
+            content = (match.group(1) or "").strip()
+
+    return content
 
 
 async def _resolve_experience_for_assistant(payload: BookingAssistantRequest, experience_hint: Optional[str] = None) -> Optional[dict]:
@@ -4688,7 +4740,8 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             else:
                 summary_lines.append("- Nu există angajați activi în listă.")
 
-            suggestions.append("Spune serviciul, data și ora dorită ca să verific disponibilitatea.")
+            suggestions.append("Dacă vrei, îți pot detalia un serviciu sau un specialist anume.")
+            suggestions.append("Pentru disponibilitate, poți spune opțional serviciul, data și ora.")
 
         elif booking_type == "space_based":
             rooms_col = get_rooms_collection()
@@ -4702,17 +4755,20 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
                     summary_lines.append(
                         f"- {item.get('name')} (capacitate {item.get('capacity')}, tip {item.get('space_type')})"
                     )
-                suggestions.append("Spune data, intervalul și numărul de participanți pentru verificare.")
+                suggestions.append("Dacă vrei, îți pot detalia un spațiu anume (capacitate, dotări).")
+                suggestions.append("Pentru disponibilitate, poți spune opțional data și intervalul dorit.")
             else:
                 summary_lines.append("- Nu există spații active în listă.")
 
         elif booking_type == "fleet_based":
             cars = provider.get("cars") or []
+            summary_lines = [f"Flota disponibilă la {provider_name}:"]
             if cars:
                 for car in cars[:8]:
                     label = f"{car.get('brand', '')} {car.get('model', '')}".strip() or "Mașină"
                     summary_lines.append(f"- {label}")
-                suggestions.append("Spune data de start și data de final pentru disponibilitate.")
+                suggestions.append("Dacă vrei, îți dau detalii despre un model (an, transmisie, combustibil, preț).")
+                suggestions.append("Pentru disponibilitate, poți spune opțional intervalul dorit (start și final).")
             else:
                 summary_lines.append("- Nu există mașini active în listă.")
 
@@ -4748,7 +4804,8 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
                             labels.append(str(rt))
                     summary_lines.append(f"- Tipuri speciale: {', '.join(labels)}")
 
-                suggestions.append("Spune data, ora și numărul de persoane ca să verific disponibilitatea.")
+                suggestions.append("Dacă vrei, îți pot recomanda o masă potrivită după numărul de persoane.")
+                suggestions.append("Pentru disponibilitate, poți spune opțional data și ora dorită.")
             else:
                 summary_lines.append("- Nu există mese active în listă.")
 
