@@ -1102,6 +1102,135 @@ Most recent user message:
     return None
 
 
+def _normalize_assistant_language_code(code: Optional[str]) -> Optional[str]:
+    raw = (code or "").strip().lower().replace("_", "-")
+    if not raw:
+        return None
+    base = raw.split("-", 1)[0]
+    allowed = {"ro", "en", "de", "fr", "es", "it", "hu"}
+    return base if base in allowed else None
+
+
+def _detect_language_from_accept_language(accept_language: str) -> Optional[str]:
+    value = (accept_language or "").strip()
+    if not value:
+        return None
+
+    parts = [part.strip() for part in value.split(",") if part.strip()]
+    for part in parts:
+        lang_token = part.split(";", 1)[0].strip()
+        normalized = _normalize_assistant_language_code(lang_token)
+        if normalized:
+            return normalized
+    return None
+
+
+async def _detect_booking_assistant_language_with_llm(
+    message: str,
+    history_text: str = "",
+    accept_language: str = "",
+) -> str:
+    text = (message or "").strip()
+    header_lang = _detect_language_from_accept_language(accept_language)
+    if not text:
+        return header_lang or "ro"
+    if not RAG_BASE_URL:
+        return header_lang or "ro"
+
+    prompt = f"""Detect the language of the MOST RECENT user message in a booking conversation.
+Return ONLY one language code from this set:
+ro | en | de | fr | es | it | hu
+
+Rules:
+- Focus on the most recent user message.
+- If mixed language, return the dominant language.
+- If uncertain, return ro.
+
+Conversation history:
+<history>
+{(history_text or '').strip()}
+</history>
+
+Most recent user message:
+<message>
+{text}
+</message>
+"""
+
+    try:
+        async with httpx.AsyncClient(timeout=RAG_SYNC_TIMEOUT) as client:
+            response = await client.post(
+                f"{RAG_BASE_URL}/generate",
+                json={"prompt": prompt, "max_tokens": 8},
+            )
+            response.raise_for_status()
+            generated_text = ((response.json() or {}).get("generated_text") or "").strip().lower()
+    except Exception:
+        return header_lang or "ro"
+
+    match = re.search(r"\b(ro|en|de|fr|es|it|hu)\b", generated_text)
+    if match:
+        normalized = _normalize_assistant_language_code(match.group(1))
+        if normalized:
+            return normalized
+    return header_lang or "ro"
+
+
+async def _translate_booking_assistant_text_with_llm(text: str, target_language: str) -> str:
+    content = (text or "").strip()
+    lang = (target_language or "").strip().lower()
+    if not content or not lang or lang == "ro":
+        return text
+    if not RAG_BASE_URL:
+        return text
+
+    prompt = f"""Translate the following booking assistant text to language code '{lang}'.
+Return ONLY the translated text, preserving:
+- IDs, dates, times, numbers, URLs, placeholders like [locație]
+- bullet markers and line breaks
+- technical field names in quotes (if any)
+
+Text:
+<text>
+{content}
+</text>
+"""
+
+    try:
+        async with httpx.AsyncClient(timeout=RAG_SYNC_TIMEOUT) as client:
+            response = await client.post(
+                f"{RAG_BASE_URL}/generate",
+                json={"prompt": prompt, "max_tokens": min(500, max(120, len(content) * 2))},
+            )
+            response.raise_for_status()
+            translated = ((response.json() or {}).get("generated_text") or "").strip()
+            return translated or text
+    except Exception:
+        return text
+
+
+async def _localize_booking_assistant_response(
+    response: "BookingAssistantResponse",
+    target_language: str,
+) -> "BookingAssistantResponse":
+    lang = (target_language or "").strip().lower()
+    if not lang or lang == "ro":
+        return response
+
+    localized_message = await _translate_booking_assistant_text_with_llm(response.message, lang)
+    localized_suggestions = []
+    for item in response.suggestions or []:
+        localized_suggestions.append(await _translate_booking_assistant_text_with_llm(item, lang))
+
+    updates = {
+        "message": localized_message,
+        "suggestions": localized_suggestions,
+    }
+    if hasattr(response, "model_copy"):
+        return response.model_copy(update=updates)
+    return response.copy(update=updates)
+
+
 ASSISTANT_ALLOWED_INTENTS = {
     "create_booking",
     "check_availability",
@@ -4025,6 +4154,16 @@ def _build_missing_fields_message(missing: list[str], context: str = "") -> str:
 @router.post("/assistant", response_model=BookingAssistantResponse)
 async def booking_assistant(payload: BookingAssistantRequest, http_request: Request):
     history_text = _conversation_history_to_text(payload.conversation_history)
+    assistant_language = await _detect_booking_assistant_language_with_llm(
+        payload.message,
+        history_text,
+        http_request.headers.get("accept-language") or http_request.headers.get("Accept-Language") or "",
+    )
+
+    async def _respond(**kwargs) -> BookingAssistantResponse:
+        response = BookingAssistantResponse(**kwargs)
+        return await _localize_booking_assistant_response(response, assistant_language)
+
     llm_entities = await _extract_booking_entities_with_llm(payload.message)
     llm_intent = await _classify_booking_assistant_intent_with_llm(payload.message, history_text)
     entity_inferred_intent = _infer_booking_intent_from_entities(llm_entities)
@@ -4070,7 +4209,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
         intent = rule_intent
 
     if intent == "unknown":
-        return BookingAssistantResponse(
+        return await _respond(
             intent="unknown",
             handled=False,
             message="Te pot ajuta cu servicii și rezervări: ce servicii există, disponibilitate, rezervare nouă sau anulare.",
@@ -4195,7 +4334,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
 
     if intent == "service_inquiry":
         if not provider_id:
-            return BookingAssistantResponse(
+            return await _respond(
                 intent=intent,
                 handled=True,
                 **_ctx(),
@@ -4301,7 +4440,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             else:
                 summary_lines.append("- Nu există mese active în listă.")
 
-        return BookingAssistantResponse(
+        return await _respond(
             intent=intent,
             handled=True,
             **_ctx(),
@@ -4326,7 +4465,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
                 missing_fields.append("employee_id")
 
         if missing_fields:
-            return BookingAssistantResponse(
+            return await _respond(
                 intent=intent,
                 handled=True,
                 **_ctx(),
@@ -4410,7 +4549,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             else:
                 message = "Nu sunt sloturi disponibile pe data selectată."
 
-            return BookingAssistantResponse(
+            return await _respond(
                 intent=intent,
                 handled=True,
                 **_ctx(),
@@ -4418,7 +4557,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
                 availability=availability,
             )
         except HTTPException as exc:
-            return BookingAssistantResponse(
+            return await _respond(
                 intent=intent,
                 handled=True,
                 **_ctx(),
@@ -4459,7 +4598,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
                 exp_missing_fields.append("customer_phone")
 
             if exp_missing_fields:
-                return BookingAssistantResponse(
+                return await _respond(
                     intent=intent,
                     handled=True,
                     message=_build_missing_fields_message(
@@ -4482,14 +4621,14 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
 
             try:
                 experience_booking = await create_experience_booking(experience_payload, http_request)
-                return BookingAssistantResponse(
+                return await _respond(
                     intent=intent,
                     handled=True,
                     booking_id=experience_booking.id,
                     message=f"Rezervarea pentru experiența „{experience.get('name', 'selectată')}” a fost creată. ID: {experience_booking.id}",
                 )
             except HTTPException as exc:
-                return BookingAssistantResponse(
+                return await _respond(
                     intent=intent,
                     handled=True,
                     message=f"Nu am putut crea rezervarea pentru experiență: {exc.detail}",
@@ -4533,7 +4672,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
             resolved_room_id = payload.room_id
 
         if missing_fields:
-            return BookingAssistantResponse(
+            return await _respond(
                 intent=intent,
                 handled=True,
                 **_ctx(),
@@ -4566,7 +4705,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
 
         try:
             booking = await create_booking(create_payload, http_request)
-            return BookingAssistantResponse(
+            return await _respond(
                 intent=intent,
                 handled=True,
                 **_ctx(),
@@ -4575,7 +4714,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
                 message=f"Rezervarea a fost creată cu succes. ID: {booking.id}",
             )
         except HTTPException as exc:
-            return BookingAssistantResponse(
+            return await _respond(
                 intent=intent,
                 handled=True,
                 **_ctx(),
@@ -4584,7 +4723,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
 
     booking_id = payload.booking_id or _extract_booking_id_from_text(payload.message)
     if not booking_id:
-        return BookingAssistantResponse(
+        return await _respond(
             intent="cancel_booking",
             handled=True,
             message="Pentru anulare am nevoie de ID-ul rezervării.",
@@ -4593,7 +4732,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
 
     current_user = await get_optional_user_from_request(http_request)
     if not current_user:
-        return BookingAssistantResponse(
+        return await _respond(
             intent="cancel_booking",
             handled=True,
             booking_id=booking_id,
@@ -4603,7 +4742,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
 
     bookings_col = get_bookings_collection()
     if not ObjectId.is_valid(booking_id):
-        return BookingAssistantResponse(
+        return await _respond(
             intent="cancel_booking",
             handled=True,
             booking_id=booking_id,
@@ -4612,7 +4751,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
 
     booking_doc = await bookings_col.find_one({"_id": ObjectId(booking_id)})
     if not booking_doc:
-        return BookingAssistantResponse(
+        return await _respond(
             intent="cancel_booking",
             handled=True,
             booking_id=booking_id,
@@ -4620,7 +4759,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
         )
 
     if booking_doc.get("customer_email") != current_user.get("email"):
-        return BookingAssistantResponse(
+        return await _respond(
             intent="cancel_booking",
             handled=True,
             booking_id=booking_id,
@@ -4630,14 +4769,14 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
     try:
         booking_date_obj = datetime.strptime(booking_doc["booking_date"], "%Y-%m-%d").date()
         if booking_date_obj == datetime.utcnow().date():
-            return BookingAssistantResponse(
+            return await _respond(
                 intent="cancel_booking",
                 handled=True,
                 booking_id=booking_id,
                 message="Nu poți anula rezervarea în aceeași zi.",
             )
     except ValueError:
-        return BookingAssistantResponse(
+        return await _respond(
             intent="cancel_booking",
             handled=True,
             booking_id=booking_id,
@@ -4654,7 +4793,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
         },
     )
 
-    return BookingAssistantResponse(
+    return await _respond(
         intent="cancel_booking",
         handled=True,
         booking_id=booking_id,
