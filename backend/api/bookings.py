@@ -2317,6 +2317,23 @@ def _last_non_empty_line(text: str) -> str:
     return ""
 
 
+def _is_short_acknowledgement_message(message: str) -> bool:
+    text = (message or "").strip().lower()
+    if not text:
+        return False
+
+    normalized = "".join(
+        char for char in unicodedata.normalize("NFD", text) if unicodedata.category(char) != "Mn"
+    )
+    normalized = re.sub(r"[.!?,;:\-\s]+", "", normalized)
+
+    acknowledgements = {
+        "ok", "okay", "k", "kk", "mersi", "multumesc", "merci", "thanks", "thankyou",
+        "thx", "danke", "super", "perfect", "allesklar", "verstanden", "bine", "gotit",
+    }
+    return normalized in acknowledgements
+
+
 async def _resolve_experience_for_assistant(payload: BookingAssistantRequest, experience_hint: Optional[str] = None) -> Optional[dict]:
     experiences_col = get_experiences_collection()
     hint = (experience_hint or "").strip()
@@ -4382,6 +4399,14 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
     )
 
     history_text = _conversation_history_to_text(payload.conversation_history)
+
+    if _is_short_acknowledgement_message(payload.message):
+        return BookingAssistantResponse(
+            intent="unknown",
+            handled=False,
+            message="Ack shortcut: delegate to general chat.",
+        )
+
     assistant_language = await _detect_booking_assistant_language_with_llm(
         payload.message,
         history_text,
