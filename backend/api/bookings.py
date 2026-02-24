@@ -1138,19 +1138,27 @@ async def _detect_booking_assistant_language_with_llm(
         return header_lang or "ro"
 
     prompt = f"""Detect the language of the MOST RECENT user message in a booking conversation.
-Return ONLY one language code from this set:
-ro | en | de | fr | es | it | hu
+Return ONLY minified JSON in this exact format:
+{{"lang":"ro|en|de|fr|es|it|hu"}}
 
 Rules:
 - Focus on the most recent user message.
 - If mixed language, return the dominant language.
 - If uncertain, return ro.
+- Do not return explanations.
 
 Conversation history:
 <history>
 {(history_text or '').strip()}
 </history>
 
+Most recent user message:
+<message>
+{text}
+</message>
+"""
+
+    retry_prompt = f"""Return ONLY one token from this set: ro en de fr es it hu
 Most recent user message:
 <message>
 {text}
@@ -1165,14 +1173,39 @@ Most recent user message:
             )
             response.raise_for_status()
             generated_text = ((response.json() or {}).get("generated_text") or "").strip().lower()
+
+            parsed_json = None
+            try:
+                parsed_json = json.loads(generated_text)
+            except Exception:
+                parsed_json = None
+
+            if isinstance(parsed_json, dict):
+                normalized = _normalize_assistant_language_code(str(parsed_json.get("lang") or "").strip())
+                if normalized:
+                    return normalized
+
+            match = re.search(r"\b(ro|en|de|fr|es|it|hu)\b", generated_text)
+            if match:
+                normalized = _normalize_assistant_language_code(match.group(1))
+                if normalized:
+                    return normalized
+
+            retry_response = await client.post(
+                f"{RAG_BASE_URL}/generate",
+                json={"prompt": retry_prompt, "max_tokens": 6},
+            )
+            retry_response.raise_for_status()
+            retry_text = ((retry_response.json() or {}).get("generated_text") or "").strip().lower()
+
+            retry_match = re.search(r"\b(ro|en|de|fr|es|it|hu)\b", retry_text)
+            if retry_match:
+                normalized = _normalize_assistant_language_code(retry_match.group(1))
+                if normalized:
+                    return normalized
     except Exception:
         return header_lang or "ro"
 
-    match = re.search(r"\b(ro|en|de|fr|es|it|hu)\b", generated_text)
-    if match:
-        normalized = _normalize_assistant_language_code(match.group(1))
-        if normalized:
-            return normalized
     return header_lang or "ro"
 
 
@@ -4177,6 +4210,14 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
         payload.message,
         history_text,
         http_request.headers.get("accept-language") or http_request.headers.get("Accept-Language") or "",
+    )
+    print(
+        "[ASSISTANT_LANG]",
+        {
+            "message": (payload.message or "")[:160],
+            "detected_language": assistant_language,
+            "accept_language": (http_request.headers.get("accept-language") or http_request.headers.get("Accept-Language") or "")[:80],
+        }
     )
 
     async def _respond(**kwargs) -> BookingAssistantResponse:
