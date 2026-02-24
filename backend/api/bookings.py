@@ -1235,10 +1235,22 @@ async def _detect_booking_assistant_language_with_llm(
     history_text: str = "",
     accept_language: str = "",
 ) -> str:
-    text = (message or "").strip() or _last_non_empty_line(history_text)
+    raw_message = (message or "").strip()
+    text = raw_message or _last_non_empty_line(history_text)
     header_lang = _detect_language_from_accept_language(accept_language)
     if not text:
         return header_lang or "ro"
+
+    if _has_language_signal(raw_message):
+        detected_from_message = await _detect_language_from_text_with_llm(raw_message)
+        return detected_from_message or header_lang or "ro"
+
+    history_candidate = _latest_language_signal_line(history_text)
+    if history_candidate:
+        detected_from_history = await _detect_language_from_text_with_llm(history_candidate)
+        if detected_from_history:
+            return detected_from_history
+
     detected = await _detect_language_from_text_with_llm(text)
     return detected or header_lang or "ro"
 
@@ -2332,6 +2344,23 @@ def _is_short_acknowledgement_message(message: str) -> bool:
         "thx", "danke", "super", "perfect", "allesklar", "verstanden", "bine", "gotit",
     }
     return normalized in acknowledgements
+
+
+def _has_language_signal(text: str) -> bool:
+    value = str(text or "").strip()
+    if not value:
+        return False
+    letters = sum(1 for char in value if char.isalpha())
+    return letters >= 3
+
+
+def _latest_language_signal_line(text: str) -> str:
+    value = str(text or "")
+    for line in reversed(value.splitlines()):
+        candidate = line.strip()
+        if candidate and _has_language_signal(candidate):
+            return candidate
+    return ""
 
 
 async def _resolve_experience_for_assistant(payload: BookingAssistantRequest, experience_hint: Optional[str] = None) -> Optional[dict]:
@@ -3555,6 +3584,13 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
     
     booking_settings = provider.get("booking_settings") or {}
     booking_type = booking_settings.get("type", "table_based")
+    booking_type_map = {
+        "table_based": "table",
+        "appointment_based": "service",
+        "space_based": "room",
+        "fleet_based": "car",
+    }
+    resolved_booking_type = request.booking_type or booking_type_map.get(booking_type, "table")
 
     if booking_type == "fleet_based":
         if not request.car_id:
@@ -3895,7 +3931,7 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
             delivery_latitude=request.delivery_latitude,
             delivery_longitude=request.delivery_longitude,
             reservation_type_id=request.reservation_type_id,
-            booking_type=request.booking_type or "table",
+            booking_type=resolved_booking_type,
             event_type=request.event_type,
             estimated_budget=request.estimated_budget,
             requirements=request.requirements or [],
@@ -3936,7 +3972,7 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
         delivery_latitude=booking.delivery_latitude,
         delivery_longitude=booking.delivery_longitude,
         reservation_type_id=booking.reservation_type_id,
-        booking_type=booking.booking_type or "table",
+        booking_type=booking.booking_type or resolved_booking_type,
         event_type=booking.event_type,
         estimated_budget=booking.estimated_budget,
         requirements=booking.requirements or [],
