@@ -1025,6 +1025,71 @@ Most recent user message:
     return None
 
 
+async def _reconcile_booking_intent_with_llm(
+    message: str,
+    history_text: str,
+    llm_intent: Optional[str],
+    entity_inferred_intent: Optional[str],
+    rule_intent: Optional[str],
+    llm_entities: Optional[dict],
+) -> Optional[str]:
+    text = (message or "").strip()
+    if not text or not RAG_BASE_URL:
+        return None
+
+    entities_json = json.dumps(llm_entities or {}, ensure_ascii=False)
+    prompt = f"""You are reconciling booking intent for a booking assistant.
+Return ONLY one token from this set:
+create_booking | check_availability | service_inquiry | cancel_booking | unknown
+
+Decision rules (strict):
+- create_booking: user is actively making/progressing a reservation and provides booking details (date/time/service/provider/employee/party size/contact/rental period), even if phrased compactly.
+- check_availability: user primarily asks if something is available at a time/date.
+- service_inquiry: user asks informational details about services/options/prices and is not trying to place a booking now.
+- cancel_booking: user asks to cancel an existing booking.
+- unknown: general city/tourism knowledge not about booking actions.
+
+If message contains concrete booking details and does not ask only informational service details, prefer create_booking.
+Prioritize MOST RECENT message, use history and extracted entities as support.
+
+Candidates from other classifiers:
+- llm_intent: {(llm_intent or '').strip()}
+- entity_inferred_intent: {(entity_inferred_intent or '').strip()}
+- rule_intent: {(rule_intent or '').strip()}
+
+Extracted entities JSON:
+{entities_json}
+
+Conversation history:
+<history>
+{(history_text or '').strip()}
+</history>
+
+Most recent user message:
+<message>
+{text}
+</message>
+"""
+
+    try:
+        async with httpx.AsyncClient(timeout=RAG_SYNC_TIMEOUT) as client:
+            response = await client.post(
+                f"{RAG_BASE_URL}/generate",
+                json={"prompt": prompt, "max_tokens": 20},
+            )
+            response.raise_for_status()
+            generated_text = ((response.json() or {}).get("generated_text") or "").strip().lower()
+    except Exception:
+        return None
+
+    match = re.search(r"\b(create_booking|check_availability|service_inquiry|cancel_booking|unknown)\b", generated_text)
+    if match:
+        value = match.group(1)
+        if value in ASSISTANT_ALLOWED_INTENTS:
+            return value
+    return None
+
+
 ASSISTANT_ALLOWED_INTENTS = {
     "create_booking",
     "check_availability",
@@ -1070,6 +1135,57 @@ def _infer_booking_intent_from_entities(entities: Optional[dict]) -> Optional[st
         return "create_booking"
 
     return None
+
+
+def _has_structured_booking_progress(
+    payload: BookingAssistantRequest,
+    llm_entities: Optional[dict],
+    message_text: str,
+) -> bool:
+    entities = llm_entities or {}
+    text = message_text or ""
+
+    has_temporal = any([
+        payload.booking_date,
+        entities.get("booking_date"),
+        _extract_date_from_text(text),
+        payload.start_time,
+        entities.get("start_time"),
+        _extract_time_from_text(text),
+        payload.duration_minutes,
+        entities.get("duration_minutes"),
+        _extract_duration_minutes_from_text(text),
+        payload.rental_end_date,
+        entities.get("rental_end_date"),
+        payload.rental_end_time,
+        entities.get("rental_end_time"),
+    ])
+
+    has_selection = any([
+        payload.provider_id,
+        payload.provider_name,
+        payload.service_id,
+        payload.employee_id,
+        payload.table_id,
+        payload.room_id,
+        payload.car_id,
+        entities.get("provider_name"),
+        entities.get("service_hint"),
+        entities.get("employee_hint"),
+        entities.get("car_hint"),
+    ])
+
+    has_contact_or_party = any([
+        payload.customer_phone,
+        payload.customer_email,
+        entities.get("customer_phone"),
+        entities.get("customer_email"),
+        payload.party_size,
+        entities.get("party_size"),
+        _extract_party_size_from_text(text),
+    ])
+
+    return bool(has_temporal and (has_selection or has_contact_or_party))
 
 
 def _extract_date_from_text(message: str) -> Optional[str]:
@@ -3793,11 +3909,21 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
     llm_intent = await _classify_booking_assistant_intent_with_llm(payload.message, history_text)
     entity_inferred_intent = _infer_booking_intent_from_entities(llm_entities)
     rule_intent = _detect_booking_assistant_intent(payload.message)
-    intent = llm_intent or entity_inferred_intent or rule_intent or "unknown"
+    reconciled_intent = await _reconcile_booking_intent_with_llm(
+        payload.message,
+        history_text,
+        llm_intent,
+        entity_inferred_intent,
+        rule_intent,
+        llm_entities,
+    )
+    intent = reconciled_intent or llm_intent or entity_inferred_intent or rule_intent or "unknown"
     if intent == "unknown":
         booking_action = await _is_booking_action_request_with_llm(payload.message, history_text)
         if booking_action is True:
             intent = "create_booking"
+    if intent == "service_inquiry" and _has_structured_booking_progress(payload, llm_entities, payload.message):
+        intent = "create_booking"
     if intent not in ASSISTANT_ALLOWED_INTENTS:
         intent = "unknown"
     print(
@@ -3805,6 +3931,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
         {
             "message": (payload.message or "")[:180],
             "llm_intent": llm_intent,
+            "reconciled_intent": reconciled_intent,
             "entity_inferred_intent": entity_inferred_intent,
             "rule_intent": _detect_booking_assistant_intent(payload.message),
             "final_intent": intent,
