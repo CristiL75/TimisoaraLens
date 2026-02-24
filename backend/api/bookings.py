@@ -902,7 +902,7 @@ def _detect_booking_assistant_intent(message: str) -> str:
 
 
 async def _classify_booking_assistant_intent_with_llm(message: str, history_text: str = "") -> Optional[str]:
-    text = (message or "").strip()
+    text = (message or "").strip() or _last_non_empty_line(history_text)
     if not text or not RAG_BASE_URL:
         return None
 
@@ -974,7 +974,7 @@ Most recent user message:
 
 
 async def _is_booking_action_request_with_llm(message: str, history_text: str = "") -> Optional[bool]:
-    text = (message or "").strip()
+    text = (message or "").strip() or _last_non_empty_line(history_text)
     if not text or not RAG_BASE_URL:
         return None
 
@@ -1033,7 +1033,7 @@ async def _reconcile_booking_intent_with_llm(
     rule_intent: Optional[str],
     llm_entities: Optional[dict],
 ) -> Optional[str]:
-    text = (message or "").strip()
+    text = (message or "").strip() or _last_non_empty_line(history_text)
     if not text or not RAG_BASE_URL:
         return None
 
@@ -1130,7 +1130,7 @@ async def _detect_booking_assistant_language_with_llm(
     history_text: str = "",
     accept_language: str = "",
 ) -> str:
-    text = (message or "").strip()
+    text = (message or "").strip() or _last_non_empty_line(history_text)
     header_lang = _detect_language_from_accept_language(accept_language)
     if not text:
         return header_lang or "ro"
@@ -2126,9 +2126,9 @@ def _conversation_history_to_text(conversation_history: Optional[list[Any]], max
     parts = []
     for item in tail:
         if isinstance(item, dict):
-            content = item.get("content")
+            content = item.get("content") or item.get("text") or item.get("message")
         else:
-            content = getattr(item, "content", None)
+            content = getattr(item, "content", None) or getattr(item, "text", None) or getattr(item, "message", None)
         content_text = str(content or "").strip()
         if content_text:
             parts.append(content_text)
@@ -2141,12 +2141,21 @@ def _latest_non_empty_history_message(conversation_history: Optional[list[Any]])
 
     for item in reversed(conversation_history):
         if isinstance(item, dict):
-            content = item.get("content")
+            content = item.get("content") or item.get("text") or item.get("message")
         else:
-            content = getattr(item, "content", None)
+            content = getattr(item, "content", None) or getattr(item, "text", None) or getattr(item, "message", None)
         content_text = str(content or "").strip()
         if content_text:
             return content_text
+    return ""
+
+
+def _last_non_empty_line(text: str) -> str:
+    value = str(text or "")
+    for line in reversed(value.splitlines()):
+        stripped = line.strip()
+        if stripped:
+            return stripped
     return ""
 
 
@@ -4201,9 +4210,18 @@ def _build_missing_fields_message(missing: list[str], context: str = "") -> str:
 
 @router.post("/assistant", response_model=BookingAssistantResponse)
 async def booking_assistant(payload: BookingAssistantRequest, http_request: Request):
-    effective_message = (payload.message or "").strip() or _latest_non_empty_history_message(payload.conversation_history)
+    original_message = (payload.message or "").strip()
+    history_message = _latest_non_empty_history_message(payload.conversation_history)
+    effective_message = original_message or history_message
     if effective_message:
         payload.message = effective_message
+    print(
+        "[ASSISTANT_MESSAGE_SOURCE]",
+        {
+            "source": "payload" if original_message else ("history" if history_message else "empty"),
+            "message": (payload.message or "")[:160],
+        }
+    )
 
     history_text = _conversation_history_to_text(payload.conversation_history)
     assistant_language = await _detect_booking_assistant_language_with_llm(
