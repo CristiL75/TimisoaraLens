@@ -852,7 +852,15 @@ def _load_assistant_intent_markers_from_env() -> dict:
             continue
         cleaned = [str(item).strip().lower() for item in value if str(item).strip()]
         if cleaned:
-            normalized[key] = cleaned
+            merged = normalized[key] + cleaned
+            dedup = []
+            seen = set()
+            for item in merged:
+                if item in seen:
+                    continue
+                seen.add(item)
+                dedup.append(item)
+            normalized[key] = dedup
     return normalized
 
 
@@ -3783,13 +3791,23 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
     llm_entities = await _extract_booking_entities_with_llm(payload.message)
     llm_intent = await _classify_booking_assistant_intent_with_llm(payload.message, history_text)
     entity_inferred_intent = _infer_booking_intent_from_entities(llm_entities)
-    intent = llm_intent or entity_inferred_intent or "unknown"
+    intent = llm_intent or entity_inferred_intent or _detect_booking_assistant_intent(payload.message) or "unknown"
     if intent == "unknown":
         booking_action = await _is_booking_action_request_with_llm(payload.message, history_text)
         if booking_action is True:
             intent = "create_booking"
     if intent not in ASSISTANT_ALLOWED_INTENTS:
         intent = "unknown"
+    print(
+        "[ASSISTANT_INTENT]",
+        {
+            "message": (payload.message or "")[:180],
+            "llm_intent": llm_intent,
+            "entity_inferred_intent": entity_inferred_intent,
+            "rule_intent": _detect_booking_assistant_intent(payload.message),
+            "final_intent": intent,
+        }
+    )
     if not payload.provider_name and llm_entities.get("provider_name"):
         payload.provider_name = llm_entities.get("provider_name")
 
