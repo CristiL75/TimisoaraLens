@@ -1125,43 +1125,25 @@ def _detect_language_from_accept_language(accept_language: str) -> Optional[str]
     return None
 
 
-async def _detect_booking_assistant_language_with_llm(
-    message: str,
-    history_text: str = "",
-    accept_language: str = "",
-) -> str:
-    text = (message or "").strip() or _last_non_empty_line(history_text)
-    header_lang = _detect_language_from_accept_language(accept_language)
-    if not text:
-        return header_lang or "ro"
-    if not RAG_BASE_URL:
-        return header_lang or "ro"
+async def _detect_language_from_text_with_llm(text: str) -> Optional[str]:
+    message = (text or "").strip()
+    if not message or not RAG_BASE_URL:
+        return None
 
-    prompt = f"""Detect the language of the MOST RECENT user message in a booking conversation.
+    prompt = f"""Detect the language of this text.
 Return ONLY minified JSON in this exact format:
 {{"lang":"ro|en|de|fr|es|it|hu"}}
 
-Rules:
-- Focus on the most recent user message.
-- If mixed language, return the dominant language.
-- If uncertain, return ro.
-- Do not return explanations.
-
-Conversation history:
-<history>
-{(history_text or '').strip()}
-</history>
-
-Most recent user message:
+Text:
 <message>
-{text}
+{message}
 </message>
 """
 
     retry_prompt = f"""Return ONLY one token from this set: ro en de fr es it hu
-Most recent user message:
+Text:
 <message>
-{text}
+{message}
 </message>
 """
 
@@ -1204,9 +1186,22 @@ Most recent user message:
                 if normalized:
                     return normalized
     except Exception:
-        return header_lang or "ro"
+        return None
 
-    return header_lang or "ro"
+    return None
+
+
+async def _detect_booking_assistant_language_with_llm(
+    message: str,
+    history_text: str = "",
+    accept_language: str = "",
+) -> str:
+    text = (message or "").strip() or _last_non_empty_line(history_text)
+    header_lang = _detect_language_from_accept_language(accept_language)
+    if not text:
+        return header_lang or "ro"
+    detected = await _detect_language_from_text_with_llm(text)
+    return detected or header_lang or "ro"
 
 
 async def _translate_booking_assistant_text_with_llm(text: str, target_language: str) -> str:
@@ -1229,6 +1224,16 @@ Text:
 </text>
 """
 
+    retry_prompt = f"""Translate to language code '{lang}'.
+Return ONLY translated text in {lang}; do not keep Romanian if source is Romanian.
+Preserve IDs, dates, times, placeholders, bullets, line breaks.
+
+Text:
+<text>
+{content}
+</text>
+"""
+
     try:
         async with httpx.AsyncClient(timeout=RAG_SYNC_TIMEOUT) as client:
             response = await client.post(
@@ -1237,7 +1242,27 @@ Text:
             )
             response.raise_for_status()
             translated = ((response.json() or {}).get("generated_text") or "").strip()
-            return translated or text
+            if not translated:
+                return text
+
+            translated_lang = await _detect_language_from_text_with_llm(translated)
+            if translated_lang == lang:
+                return translated
+
+            retry_response = await client.post(
+                f"{RAG_BASE_URL}/generate",
+                json={"prompt": retry_prompt, "max_tokens": min(500, max(120, len(content) * 2))},
+            )
+            retry_response.raise_for_status()
+            retry_translated = ((retry_response.json() or {}).get("generated_text") or "").strip()
+            if not retry_translated:
+                return translated
+
+            retry_lang = await _detect_language_from_text_with_llm(retry_translated)
+            if retry_lang == lang:
+                return retry_translated
+
+            return translated
     except Exception:
         return text
 
