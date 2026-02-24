@@ -1013,13 +1013,14 @@ Most recent user message:
                 json={"prompt": prompt, "max_tokens": 5},
             )
             response.raise_for_status()
-            generated_text = ((response.json() or {}).get("generated_text") or "").strip().upper()
+            generated_text = ((response.json() or {}).get("generated_text") or "").strip()
     except Exception:
         return None
 
-    if "YES" in generated_text:
+    decision = (generated_text or "").strip().lower()
+    if re.search(r"\b(yes|da|true)\b", decision):
         return True
-    if "NO" in generated_text:
+    if re.search(r"\b(no|nu|false)\b", decision):
         return False
     return None
 
@@ -3791,7 +3792,8 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
     llm_entities = await _extract_booking_entities_with_llm(payload.message)
     llm_intent = await _classify_booking_assistant_intent_with_llm(payload.message, history_text)
     entity_inferred_intent = _infer_booking_intent_from_entities(llm_entities)
-    intent = llm_intent or entity_inferred_intent or _detect_booking_assistant_intent(payload.message) or "unknown"
+    rule_intent = _detect_booking_assistant_intent(payload.message)
+    intent = llm_intent or entity_inferred_intent or rule_intent or "unknown"
     if intent == "unknown":
         booking_action = await _is_booking_action_request_with_llm(payload.message, history_text)
         if booking_action is True:
@@ -3826,6 +3828,12 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
 
     provider = await _resolve_provider_for_assistant(payload)
     provider_id = str(provider.get("_id")) if provider else None
+    if intent == "unknown" and provider_id and rule_intent in {
+        "create_booking",
+        "check_availability",
+        "service_inquiry",
+    }:
+        intent = rule_intent
     combined_text = "\n".join(filter(None, [payload.message, history_text]))
 
     booking_date = (
