@@ -149,7 +149,7 @@ async def create_booking_request(
     if not STRIPE_SECRET_KEY:
         raise HTTPException(status_code=503, detail="Payment service not configured.")
 
-    db = await get_database()
+    db = get_database()
 
     # --- Resolve listing ---
     try:
@@ -200,6 +200,7 @@ async def create_booking_request(
             amount=stripe_amount,
             currency="ron",
             capture_method="manual",
+            payment_method_types=["card"],
             payment_method=body.payment_method_id,
             confirm=True,  # Immediately confirm so funds are authorised
             return_url="timisoaralens://stripe-return",  # required for 3DS redirects
@@ -218,6 +219,9 @@ async def create_booking_request(
     except stripe.error.StripeError as e:
         logger.error("[APT-BOOKINGS] Stripe error: %s", e)
         raise HTTPException(status_code=502, detail=f"Payment service error: {str(e)}")
+    except Exception as e:
+        logger.error("[APT-BOOKINGS] Unexpected error creating PaymentIntent: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
     # --- Persist booking request ---
     owner_contact = listing.get("owner", {})
@@ -264,7 +268,7 @@ async def get_my_requests(
     current_user: dict = Depends(get_current_user),
 ):
     """Returns all booking requests made by the authenticated guest."""
-    db = await get_database()
+    db = get_database()
     guest_user_id = str(current_user["_id"])
     query: dict = {"guest_user_id": guest_user_id}
     if status:
@@ -280,7 +284,7 @@ async def get_incoming_requests(
     current_user: dict = Depends(get_current_user),
 ):
     """Returns all booking requests sent to the authenticated listing owner."""
-    db = await get_database()
+    db = get_database()
     owner_user_id = str(current_user["_id"])
     query: dict = {"owner_user_id": owner_user_id}
     if status:
@@ -296,7 +300,7 @@ async def get_booking_request(
     current_user: dict = Depends(get_current_user),
 ):
     """Returns full details for a booking request. Only owner or guest may access."""
-    db = await get_database()
+    db = get_database()
     try:
         doc = await db.apartment_booking_requests.find_one({"_id": ObjectId(req_id)})
     except Exception:
@@ -325,7 +329,7 @@ async def accept_booking_request(
     if not STRIPE_SECRET_KEY:
         raise HTTPException(status_code=503, detail="Payment service not configured.")
 
-    db = await get_database()
+    db = get_database()
     try:
         doc = await db.apartment_booking_requests.find_one({"_id": ObjectId(req_id)})
     except Exception:
@@ -375,7 +379,7 @@ async def reject_booking_request(
     if not STRIPE_SECRET_KEY:
         raise HTTPException(status_code=503, detail="Payment service not configured.")
 
-    db = await get_database()
+    db = get_database()
     try:
         doc = await db.apartment_booking_requests.find_one({"_id": ObjectId(req_id)})
     except Exception:
@@ -423,7 +427,7 @@ async def cancel_booking_request(
     if not STRIPE_SECRET_KEY:
         raise HTTPException(status_code=503, detail="Payment service not configured.")
 
-    db = await get_database()
+    db = get_database()
     try:
         doc = await db.apartment_booking_requests.find_one({"_id": ObjectId(req_id)})
     except Exception:
@@ -487,7 +491,7 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    db = await get_database()
+    db = get_database()
     pi_id: str = ""
 
     if event["type"] == "payment_intent.payment_failed":
