@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   View, 
   ScrollView, 
@@ -8,7 +8,9 @@ import {
   Alert,
   Linking,
   TouchableOpacity,
-  Platform
+  Platform,
+  Modal,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { 
   Appbar, 
@@ -19,12 +21,67 @@ import {
   ActivityIndicator,
   TextInput,
   Avatar,
-  Divider
+  Divider,
+  HelperText,
 } from 'react-native-paper';
+import { Calendar } from 'react-native-calendars';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
-import { API_URL } from '../services/api';
+import { API_URL, apartmentBookingsAPI } from '../services/api';
+
+// Stripe publishable key — set EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY in mobile/.env
+const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
+
+const TODAY_STR = new Date().toISOString().split('T')[0];
+
+function buildMarkedDates(start, end, accent) {
+  if (!start) return {};
+  const marks = {};
+  if (!end || start === end) {
+    marks[start] = { selected: true, startingDay: true, endingDay: true, color: accent };
+    return marks;
+  }
+  const cur = new Date(start);
+  const endDate = new Date(end);
+  while (cur <= endDate) {
+    const key = cur.toISOString().split('T')[0];
+    marks[key] = {
+      selected: true,
+      startingDay: key === start,
+      endingDay: key === end,
+      color: accent,
+      textColor: '#fff',
+    };
+    cur.setDate(cur.getDate() + 1);
+  }
+  return marks;
+}
+
+function nightsBetween(start, end) {
+  if (!start || !end) return 0;
+  return Math.max(0, (new Date(end) - new Date(start)) / 86400000);
+}
+
+async function createStripePaymentMethod({ number, expMonth, expYear, cvc, name }) {
+  const body = new URLSearchParams({
+    type: 'card',
+    'card[number]': number.replace(/\s/g, ''),
+    'card[exp_month]': expMonth,
+    'card[exp_year]': expYear,
+    'card[cvc]': cvc,
+    'billing_details[name]': name,
+  });
+  const res = await fetch('https://api.stripe.com/v1/payment_methods', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${STRIPE_PUBLISHABLE_KEY}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: body.toString(),
+  });
+  return res.json();
+}
 
 // react-native-maps
 let MapView = null;
@@ -51,6 +108,91 @@ export default function ListingDetailScreen({ route, navigation }) {
   const [selectedPoiIndex, setSelectedPoiIndex] = useState(null);
   const [mapReady, setMapReady] = useState(false);
   const mapRef = useRef(null);
+
+  // ── Booking modal state ─────────────────────────────────────────────────
+  const [bookingVisible, setBookingVisible] = useState(false);
+  const [checkIn, setCheckIn] = useState('');
+  const [checkOut, setCheckOut] = useState('');
+  const [selectingEnd, setSelectingEnd] = useState(false);
+  const [bookGuests, setBookGuests] = useState('1');
+  const [bookNotes, setBookNotes] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvc, setCardCvc] = useState('');
+  const [cardName, setCardName] = useState('');
+  const [submittingBooking, setSubmittingBooking] = useState(false);
+
+  const ACCENT = '#6200ee';
+  const bookNights = nightsBetween(checkIn, checkOut);
+  const bookTotal = bookNights * (listing?.price_per_night || 0);
+  const bookMarks = useMemo(() => buildMarkedDates(checkIn, checkOut, ACCENT), [checkIn, checkOut]);
+
+  const handleCalendarDay = (day) => {
+    const d = day.dateString;
+    if (!checkIn || !selectingEnd) {
+      setCheckIn(d); setCheckOut(''); setSelectingEnd(true);
+    } else {
+      if (d <= checkIn) { setCheckIn(d); setCheckOut(''); setSelectingEnd(true); }
+      else { setCheckOut(d); setSelectingEnd(false); }
+    }
+  };
+
+  const fmtCardNumber = (v) => v.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
+  const fmtExpiry = (v) => { const d = v.replace(/\D/g, '').slice(0, 4); return d.length > 2 ? d.slice(0,2)+'/'+d.slice(2) : d; };
+
+  const resetBookingForm = () => {
+    setCheckIn(''); setCheckOut(''); setSelectingEnd(false);
+    setBookGuests('1'); setBookNotes('');
+    setCardNumber(''); setCardExpiry(''); setCardCvc(''); setCardName('');
+  };
+
+  const handleBookSubmit = async () => {
+    if (!checkIn || !checkOut) return Alert.alert('Eroare', 'Selectează intervalul de cazare');
+    if (bookNights < 1) return Alert.alert('Eroare', 'Check-out trebuie să fie după check-in');
+    const g = parseInt(bookGuests, 10) || 0;
+    if (g < 1) return Alert.alert('Eroare', 'Număr de oaspeți invalid');
+    if (listing?.max_guests && g > listing.max_guests)
+      return Alert.alert('Eroare', `Maxim ${listing.max_guests} oaspeți permisi`);
+    const rawNum = cardNumber.replace(/\s/g, '');
+    if (rawNum.length < 13) return Alert.alert('Eroare card', 'Numărul cardului este invalid');
+    if (!cardExpiry.includes('/') || cardExpiry.length < 5) return Alert.alert('Eroare card', 'Data expirării: MM/AA');
+    if (cardCvc.length < 3) return Alert.alert('Eroare card', 'CVC invalid');
+    if (!cardName.trim()) return Alert.alert('Eroare card', 'Introduceți numele de pe card');
+    if (!STRIPE_PUBLISHABLE_KEY)
+      return Alert.alert('Config lipsă', 'Adaugă EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY în mobile/.env');
+
+    setSubmittingBooking(true);
+    try {
+      const [expMonth, expYear] = cardExpiry.split('/');
+      const pmResult = await createStripePaymentMethod({
+        number: rawNum, expMonth: expMonth.trim(), expYear: expYear.trim(),
+        cvc: cardCvc.trim(), name: cardName.trim(),
+      });
+      if (pmResult.error) {
+        Alert.alert('Eroare card', pmResult.error.message || 'Card invalid'); return;
+      }
+      const result = await apartmentBookingsAPI.createRequest(listing.id, {
+        check_in: checkIn, check_out: checkOut,
+        guests: g, payment_method_id: pmResult.id,
+        notes: bookNotes.trim() || null,
+      });
+      if (result.success) {
+        setBookingVisible(false);
+        resetBookingForm();
+        Alert.alert(
+          'Cerere trimisă! 🎉',
+          `Cererea pentru "${listing.title}" a fost trimisă proprietarului.\n\nTotal: ${bookTotal.toFixed(2)} RON (${bookNights} nopți)\n\nVei fi notificat când aceasta este acceptată sau respinsă.`
+        );
+      } else {
+        Alert.alert('Eroare', result.error || 'Nu s-a putut trimite cererea');
+      }
+    } catch (err) {
+      console.error('[BookApartment]', err);
+      Alert.alert('Eroare', 'Eroare de conexiune. Încearcă din nou.');
+    } finally {
+      setSubmittingBooking(false);
+    }
+  };
 
   useEffect(() => {
     loadListingDetail();
@@ -722,18 +864,156 @@ export default function ListingDetailScreen({ route, navigation }) {
             </Card.Content>
           </Card>
 
-          {/* Contact/Book Button */}
+          {/* Contact / Book Buttons */}
           {!effectiveIsOwner && (
-            <Button
-              mode="contained"
-              icon="phone"
-              style={styles.contactButton}
-              contentStyle={styles.contactButtonContent}
-              onPress={callOwner}
-            >
-              Sună Proprietarul
-            </Button>
+            <View style={styles.actionRow}>
+              <Button
+                mode="outlined"
+                icon="phone"
+                style={[styles.contactButton, styles.actionBtn]}
+                contentStyle={styles.contactButtonContent}
+                onPress={callOwner}
+              >
+                Sună
+              </Button>
+              <Button
+                mode="contained"
+                icon="calendar-check"
+                style={[styles.bookButton, styles.actionBtn]}
+                contentStyle={styles.contactButtonContent}
+                onPress={() => setBookingVisible(true)}
+              >
+                Rezervă
+              </Button>
+            </View>
           )}
+
+          {/* ── Booking Modal ─────────────────────────────────────────── */}
+          <Modal
+            visible={bookingVisible}
+            animationType="slide"
+            onRequestClose={() => { setBookingVisible(false); resetBookingForm(); }}
+          >
+            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+              <Appbar.Header style={{ backgroundColor: ACCENT }}>
+                <Appbar.BackAction color="#fff" onPress={() => { setBookingVisible(false); resetBookingForm(); }} />
+                <Appbar.Content title="Rezervă apartament" titleStyle={{ color: '#fff' }} />
+              </Appbar.Header>
+              <ScrollView style={{ flex: 1, backgroundColor: '#f5f5f5' }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+
+                {/* Listing summary */}
+                <Card style={styles.card}>
+                  <Card.Content>
+                    <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 2 }}>{listing.title}</Text>
+                    <Text variant="bodySmall" style={{ color: '#666', marginBottom: 4 }}>{listing.location?.address || ''}</Text>
+                    <Text variant="bodyLarge" style={{ color: ACCENT, fontWeight: 'bold' }}>{listing.price_per_night} RON / noapte</Text>
+                  </Card.Content>
+                </Card>
+
+                {/* Calendar */}
+                <Card style={styles.card}>
+                  <Card.Content>
+                    <Text variant="titleSmall" style={styles.bookSectionTitle}>
+                      {!checkIn ? 'Selectează check-in'
+                        : !checkOut ? 'Acum selectează check-out'
+                        : `${checkIn}  →  ${checkOut}  (${bookNights} nopți)`}
+                    </Text>
+                    <Calendar
+                      minDate={TODAY_STR}
+                      markingType="period"
+                      markedDates={bookMarks}
+                      onDayPress={handleCalendarDay}
+                      theme={{ selectedDayBackgroundColor: ACCENT, todayTextColor: ACCENT, arrowColor: ACCENT }}
+                    />
+                    {checkIn ? (
+                      <Button mode="text" compact onPress={() => { setCheckIn(''); setCheckOut(''); setSelectingEnd(false); }} textColor={ACCENT}>
+                        Resetează selecția
+                      </Button>
+                    ) : null}
+                  </Card.Content>
+                </Card>
+
+                {/* Details */}
+                <Card style={styles.card}>
+                  <Card.Content>
+                    <Text variant="titleSmall" style={styles.bookSectionTitle}>Detalii rezervare</Text>
+                    <TextInput label="Număr oaspeți" value={bookGuests}
+                      onChangeText={(v) => setBookGuests(v.replace(/\D/g, ''))}
+                      keyboardType="numeric" mode="outlined" style={styles.bookInput}
+                      left={<TextInput.Icon icon="account-group" />}
+                    />
+                    {listing?.max_guests ? <HelperText type="info">Maxim {listing.max_guests} oaspeți</HelperText> : null}
+                    <TextInput label="Note / cerințe speciale (opțional)" value={bookNotes}
+                      onChangeText={setBookNotes} mode="outlined" multiline numberOfLines={3} style={styles.bookInput}
+                    />
+                  </Card.Content>
+                </Card>
+
+                {/* Card */}
+                <Card style={styles.card}>
+                  <Card.Content>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                      <MaterialCommunityIcons name="credit-card-outline" size={20} color={ACCENT} />
+                      <Text variant="titleSmall" style={[styles.bookSectionTitle, { marginLeft: 8, marginBottom: 0 }]}>Date card</Text>
+                    </View>
+                    <HelperText type="info" style={{ marginBottom: 4 }}>
+                      Cardul este autorizat acum. Suma se debitează doar dacă proprietarul acceptă.
+                    </HelperText>
+                    <TextInput label="Număr card" value={cardNumber}
+                      onChangeText={(v) => setCardNumber(fmtCardNumber(v))}
+                      keyboardType="numeric" mode="outlined" style={styles.bookInput}
+                      placeholder="1234 5678 9012 3456" maxLength={19}
+                    />
+                    <View style={{ flexDirection: 'row' }}>
+                      <TextInput label="Exp. (LL/AA)" value={cardExpiry}
+                        onChangeText={(v) => setCardExpiry(fmtExpiry(v))}
+                        keyboardType="numeric" mode="outlined"
+                        style={[styles.bookInput, { flex: 1, marginRight: 8 }]}
+                        placeholder="12/28" maxLength={5}
+                      />
+                      <TextInput label="CVC" value={cardCvc}
+                        onChangeText={(v) => setCardCvc(v.replace(/\D/g, '').slice(0, 4))}
+                        keyboardType="numeric" mode="outlined"
+                        style={[styles.bookInput, { flex: 1 }]}
+                        placeholder="123" maxLength={4} secureTextEntry
+                      />
+                    </View>
+                    <TextInput label="Nume pe card" value={cardName}
+                      onChangeText={setCardName} mode="outlined" style={styles.bookInput} autoCapitalize="words"
+                    />
+                  </Card.Content>
+                </Card>
+
+                {/* Total */}
+                {checkIn && checkOut && bookNights > 0 && (
+                  <Card style={[styles.card, { backgroundColor: '#ede7f6' }]}>
+                    <Card.Content>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text variant="bodyMedium">{bookNights} nopți × {listing.price_per_night} RON</Text>
+                        <Text variant="titleMedium" style={{ color: ACCENT, fontWeight: 'bold' }}>{bookTotal.toFixed(2)} RON</Text>
+                      </View>
+                    </Card.Content>
+                  </Card>
+                )}
+
+                <Button
+                  mode="contained"
+                  icon="send"
+                  onPress={handleBookSubmit}
+                  loading={submittingBooking}
+                  disabled={submittingBooking || !checkIn || !checkOut}
+                  style={{ backgroundColor: ACCENT, borderRadius: 8, marginTop: 8 }}
+                  contentStyle={{ paddingVertical: 6 }}
+                >
+                  Trimite cerere de rezervare
+                </Button>
+
+                <Text variant="bodySmall" style={{ textAlign: 'center', color: '#999', marginTop: 12 }}>
+                  Cererea va fi trimisă proprietarului. Cardul nu este debitat decât după acceptare.
+                </Text>
+              </ScrollView>
+            </KeyboardAvoidingView>
+          </Modal>
 
           {/* Delete Button - Only for Owner */}
           {effectiveIsOwner && (
@@ -911,11 +1191,31 @@ const styles = StyleSheet.create({
     marginRight: 4,
     marginBottom: 4,
   },
-  contactButton: {
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
     marginTop: 8,
+  },
+  actionBtn: {
+    flex: 1,
+  },
+  contactButton: {
+    borderColor: '#6200ee',
+  },
+  bookButton: {
+    backgroundColor: '#6200ee',
   },
   contactButtonContent: {
     paddingVertical: 8,
+  },
+  bookSectionTitle: {
+    fontWeight: 'bold',
+    marginBottom: 12,
+    color: '#333',
+  },
+  bookInput: {
+    marginBottom: 8,
+    backgroundColor: '#fff',
   },
   deleteButton: {
     marginTop: 8,
