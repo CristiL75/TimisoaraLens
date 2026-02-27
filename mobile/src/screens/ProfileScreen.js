@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { Appbar, Title, Paragraph, Card, Chip, Button, ActivityIndicator, Text } from 'react-native-paper';
 import { useAuth } from '../context/AuthContext';
-import { authAPI, bookingsAPI } from '../services/api';
+import { authAPI, bookingsAPI, apartmentBookingsAPI } from '../services/api';
 
 export default function ProfileScreen({ navigation }) {
   const { user } = useAuth();
@@ -17,6 +17,9 @@ export default function ProfileScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [cancelingBookingId, setCancelingBookingId] = useState(null);
   const [updatingBookingId, setUpdatingBookingId] = useState(null);
+  const [aptIncoming, setAptIncoming] = useState([]);
+  const [aptOutgoing, setAptOutgoing] = useState([]);
+  const [aptActionId, setAptActionId] = useState(null);
 
   const formatTableLabel = (value) => {
     if (!value) return '';
@@ -86,6 +89,14 @@ export default function ProfileScreen({ navigation }) {
       setProviders(provRes.success ? provRes.data : []);
       setBookings(bookRes.success ? bookRes.data : []);
       setProviderBookings(providerBookRes.success ? providerBookRes.data : []);
+
+      // Apartment booking requests
+      const [aptInRes, aptOutRes] = await Promise.all([
+        apartmentBookingsAPI.getIncomingRequests(),
+        apartmentBookingsAPI.getMyRequests(),
+      ]);
+      setAptIncoming(aptInRes.success ? (aptInRes.data?.requests || []) : []);
+      setAptOutgoing(aptOutRes.success ? (aptOutRes.data?.requests || []) : []);
 
       if (allProvRes.success) {
         const map = allProvRes.data.reduce((acc, provider) => {
@@ -204,6 +215,90 @@ export default function ProfileScreen({ navigation }) {
         },
       ]
     );
+  };
+
+  const handleAptAccept = async (reqId) => {
+    Alert.alert(
+      'Confirmare',
+      'Accepti cererea de rezervare? Plata va fi capturata imediat.',
+      [
+        { text: 'Renunta', style: 'cancel' },
+        {
+          text: 'Accepta',
+          onPress: async () => {
+            setAptActionId(reqId);
+            const result = await apartmentBookingsAPI.acceptRequest(reqId);
+            setAptActionId(null);
+            if (result.success) {
+              Alert.alert('Succes', 'Rezervarea a fost acceptata si plata confirmata.');
+              loadProfileData();
+            } else {
+              Alert.alert('Eroare', result.error || 'Nu s-a putut accepta cererea.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleAptReject = async (reqId) => {
+    Alert.alert(
+      'Respingere',
+      'Respingi cererea? Plata retinuta va fi eliberata catre oaspete.',
+      [
+        { text: 'Renunta', style: 'cancel' },
+        {
+          text: 'Respinge',
+          style: 'destructive',
+          onPress: async () => {
+            setAptActionId(reqId);
+            const result = await apartmentBookingsAPI.rejectRequest(reqId);
+            setAptActionId(null);
+            if (result.success) {
+              Alert.alert('Succes', 'Cererea a fost respinsa si plata anulata.');
+              loadProfileData();
+            } else {
+              Alert.alert('Eroare', result.error || 'Nu s-a putut respinge cererea.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleAptCancel = async (reqId) => {
+    Alert.alert(
+      'Anulare',
+      'Anulezi aceasta cerere de rezervare?',
+      [
+        { text: 'Renunta', style: 'cancel' },
+        {
+          text: 'Anuleaza',
+          style: 'destructive',
+          onPress: async () => {
+            setAptActionId(reqId);
+            const result = await apartmentBookingsAPI.cancelRequest(reqId);
+            setAptActionId(null);
+            if (result.success) {
+              Alert.alert('Succes', 'Cererea a fost anulata.');
+              loadProfileData();
+            } else {
+              Alert.alert('Eroare', result.error || 'Nu s-a putut anula cererea.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const aptStatusLabel = (status) => {
+    const map = { pending: 'In asteptare', confirmed: 'Confirmata', rejected: 'Respinsa', cancelled: 'Anulata' };
+    return map[status] || status;
+  };
+
+  const aptStatusColor = (status) => {
+    const map = { pending: '#f57c00', confirmed: '#388e3c', rejected: '#d32f2f', cancelled: '#888' };
+    return map[status] || '#333';
   };
 
   const handleUpdateBookingStatus = async (booking, status) => {
@@ -462,6 +557,110 @@ export default function ProfileScreen({ navigation }) {
                 ))
           )}
         </>
+        {/* ───── APARTAMENTE: CERERI PRIMITE (PROPRIETAR) ───── */}
+        <Title style={styles.sectionTitle}>Cereri apartamente primite</Title>
+        {aptIncoming.filter((r) => r.status === 'pending').length === 0 ? (
+          <Text style={styles.emptyText}>Nu ai cereri de rezervare in asteptare.</Text>
+        ) : (
+          aptIncoming
+            .filter((r) => r.status === 'pending')
+            .map((req) => (
+              <Card key={req.id} style={styles.card}>
+                <Card.Content>
+                  <Title>{req.listing_title}</Title>
+                  <Paragraph>Oaspete: {req.guest_name} ({req.guest_email})</Paragraph>
+                  <Paragraph>Check-in: {req.check_in}</Paragraph>
+                  <Paragraph>Check-out: {req.check_out}</Paragraph>
+                  <Paragraph>Nopti: {req.nights} • Oaspeti: {req.guests}</Paragraph>
+                  <Paragraph>Total: {req.total_amount?.toFixed(2)} {req.currency?.toUpperCase()}</Paragraph>
+                  {req.notes ? <Paragraph>Notite: {req.notes}</Paragraph> : null}
+                  <Chip style={[styles.chip, { backgroundColor: aptStatusColor(req.status) }]}>
+                    <Text style={{ color: '#fff' }}>{aptStatusLabel(req.status)}</Text>
+                  </Chip>
+                </Card.Content>
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 8, gap: 8 }}>
+                  <Button
+                    mode="contained"
+                    icon="check"
+                    style={{ backgroundColor: '#388e3c' }}
+                    onPress={() => handleAptAccept(req.id)}
+                    disabled={aptActionId === req.id}
+                    loading={aptActionId === req.id}
+                  >
+                    Accepta
+                  </Button>
+                  <Button
+                    mode="contained"
+                    icon="close"
+                    style={{ backgroundColor: '#d32f2f' }}
+                    onPress={() => handleAptReject(req.id)}
+                    disabled={aptActionId === req.id}
+                    loading={aptActionId === req.id}
+                  >
+                    Respinge
+                  </Button>
+                </View>
+              </Card>
+            ))
+        )}
+
+        {aptIncoming.filter((r) => r.status === 'confirmed').length > 0 && (
+          <>
+            <Title style={styles.sectionTitle}>Apartamente rezervate (confirmate)</Title>
+            {aptIncoming
+              .filter((r) => r.status === 'confirmed')
+              .map((req) => (
+                <Card key={req.id} style={styles.card}>
+                  <Card.Content>
+                    <Title>{req.listing_title}</Title>
+                    <Paragraph>Oaspete: {req.guest_name} ({req.guest_email})</Paragraph>
+                    <Paragraph>Perioada: {req.check_in} → {req.check_out} ({req.nights} nopti)</Paragraph>
+                    <Paragraph>Total: {req.total_amount?.toFixed(2)} {req.currency?.toUpperCase()}</Paragraph>
+                    <Chip style={[styles.chip, { backgroundColor: '#388e3c' }]}>
+                      <Text style={{ color: '#fff' }}>Confirmata</Text>
+                    </Chip>
+                  </Card.Content>
+                </Card>
+              ))}
+          </>
+        )}
+
+        {/* ───── APARTAMENTE: CERERILE MELE (OASPETE) ───── */}
+        <Title style={styles.sectionTitle}>Cererile mele de apartament</Title>
+        {aptOutgoing.length === 0 ? (
+          <Text style={styles.emptyText}>Nu ai trimis nicio cerere de rezervare apartament.</Text>
+        ) : (
+          aptOutgoing.map((req) => (
+            <Card key={req.id} style={styles.card}>
+              <Card.Content>
+                <Title>{req.listing_title}</Title>
+                {req.listing_address ? <Paragraph>Adresa: {req.listing_address}</Paragraph> : null}
+                <Paragraph>Check-in: {req.check_in}</Paragraph>
+                <Paragraph>Check-out: {req.check_out}</Paragraph>
+                <Paragraph>Nopti: {req.nights} • Oaspeti: {req.guests}</Paragraph>
+                <Paragraph>Total: {req.total_amount?.toFixed(2)} {req.currency?.toUpperCase()}</Paragraph>
+                {req.notes ? <Paragraph>Notite: {req.notes}</Paragraph> : null}
+                <Chip style={[styles.chip, { backgroundColor: aptStatusColor(req.status) }]}>
+                  <Text style={{ color: '#fff' }}>{aptStatusLabel(req.status)}</Text>
+                </Chip>
+              </Card.Content>
+              {req.status === 'pending' && (
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 8 }}>
+                  <Button
+                    mode="outlined"
+                    icon="close"
+                    onPress={() => handleAptCancel(req.id)}
+                    disabled={aptActionId === req.id}
+                    loading={aptActionId === req.id}
+                  >
+                    Anuleaza cererea
+                  </Button>
+                </View>
+              )}
+            </Card>
+          ))
+        )}
+
         <Title style={styles.sectionTitle}>Rezervările mele</Title>
         {bookings.filter((booking) => !isExpiredBooking(booking.booking_date)).length === 0 ? (
           <Text style={styles.emptyText}>Nu ai făcut nicio rezervare.</Text>
