@@ -1093,6 +1093,17 @@ const apartmentBookingsAPI = {
     }
   },
 
+  /** Public: get booked date ranges for a listing (no auth required). */
+  getBookedDates: async (listingId) => {
+    try {
+      const response = await api.get(`/apartment-bookings/${listingId}/booked-dates`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] apartmentBookings.getBookedDates error:', formatAxiosError(error));
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+
   /** Guest: cancel own pending request (cancels Stripe payment, no charge). */
   cancelRequest: async (reqId) => {
     try {

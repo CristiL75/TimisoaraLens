@@ -63,6 +63,27 @@ function nightsBetween(start, end) {
   return Math.max(0, (new Date(end) - new Date(start)) / 86400000);
 }
 
+function buildDisabledDates(ranges) {
+  const disabled = {};
+  ranges.forEach(({ check_in, check_out }) => {
+    const cur = new Date(check_in);
+    const end = new Date(check_out);
+    while (cur <= end) {
+      const key = cur.toISOString().split('T')[0];
+      disabled[key] = {
+        disabled: true,
+        disableTouchEvent: true,
+        startingDay: key === check_in,
+        endingDay: key === check_out,
+        color: '#ffcdd2',
+        textColor: '#c62828',
+      };
+      cur.setDate(cur.getDate() + 1);
+    }
+  });
+  return disabled;
+}
+
 async function createStripePaymentMethod({ number, expMonth, expYear, cvc, name }) {
   const body = new URLSearchParams({
     type: 'card',
@@ -121,19 +142,37 @@ export default function ListingDetailScreen({ route, navigation }) {
   const [cardCvc, setCardCvc] = useState('');
   const [cardName, setCardName] = useState('');
   const [submittingBooking, setSubmittingBooking] = useState(false);
+  const [bookedRanges, setBookedRanges] = useState([]);
 
   const ACCENT = '#6200ee';
   const bookNights = nightsBetween(checkIn, checkOut);
   const bookTotal = bookNights * (listing?.price_per_night || 0);
-  const bookMarks = useMemo(() => buildMarkedDates(checkIn, checkOut, ACCENT), [checkIn, checkOut]);
+  const bookMarks = useMemo(() => ({
+    ...buildDisabledDates(bookedRanges),
+    ...buildMarkedDates(checkIn, checkOut, ACCENT),
+  }), [checkIn, checkOut, bookedRanges]);
 
   const handleCalendarDay = (day) => {
     const d = day.dateString;
+    // Prevent selecting booked dates
+    const isBooked = bookedRanges.some(({ check_in, check_out }) => d >= check_in && d <= check_out);
+    if (isBooked) return;
     if (!checkIn || !selectingEnd) {
       setCheckIn(d); setCheckOut(''); setSelectingEnd(true);
     } else {
       if (d <= checkIn) { setCheckIn(d); setCheckOut(''); setSelectingEnd(true); }
-      else { setCheckOut(d); setSelectingEnd(false); }
+      else {
+        // Block range if it contains a booked date in the middle
+        const rangeHasBooked = bookedRanges.some(({ check_in, check_out }) =>
+          check_in > checkIn && check_in < d
+        );
+        if (rangeHasBooked) {
+          // Start over from this day
+          setCheckIn(d); setCheckOut(''); setSelectingEnd(true);
+        } else {
+          setCheckOut(d); setSelectingEnd(false);
+        }
+      }
     }
   };
 
@@ -197,6 +236,9 @@ export default function ListingDetailScreen({ route, navigation }) {
   useEffect(() => {
     loadListingDetail();
     loadReviews();
+    apartmentBookingsAPI.getBookedDates(listingId).then((res) => {
+      if (res.success) setBookedRanges(res.data?.booked_ranges || []);
+    });
   }, []);
 
   const loadReviews = async () => {
@@ -861,6 +903,29 @@ export default function ListingDetailScreen({ route, navigation }) {
                   </Button>
                 </View>
               </View>
+            </Card.Content>
+          </Card>
+
+          {/* Availability Calendar */}
+          <Card style={styles.card}>
+            <Card.Content>
+              <Text variant="titleMedium" style={{ marginBottom: 4, fontWeight: 'bold' }}>Disponibilitate</Text>
+              <Text variant="bodySmall" style={{ color: '#666', marginBottom: 8 }}>
+                {bookedRanges.length === 0 ? 'Toate datele sunt disponibile.' : 'Datele marcate cu roșu sunt rezervate.'}
+              </Text>
+              <Calendar
+                minDate={TODAY_STR}
+                markingType="period"
+                markedDates={buildDisabledDates(bookedRanges)}
+                theme={{ arrowColor: ACCENT, todayTextColor: ACCENT }}
+                disableAllTouchEventsForDisabledDays
+              />
+              {bookedRanges.length > 0 && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8 }}>
+                  <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: '#ffcdd2', borderWidth: 1, borderColor: '#e53935' }} />
+                  <Text variant="bodySmall" style={{ color: '#666' }}>Dată indisponibilă</Text>
+                </View>
+              )}
             </Card.Content>
           </Card>
 

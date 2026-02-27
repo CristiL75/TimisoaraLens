@@ -294,6 +294,21 @@ async def get_incoming_requests(
     return {"success": True, "requests": requests}
 
 
+@router.get("/{listing_id}/booked-dates", summary="Public: booked date ranges for a listing")
+async def get_booked_dates(listing_id: str):
+    """
+    Returns all active (pending + confirmed) date ranges for a listing.
+    Public endpoint — no authentication required. Used by the calendar UI.
+    """
+    db = get_database()
+    cursor = db.apartment_booking_requests.find(
+        {"listing_id": listing_id, "status": {"$in": ["pending", "confirmed"]}},
+        {"check_in": 1, "check_out": 1, "_id": 0},
+    )
+    ranges = [{"check_in": doc["check_in"], "check_out": doc["check_out"]} async for doc in cursor]
+    return {"success": True, "booked_ranges": ranges}
+
+
 @router.get("/booking-requests/{req_id}", summary="Get booking request details")
 async def get_booking_request(
     req_id: str,
