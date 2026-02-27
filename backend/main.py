@@ -4,10 +4,14 @@ Main application entry point
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import uvicorn
 from dotenv import load_dotenv
 import os
+import time
+from collections import defaultdict, deque
+from threading import Lock
 
 # Load environment variables
 load_dotenv()
@@ -35,6 +39,95 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    value = (os.getenv(name) or "").strip().lower()
+    if not value:
+        return default
+    return value in {"1", "true", "yes", "on"}
+
+
+class SimpleRateLimiter:
+    def __init__(self):
+        self.enabled = _env_bool("RATE_LIMIT_ENABLED", True)
+        self.window_seconds = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+        self.default_limit = int(os.getenv("RATE_LIMIT_DEFAULT_MAX_REQUESTS", "180"))
+        self.auth_limit = int(os.getenv("RATE_LIMIT_AUTH_MAX_REQUESTS", "20"))
+        self.assistant_limit = int(os.getenv("RATE_LIMIT_ASSISTANT_MAX_REQUESTS", "45"))
+        self.rag_limit = int(os.getenv("RATE_LIMIT_RAG_MAX_REQUESTS", "60"))
+        self._buckets = defaultdict(deque)
+        self._lock = Lock()
+
+    def _client_ip(self, request) -> str:
+        forwarded = (request.headers.get("x-forwarded-for") or "").strip()
+        if forwarded:
+            return forwarded.split(",", 1)[0].strip()
+        cf_ip = (request.headers.get("cf-connecting-ip") or "").strip()
+        if cf_ip:
+            return cf_ip
+        return (request.client.host if request.client else "unknown") or "unknown"
+
+    def _route_bucket_and_limit(self, path: str) -> tuple[str, int]:
+        normalized = (path or "").lower()
+        if normalized.startswith("/api/auth/login"):
+            return "auth", self.auth_limit
+        if normalized.startswith("/api/bookings/assistant"):
+            return "assistant", self.assistant_limit
+        if normalized.startswith("/api/rag/query"):
+            return "rag", self.rag_limit
+        return "default", self.default_limit
+
+    def check(self, request) -> tuple[bool, int, int]:
+        if not self.enabled:
+            return True, self.default_limit, 0
+
+        route_bucket, limit = self._route_bucket_and_limit(str(request.url.path))
+        key = f"{self._client_ip(request)}:{route_bucket}"
+        now = time.time()
+        cutoff = now - self.window_seconds
+
+        with self._lock:
+            bucket = self._buckets[key]
+            while bucket and bucket[0] <= cutoff:
+                bucket.popleft()
+
+            if len(bucket) >= limit:
+                retry_after = max(1, int(bucket[0] + self.window_seconds - now)) if bucket else self.window_seconds
+                return False, limit, retry_after
+
+            bucket.append(now)
+            return True, limit, 0
+
+
+rate_limiter = SimpleRateLimiter()
+
+
+@app.middleware("http")
+async def rate_limit_middleware(request, call_next):
+    path = str(request.url.path or "")
+    if path in {"/", "/health"}:
+        return await call_next(request)
+
+    allowed, limit, retry_after = rate_limiter.check(request)
+    if not allowed:
+        return JSONResponse(
+            status_code=429,
+            content={
+                "success": False,
+                "detail": "Too many requests. Please try again later.",
+            },
+            headers={
+                "Retry-After": str(retry_after),
+                "X-RateLimit-Limit": str(limit),
+                "X-RateLimit-Window": str(rate_limiter.window_seconds),
+            },
+        )
+
+    response = await call_next(request)
+    response.headers["X-RateLimit-Limit"] = str(limit)
+    response.headers["X-RateLimit-Window"] = str(rate_limiter.window_seconds)
+    return response
 
 # CORS Configuration
 origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:19000").split(",")

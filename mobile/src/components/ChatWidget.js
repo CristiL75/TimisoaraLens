@@ -131,7 +131,6 @@ export default function ChatWidget() {
         setPendingBookingCtx({});
       }
 
-      const missingFields = responseData.missing_fields || [];
       let assistantText = responseData.message || 'Am procesat cererea de rezervare.';
 
       const assistantMessage = {
