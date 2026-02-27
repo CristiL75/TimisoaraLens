@@ -26,9 +26,9 @@ app = FastAPI(
 # Configuration from Secrets
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-HF_TOKEN = os.getenv("HF_TOKEN", "")
-HF_MODEL = os.getenv("HF_MODEL", "google/flan-t5-small")
-HF_BASE_URL = os.getenv("HF_BASE_URL", "https://router.huggingface.co/v1")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini-2025-08-07")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 COLLECTION_NAME = "timisoara_knowledge"
 APARTMENTS_COLLECTION = os.getenv("APARTMENTS_COLLECTION", "apartments")
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
@@ -37,6 +37,15 @@ TOP_K = 5
 # Lazy load models
 _embedding_model = None
 _qdrant_client = None
+
+
+def _openai_chat_params(max_tokens: int, temperature: float, top_p: float) -> dict:
+    params = {"max_completion_tokens": max_tokens}
+    if OPENAI_MODEL.startswith("gpt-5"):
+        return params
+    params["temperature"] = temperature
+    params["top_p"] = top_p
+    return params
 
 
 def get_embedding_model():
@@ -180,21 +189,19 @@ async def delete_apartment(request: ApartmentDeleteRequest):
 
 
 async def query_hf_router(prompt: str, max_tokens: int = 150) -> str:
-    """Call HF Router for text generation."""
+    """Call OpenAI for text generation."""
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
-                f"{HF_BASE_URL}/chat/completions",
+                f"{OPENAI_BASE_URL}/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {HF_TOKEN}",
+                    "Authorization": f"Bearer {OPENAI_API_KEY}",
                     "Content-Type": "application/json",
                 },
                 json={
-                    "model": HF_MODEL,
+                    "model": OPENAI_MODEL,
                     "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": max_tokens,
-                    "temperature": 0.7,
-                    "top_p": 0.9,
+                    **_openai_chat_params(max_tokens, 0.7, 0.9),
                 },
             )
             response.raise_for_status()

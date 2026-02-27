@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { Appbar, Title, Paragraph, Card, Chip, Button, ActivityIndicator, Text } from 'react-native-paper';
 import { useAuth } from '../context/AuthContext';
-import { bookingsAPI } from '../services/api';
+import { authAPI, bookingsAPI } from '../services/api';
 
 export default function ProfileScreen({ navigation }) {
   const { user } = useAuth();
+  const [profileUser, setProfileUser] = useState(user || null);
   const [providers, setProviders] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [providerBookings, setProviderBookings] = useState([]);
@@ -54,74 +55,109 @@ export default function ProfileScreen({ navigation }) {
   };
 
   useEffect(() => {
+    setProfileUser(user || null);
     loadProfileData();
   }, []);
 
+  const formatDate = (value) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('ro-RO');
+  };
+
   const loadProfileData = async () => {
-    setLoading(true);
-    const [provRes, bookRes, allProvRes, providerBookRes] = await Promise.all([
-      bookingsAPI.getMyProviders(),
-      bookingsAPI.getMyBookings(),
-      bookingsAPI.getProviders(),
-      bookingsAPI.getProviderBookings(),
-    ]);
-    setProviders(provRes.success ? provRes.data : []);
-    setBookings(bookRes.success ? bookRes.data : []);
-    setProviderBookings(providerBookRes.success ? providerBookRes.data : []);
-    if (allProvRes.success) {
-      const map = allProvRes.data.reduce((acc, provider) => {
-        acc[String(provider.id)] = provider.name;
-        return acc;
-      }, {});
-      setProviderMap(map);
-    }
-    const bookingProviderIds = [];
-    if (bookRes.success) {
-      bookRes.data.forEach((booking) => bookingProviderIds.push(String(booking.provider_id)));
-    }
-    if (providerBookRes.success) {
-      providerBookRes.data.forEach((booking) => bookingProviderIds.push(String(booking.provider_id)));
-    }
-    const providerIds = Array.from(new Set(bookingProviderIds));
-    if (providerIds.length > 0) {
-      const [tablesResults, servicesResults, roomsResults] = await Promise.all([
-        Promise.all(providerIds.map((providerId) => bookingsAPI.getTables(providerId))),
-        Promise.all(providerIds.map((providerId) => bookingsAPI.getServices(providerId))),
-        Promise.all(providerIds.map((providerId) => bookingsAPI.getRooms(providerId))),
+    try {
+      setLoading(true);
+      const [meRes, provRes, bookRes, allProvRes, providerBookRes] = await Promise.all([
+        authAPI.getCurrentUser(),
+        bookingsAPI.getMyProviders(),
+        bookingsAPI.getMyBookings(),
+        bookingsAPI.getProviders(),
+        bookingsAPI.getProviderBookings(),
       ]);
-      const nextTableMap = {};
-      tablesResults.forEach((res) => {
-        if (res.success && Array.isArray(res.data)) {
-          res.data.forEach((table) => {
-            nextTableMap[String(table.id)] = table;
-          });
-        }
-      });
-      setTableMap(nextTableMap);
-      const nextServiceMap = {};
-      servicesResults.forEach((res) => {
-        if (res.success && Array.isArray(res.data)) {
-          res.data.forEach((service) => {
-            nextServiceMap[String(service.id)] = service;
-          });
-        }
-      });
-      setServiceMap(nextServiceMap);
-      const nextRoomMap = {};
-      roomsResults.forEach((res) => {
-        if (res.success && Array.isArray(res.data)) {
-          res.data.forEach((room) => {
-            nextRoomMap[String(room.id)] = room;
-          });
-        }
-      });
-      setRoomMap(nextRoomMap);
-    } else {
+
+      if (meRes.success && meRes.data) {
+        setProfileUser(meRes.data);
+      } else {
+        setProfileUser(user || null);
+      }
+
+      setProviders(provRes.success ? provRes.data : []);
+      setBookings(bookRes.success ? bookRes.data : []);
+      setProviderBookings(providerBookRes.success ? providerBookRes.data : []);
+
+      if (allProvRes.success) {
+        const map = allProvRes.data.reduce((acc, provider) => {
+          acc[String(provider.id)] = provider.name;
+          return acc;
+        }, {});
+        setProviderMap(map);
+      } else {
+        setProviderMap({});
+      }
+
+      const bookingProviderIds = [];
+      if (bookRes.success) {
+        bookRes.data.forEach((booking) => bookingProviderIds.push(String(booking.provider_id)));
+      }
+      if (providerBookRes.success) {
+        providerBookRes.data.forEach((booking) => bookingProviderIds.push(String(booking.provider_id)));
+      }
+
+      const providerIds = Array.from(new Set(bookingProviderIds));
+      if (providerIds.length > 0) {
+        const [tablesResults, servicesResults, roomsResults] = await Promise.all([
+          Promise.all(providerIds.map((providerId) => bookingsAPI.getTables(providerId))),
+          Promise.all(providerIds.map((providerId) => bookingsAPI.getServices(providerId))),
+          Promise.all(providerIds.map((providerId) => bookingsAPI.getRooms(providerId))),
+        ]);
+
+        const nextTableMap = {};
+        tablesResults.forEach((res) => {
+          if (res.success && Array.isArray(res.data)) {
+            res.data.forEach((table) => {
+              nextTableMap[String(table.id)] = table;
+            });
+          }
+        });
+        setTableMap(nextTableMap);
+
+        const nextServiceMap = {};
+        servicesResults.forEach((res) => {
+          if (res.success && Array.isArray(res.data)) {
+            res.data.forEach((service) => {
+              nextServiceMap[String(service.id)] = service;
+            });
+          }
+        });
+        setServiceMap(nextServiceMap);
+
+        const nextRoomMap = {};
+        roomsResults.forEach((res) => {
+          if (res.success && Array.isArray(res.data)) {
+            res.data.forEach((room) => {
+              nextRoomMap[String(room.id)] = room;
+            });
+          }
+        });
+        setRoomMap(nextRoomMap);
+      } else {
+        setTableMap({});
+        setServiceMap({});
+        setRoomMap({});
+      }
+    } catch (error) {
+      setProviders([]);
+      setBookings([]);
+      setProviderBookings([]);
+      setProviderMap({});
       setTableMap({});
       setServiceMap({});
       setRoomMap({});
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const isSameDay = (bookingDate) => {
@@ -200,8 +236,10 @@ export default function ProfileScreen({ navigation }) {
         <Card style={styles.card}>
           <Card.Content>
             <Title>Profil</Title>
-            <Paragraph>Email: {user?.email}</Paragraph>
-            <Paragraph>Nume complet: {user?.full_name || '-'}</Paragraph>
+            <Paragraph>Email: {profileUser?.email || '-'}</Paragraph>
+            <Paragraph>Username: {profileUser?.username || '-'}</Paragraph>
+            <Paragraph>Nume complet: {profileUser?.full_name || '-'}</Paragraph>
+            <Paragraph>Membru din: {formatDate(profileUser?.created_at)}</Paragraph>
           </Card.Content>
         </Card>
         <Title style={styles.sectionTitle}>Serviciile mele</Title>
@@ -263,15 +301,128 @@ export default function ProfileScreen({ navigation }) {
             </Card>
           ))
         )}
-        {providers.length > 0 && (
-          <>
-            <Title style={styles.sectionTitle}>Rezervari in curs (serviciile mele)</Title>
-            {providerBookings.filter((booking) => booking.status === 'pending').length === 0 ? (
-              <Text style={styles.emptyText}>Nu exista rezervari in curs pentru serviciile tale.</Text>
-            ) : (
-              providerBookings
-                .filter((booking) => booking.status === 'pending')
-                .map((booking) => (
+        <>
+          <Title style={styles.sectionTitle}>Rezervari in curs (serviciile mele)</Title>
+          {providerBookings.filter((booking) => booking.status === 'pending').length === 0 ? (
+            <Text style={styles.emptyText}>Nu exista rezervari in curs pentru serviciile tale.</Text>
+          ) : (
+            providerBookings
+              .filter((booking) => booking.status === 'pending')
+              .map((booking) => (
+                <Card key={booking.id} style={styles.card}>
+                  <Card.Content>
+                    <Title>
+                      {booking.customer_name}
+                      {booking.table_id ? ` (${booking.party_size} pers.)` : ''}
+                    </Title>
+                    <Paragraph>Serviciu: {providerMap[String(booking.provider_id)] || 'Serviciu'}</Paragraph>
+                    <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
+                    {booking.car_id && (
+                      <Paragraph>Masina: {getCarLabel(booking) || booking.car_id}</Paragraph>
+                    )}
+                    {booking.rental_end_date && booking.rental_end_time && (
+                      <Paragraph>
+                        Perioada: {booking.booking_date} {booking.start_time} - {booking.rental_end_date} {booking.rental_end_time}
+                      </Paragraph>
+                    )}
+                    <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
+                    <Paragraph>Email: {booking.customer_email}</Paragraph>
+                    {booking.service_id && serviceMap[String(booking.service_id)] && (
+                      <Paragraph>Serviciu: {serviceMap[String(booking.service_id)].name}</Paragraph>
+                    )}
+                    {booking.table_id && tableMap[String(booking.table_id)] && (
+                      <Paragraph>Masa: {formatTableDetails(tableMap[String(booking.table_id)])}</Paragraph>
+                    )}
+                    {booking.room_id && roomMap[String(booking.room_id)] && (
+                      <Paragraph>Spatiu: {formatRoomDetails(roomMap[String(booking.room_id)])}</Paragraph>
+                    )}
+                    {booking.table_id && booking.special_occasion && (
+                      <Paragraph>Ocazie speciala: {formatTableLabel(booking.special_occasion)}</Paragraph>
+                    )}
+                    {booking.table_id && (
+                      <Paragraph>Adulti: {booking.party_adults} | Copii: {booking.party_children}</Paragraph>
+                    )}
+                    {booking.notes && <Paragraph>Notite: {booking.notes}</Paragraph>}
+                  </Card.Content>
+                  <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 8, gap: 8 }}>
+                    <Button
+                      mode="contained"
+                      icon="check"
+                      style={{ backgroundColor: '#388e3c' }}
+                      onPress={() => handleUpdateBookingStatus(booking, 'confirmed')}
+                      disabled={updatingBookingId === booking.id}
+                      loading={updatingBookingId === booking.id}
+                    >
+                      Confirma
+                    </Button>
+                    <Button
+                      mode="contained"
+                      icon="close"
+                      style={{ backgroundColor: '#d32f2f' }}
+                      onPress={() => handleUpdateBookingStatus(booking, 'rejected')}
+                      disabled={updatingBookingId === booking.id}
+                      loading={updatingBookingId === booking.id}
+                    >
+                      Respinge
+                    </Button>
+                  </View>
+                </Card>
+              ))
+          )}
+
+          <Title style={styles.sectionTitle}>Rezervari acceptate (serviciile mele)</Title>
+          {providerBookings.filter((booking) => booking.status === 'confirmed').length === 0 ? (
+            <Text style={styles.emptyText}>Nu exista rezervari acceptate.</Text>
+          ) : (
+            providerBookings
+              .filter((booking) => booking.status === 'confirmed')
+              .map((booking) => (
+                <Card key={booking.id} style={styles.card}>
+                  <Card.Content>
+                    <Title>
+                      {booking.customer_name}
+                      {booking.table_id ? ` (${booking.party_size} pers.)` : ''}
+                    </Title>
+                    <Paragraph>Serviciu: {providerMap[String(booking.provider_id)] || 'Serviciu'}</Paragraph>
+                    <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
+                    {booking.car_id && (
+                      <Paragraph>Masina: {getCarLabel(booking) || booking.car_id}</Paragraph>
+                    )}
+                    {booking.rental_end_date && booking.rental_end_time && (
+                      <Paragraph>
+                        Perioada: {booking.booking_date} {booking.start_time} - {booking.rental_end_date} {booking.rental_end_time}
+                      </Paragraph>
+                    )}
+                    <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
+                    <Paragraph>Email: {booking.customer_email}</Paragraph>
+                    {booking.service_id && serviceMap[String(booking.service_id)] && (
+                      <Paragraph>Serviciu: {serviceMap[String(booking.service_id)].name}</Paragraph>
+                    )}
+                    {booking.table_id && tableMap[String(booking.table_id)] && (
+                      <Paragraph>Masa: {formatTableDetails(tableMap[String(booking.table_id)])}</Paragraph>
+                    )}
+                    {booking.room_id && roomMap[String(booking.room_id)] && (
+                      <Paragraph>Spatiu: {formatRoomDetails(roomMap[String(booking.room_id)])}</Paragraph>
+                    )}
+                    {booking.table_id && booking.special_occasion && (
+                      <Paragraph>Ocazie speciala: {formatTableLabel(booking.special_occasion)}</Paragraph>
+                    )}
+                    {booking.table_id && (
+                      <Paragraph>Adulti: {booking.party_adults} | Copii: {booking.party_children}</Paragraph>
+                    )}
+                    {booking.notes && <Paragraph>Notite: {booking.notes}</Paragraph>}
+                  </Card.Content>
+                </Card>
+              ))
+          )}
+
+          <Title style={styles.sectionTitle}>Rezervari anulate (serviciile mele)</Title>
+          {providerBookings.filter((booking) => booking.status === 'canceled').length === 0 ? (
+            <Text style={styles.emptyText}>Nu exista rezervari anulate.</Text>
+          ) : (
+            providerBookings
+              .filter((booking) => booking.status === 'canceled')
+              .map((booking) => (
                   <Card key={booking.id} style={styles.card}>
                     <Card.Content>
                       <Title>
@@ -307,116 +458,10 @@ export default function ProfileScreen({ navigation }) {
                       )}
                       {booking.notes && <Paragraph>Notite: {booking.notes}</Paragraph>}
                     </Card.Content>
-                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 8, gap: 8 }}>
-                      <Button
-                        mode="contained"
-                        icon="check"
-                        style={{ backgroundColor: '#388e3c' }}
-                        onPress={() => handleUpdateBookingStatus(booking, 'confirmed')}
-                        disabled={updatingBookingId === booking.id}
-                        loading={updatingBookingId === booking.id}
-                      >
-                        Confirma
-                      </Button>
-                      <Button
-                        mode="contained"
-                        icon="close"
-                        style={{ backgroundColor: '#d32f2f' }}
-                        onPress={() => handleUpdateBookingStatus(booking, 'rejected')}
-                        disabled={updatingBookingId === booking.id}
-                        loading={updatingBookingId === booking.id}
-                      >
-                        Respinge
-                      </Button>
-                    </View>
                   </Card>
                 ))
-            )}
-
-            <Title style={styles.sectionTitle}>Rezervari acceptate (serviciile mele)</Title>
-            {providerBookings.filter((booking) => booking.status === 'confirmed').length === 0 ? (
-              <Text style={styles.emptyText}>Nu exista rezervari acceptate.</Text>
-            ) : (
-              providerBookings
-                .filter((booking) => booking.status === 'confirmed')
-                .map((booking) => (
-                  <Card key={booking.id} style={styles.card}>
-                    <Card.Content>
-                      <Title>
-                        {booking.customer_name}
-                        {booking.table_id ? ` (${booking.party_size} pers.)` : ''}
-                      </Title>
-                      <Paragraph>Serviciu: {providerMap[String(booking.provider_id)] || 'Serviciu'}</Paragraph>
-                      <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
-                      {booking.car_id && (
-                        <Paragraph>Masina: {getCarLabel(booking) || booking.car_id}</Paragraph>
-                      )}
-                      {booking.rental_end_date && booking.rental_end_time && (
-                        <Paragraph>
-                          Perioada: {booking.booking_date} {booking.start_time} - {booking.rental_end_date} {booking.rental_end_time}
-                        </Paragraph>
-                      )}
-                      <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
-                      <Paragraph>Email: {booking.customer_email}</Paragraph>
-                      {booking.service_id && serviceMap[String(booking.service_id)] && (
-                        <Paragraph>Serviciu: {serviceMap[String(booking.service_id)].name}</Paragraph>
-                      )}
-                      {booking.table_id && tableMap[String(booking.table_id)] && (
-                        <Paragraph>Masa: {formatTableDetails(tableMap[String(booking.table_id)])}</Paragraph>
-                      )}
-                      {booking.room_id && roomMap[String(booking.room_id)] && (
-                        <Paragraph>Spatiu: {formatRoomDetails(roomMap[String(booking.room_id)])}</Paragraph>
-                      )}
-                      {booking.table_id && booking.special_occasion && (
-                        <Paragraph>Ocazie speciala: {formatTableLabel(booking.special_occasion)}</Paragraph>
-                      )}
-                      {booking.table_id && (
-                        <Paragraph>Adulti: {booking.party_adults} | Copii: {booking.party_children}</Paragraph>
-                      )}
-                      {booking.notes && <Paragraph>Notite: {booking.notes}</Paragraph>}
-                    </Card.Content>
-                  </Card>
-                ))
-            )}
-
-            <Title style={styles.sectionTitle}>Rezervari anulate (serviciile mele)</Title>
-            {providerBookings.filter((booking) => booking.status === 'canceled').length === 0 ? (
-              <Text style={styles.emptyText}>Nu exista rezervari anulate.</Text>
-            ) : (
-              providerBookings
-                .filter((booking) => booking.status === 'canceled')
-                .map((booking) => (
-                  <Card key={booking.id} style={styles.card}>
-                    <Card.Content>
-                      <Title>
-                        {booking.customer_name}
-                        {booking.table_id ? ` (${booking.party_size} pers.)` : ''}
-                      </Title>
-                      <Paragraph>Serviciu: {providerMap[String(booking.provider_id)] || 'Serviciu'}</Paragraph>
-                      <Paragraph>Data: {booking.booking_date} {booking.start_time}</Paragraph>
-                      {booking.car_id && (
-                        <Paragraph>Masina: {getCarLabel(booking) || booking.car_id}</Paragraph>
-                      )}
-                      {booking.rental_end_date && booking.rental_end_time && (
-                        <Paragraph>
-                          Perioada: {booking.booking_date} {booking.start_time} - {booking.rental_end_date} {booking.rental_end_time}
-                        </Paragraph>
-                      )}
-                      <Paragraph>Telefon: {booking.customer_phone}</Paragraph>
-                      <Paragraph>Email: {booking.customer_email}</Paragraph>
-                      {booking.table_id && tableMap[String(booking.table_id)] && (
-                        <Paragraph>Masa: {formatTableDetails(tableMap[String(booking.table_id)])}</Paragraph>
-                      )}
-                      {booking.room_id && roomMap[String(booking.room_id)] && (
-                        <Paragraph>Spatiu: {formatRoomDetails(roomMap[String(booking.room_id)])}</Paragraph>
-                      )}
-                      <Paragraph>Status: Anulata de client</Paragraph>
-                    </Card.Content>
-                  </Card>
-                ))
-            )}
-          </>
-        )}
+          )}
+        </>
         <Title style={styles.sectionTitle}>Rezervările mele</Title>
         {bookings.filter((booking) => !isExpiredBooking(booking.booking_date)).length === 0 ? (
           <Text style={styles.emptyText}>Nu ai făcut nicio rezervare.</Text>

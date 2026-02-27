@@ -97,7 +97,11 @@ async def connect_to_mongo():
     """Connect to MongoDB"""
     global mongodb_client, database
     try:
-        mongodb_client = AsyncIOMotorClient(MONGODB_URL)
+        mongodb_client = AsyncIOMotorClient(
+            MONGODB_URL,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=5000,
+        )
         database = mongodb_client[DATABASE_NAME]
         
         # Test connection
@@ -134,7 +138,17 @@ async def connect_to_mongo():
         await database.bookings.create_index("status")
         await database.service_offers.create_index("user_id")
         await database.service_offers.create_index("services")
-        
+
+        # Apartment booking requests indexes
+        await database.apartment_booking_requests.create_index("listing_id")
+        await database.apartment_booking_requests.create_index("guest_user_id")
+        await database.apartment_booking_requests.create_index("owner_user_id")
+        await database.apartment_booking_requests.create_index("status")
+        await database.apartment_booking_requests.create_index(
+            [("listing_id", 1), ("check_in", 1), ("check_out", 1)]
+        )
+        await database.apartment_booking_requests.create_index("stripe_payment_intent_id")
+
         print("✅ MongoDB indexes created")
     except Exception as e:
         print(f"❌ Failed to connect to MongoDB: {e}")
@@ -192,6 +206,10 @@ def get_employees_collection():
 def get_service_offers_collection():
     """Get service offers collection"""
     return database.service_offers
+
+def get_apartment_booking_requests_collection():
+    """Get apartment booking requests collection (Stripe-powered)"""
+    return database.apartment_booking_requests
 
 def get_experiences_collection():
     """Get experiences collection"""

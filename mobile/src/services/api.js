@@ -541,7 +541,9 @@ export const bookingsAPI = {
    */
   bookingAssistant: async (assistantPayload) => {
     try {
-      const response = await api.post('/bookings/assistant', assistantPayload);
+      const response = await api.post('/bookings/assistant', assistantPayload, {
+        timeout: 45000,
+      });
       return { success: true, data: response.data };
     } catch (error) {
       console.error('[api] bookingAssistant error:', formatAxiosError(error));
@@ -613,16 +615,33 @@ export const bookingsAPI = {
    * Get bookings for all providers owned by current user
    */
   getProviderBookings: async () => {
-    try {
-      const response = await api.get('/bookings/provider-bookings');
-      return { success: true, data: response.data };
-    } catch (error) {
-      console.error('[api] getProviderBookings error:', formatAxiosError(error));
-      return {
-        success: false,
-        error: error.response?.data?.detail || error.message || 'Failed to get provider bookings',
-      };
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        const response = await api.get('/bookings/provider-bookings', {
+          timeout: 45000,
+        });
+        return { success: true, data: response.data };
+      } catch (error) {
+        const status = error?.response?.status;
+        const shouldRetry = attempt < maxAttempts && (status === 502 || status === 503 || status === 504 || error?.code === 'ECONNABORTED');
+        console.error('[api] getProviderBookings error:', formatAxiosError(error), `attempt=${attempt}/${maxAttempts}`);
+
+        if (!shouldRetry) {
+          return {
+            success: false,
+            error: error.response?.data?.detail || error.message || 'Failed to get provider bookings',
+          };
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, attempt * 700));
+      }
     }
+
+    return {
+      success: false,
+      error: 'Failed to get provider bookings',
+    };
   },
 
   /**
@@ -981,3 +1000,109 @@ const experiencesAPI = {
 };
 
 export { experiencesAPI };
+
+// ---------------------------------------------------------------------------
+// Apartment Bookings API  (Stripe-powered)
+// ---------------------------------------------------------------------------
+/**
+ * apartmentBookingsAPI
+ *
+ * All calls hit /api/apartment-bookings/* on the backend.
+ *
+ * Stripe integration notes for the mobile side:
+ *   • Install:  yarn add @stripe/stripe-react-native
+ *   • Init in App.js:  <StripeProvider publishableKey="pk_test_...">
+ *   • Collect payment method:
+ *       const { paymentMethod } = await createPaymentMethod({ paymentMethodType: 'Card', ... });
+ *       // paymentMethod.id  →  pass as  payment_method_id  below
+ *   • After creating the request the backend returns  stripe_client_secret.
+ *     In TEST mode with manual capture you DON'T need to call confirmPayment from the client
+ *     (the backend already confirms the intent). In production you may want to use
+ *     confirmPayment(clientSecret) to handle 3DS challenges.
+ */
+const apartmentBookingsAPI = {
+  /**
+   * Guest: create a booking request for a listing.
+   * @param {string} listingId  - MongoDB _id of the listing
+   * @param {{ check_in: string, check_out: string, guests: number, payment_method_id: string, notes?: string }} data
+   */
+  createRequest: async (listingId, data) => {
+    try {
+      const response = await api.post(`/apartment-bookings/${listingId}/booking-requests`, data);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] apartmentBookings.createRequest error:', formatAxiosError(error));
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+
+  /** Guest: list own outgoing requests (optionally filtered by status). */
+  getMyRequests: async (status = null) => {
+    try {
+      const params = status ? { status } : {};
+      const response = await api.get('/apartment-bookings/my-requests', { params });
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] apartmentBookings.getMyRequests error:', formatAxiosError(error));
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+
+  /** Owner: list incoming booking requests for own listings (optionally filtered by status). */
+  getIncomingRequests: async (status = null) => {
+    try {
+      const params = status ? { status } : {};
+      const response = await api.get('/apartment-bookings/my-incoming-requests', { params });
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] apartmentBookings.getIncomingRequests error:', formatAxiosError(error));
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+
+  /** Get details for a single booking request (owner or guest). */
+  getRequest: async (reqId) => {
+    try {
+      const response = await api.get(`/apartment-bookings/booking-requests/${reqId}`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] apartmentBookings.getRequest error:', formatAxiosError(error));
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+
+  /** Owner: accept a pending request (captures Stripe payment). */
+  acceptRequest: async (reqId) => {
+    try {
+      const response = await api.post(`/apartment-bookings/booking-requests/${reqId}/accept`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] apartmentBookings.acceptRequest error:', formatAxiosError(error));
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+
+  /** Owner: reject a pending request (cancels Stripe payment, releases hold). */
+  rejectRequest: async (reqId) => {
+    try {
+      const response = await api.post(`/apartment-bookings/booking-requests/${reqId}/reject`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] apartmentBookings.rejectRequest error:', formatAxiosError(error));
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+
+  /** Guest: cancel own pending request (cancels Stripe payment, no charge). */
+  cancelRequest: async (reqId) => {
+    try {
+      const response = await api.post(`/apartment-bookings/booking-requests/${reqId}/cancel`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('[api] apartmentBookings.cancelRequest error:', formatAxiosError(error));
+      return { success: false, error: error.response?.data?.detail || error.message };
+    }
+  },
+};
+
+export { apartmentBookingsAPI };

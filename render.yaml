@@ -6,7 +6,7 @@ services:
     plan: free
     branch: main
     rootDir: backend
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
@@ -16,3 +16,15 @@ services:
       - key: API_PORT
         sync: false
         value: $PORT
+      - key: MONGODB_URL
+        sync: false
+      - key: DATABASE_NAME
+        value: TimisoaraLens
+      - key: SECRET_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: "*"
+      - key: RAG_BASE_URL
+        sync: false
+      - key: HF_RAG_SPACE_URL
+        sync: false
