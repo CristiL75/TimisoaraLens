@@ -293,6 +293,25 @@ export default function ManageProviderScreen({ navigation, route }) {
     setFacilities((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const getWorkingHour = (dayKey) => {
+    return (
+      workingHours.find((item) => item.day === dayKey) ||
+      DEFAULT_WORKING_HOURS.find((item) => item.day === dayKey)
+    );
+  };
+
+  const updateWorkingHour = (dayKey, changes) => {
+    setWorkingHours((prev) =>
+      DAYS.map((day) => {
+        const current =
+          prev.find((item) => item.day === day.key) ||
+          DEFAULT_WORKING_HOURS.find((item) => item.day === day.key);
+
+        return day.key === dayKey ? { ...current, ...changes } : current;
+      })
+    );
+  };
+
   const sanitizeFacilityKey = (value) => {
     return String(value || '')
       .trim()
@@ -809,12 +828,14 @@ export default function ManageProviderScreen({ navigation, route }) {
           : category === 'location_space'
             ? 'space_based'
             : 'appointment_based';
+    const parsedDuration = parseInt(duration, 10);
+    const parsedBuffer = parseInt(buffer, 10);
     const defaultDuration = (category === 'rent_a_car' || category === 'location_space')
       ? 0
-      : parseInt(duration, 10);
+      : (Number.isFinite(parsedDuration) && parsedDuration > 0 ? parsedDuration : 90);
     const defaultBuffer = (category === 'rent_a_car' || category === 'location_space')
       ? 0
-      : parseInt(buffer, 10);
+      : (Number.isFinite(parsedBuffer) && parsedBuffer >= 0 ? parsedBuffer : 15);
     const providerData = {
       category,
       name,
@@ -1465,12 +1486,15 @@ export default function ManageProviderScreen({ navigation, route }) {
           </Card>
         )}
 
-        {category !== 'rent_a_car' && category !== 'location_space' && !isExperience && (
+        {isEdit && category !== 'rent_a_car' && category !== 'location_space' && !isExperience && (
           <Card style={styles.card}>
             <Card.Content>
-              <Title>Setari Rezervari</Title>
+              <Title>Program si disponibilitate</Title>
+              <Text style={styles.noteText}>
+                Configureaza durata rezervarilor, pauzele dintre ele si programul pe zile.
+              </Text>
               <TextInput
-                label="Durata implicita (minute)"
+                label="Durata unei rezervari (minute)"
                 value={duration}
                 onChangeText={setDuration}
                 mode="outlined"
@@ -1478,16 +1502,54 @@ export default function ManageProviderScreen({ navigation, route }) {
                 keyboardType="numeric"
               />
               <TextInput
-                label="Buffer intre rezervari (minute)"
+                label="Pauza intre rezervari (minute)"
                 value={buffer}
                 onChangeText={setBuffer}
                 mode="outlined"
                 style={styles.input}
                 keyboardType="numeric"
               />
-              <Text style={styles.noteText}>
-                Program implicit: 10:00 - 22:00, zilnic (editare program va fi adaugata ulterior).
-              </Text>
+              <View style={styles.scheduleList}>
+                {DAYS.map((day) => {
+                  const schedule = getWorkingHour(day.key);
+                  return (
+                    <View key={day.key} style={styles.scheduleDayCard}>
+                      <View style={styles.scheduleHeader}>
+                        <Text style={styles.scheduleDayTitle}>{day.label}</Text>
+                        <View style={styles.scheduleSwitchRow}>
+                          <Text style={styles.scheduleStatus}>
+                            {schedule.is_closed ? 'Inchis' : 'Deschis'}
+                          </Text>
+                          <Switch
+                            value={!schedule.is_closed}
+                            onValueChange={(value) => updateWorkingHour(day.key, { is_closed: !value })}
+                          />
+                        </View>
+                      </View>
+                      {!schedule.is_closed && (
+                        <View style={styles.scheduleTimeRow}>
+                          <TextInput
+                            label="Deschidere"
+                            value={schedule.open_time}
+                            onChangeText={(value) => updateWorkingHour(day.key, { open_time: value })}
+                            mode="outlined"
+                            style={styles.scheduleTimeInput}
+                            placeholder="10:00"
+                          />
+                          <TextInput
+                            label="Inchidere"
+                            value={schedule.close_time}
+                            onChangeText={(value) => updateWorkingHour(day.key, { close_time: value })}
+                            mode="outlined"
+                            style={styles.scheduleTimeInput}
+                            placeholder="22:00"
+                          />
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
             </Card.Content>
           </Card>
         )}
@@ -1535,7 +1597,7 @@ export default function ManageProviderScreen({ navigation, route }) {
           </Card>
         )}
 
-        {category === 'club_nightlife' && (
+        {isEdit && category === 'club_nightlife' && (
           <Card style={styles.card}>
             <Card.Content>
               <Title>Tipuri de Rezervare</Title>
@@ -1974,6 +2036,40 @@ const styles = StyleSheet.create({
   noteText: {
     color: '#666',
     fontSize: 12,
+  },
+  scheduleList: {
+    marginTop: 12,
+  },
+  scheduleDayCard: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  scheduleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  scheduleDayTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  scheduleSwitchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  scheduleStatus: {
+    color: '#666',
+    fontSize: 12,
+    marginRight: 8,
+  },
+  scheduleTimeRow: {
+    flexDirection: 'row',
+    marginTop: 8,
+    gap: 8,
+  },
+  scheduleTimeInput: {
+    flex: 1,
   },
   facilityRow: {
     flexDirection: 'row',

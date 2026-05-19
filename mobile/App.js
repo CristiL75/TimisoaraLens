@@ -21,6 +21,7 @@ import EditListingScreen from './src/screens/EditListingScreen';
 import LocationPickerScreen from './src/screens/LocationPickerScreen';
 import RouteBuilderScreen from './src/screens/RouteBuilderScreen';
 import ServicesScreen from './src/screens/ServicesScreen';
+import CreateProviderWizardScreen from './src/screens/CreateProviderWizardScreen';
 import ManageProviderScreen from './src/screens/ManageProviderScreen';
 import ManageTablesScreen from './src/screens/ManageTablesScreen';
 import ManageRoomsScreen from './src/screens/ManageRoomsScreen';
@@ -65,7 +66,7 @@ function AppStack() {
       <Stack.Screen name="LocationPicker" component={LocationPickerScreen} />
       <Stack.Screen name="RouteBuilder" component={RouteBuilderScreen} />
       <Stack.Screen name="Services" component={ServicesScreen} />
-      <Stack.Screen name="CreateProvider" component={ManageProviderScreen} />
+      <Stack.Screen name="CreateProvider" component={CreateProviderWizardScreen} />
       <Stack.Screen name="ManageProvider" component={ManageProviderScreen} />
       <Stack.Screen name="ProviderDetail" component={ProviderDetailScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
