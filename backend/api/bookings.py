@@ -2237,32 +2237,34 @@ async def _resolve_service_for_assistant(
         return len(wa & wb) / max(len(wa), len(wb))
 
     async def _semantic_service_match() -> Optional[dict]:
-        if not RAG_BASE_URL:
-            return None
+        try:
+            if not RAG_BASE_URL:
+                return None
 
-        user_request = "\n".join(filter(None, [service_hint, combined_text])).strip()
-        if not user_request:
-            return None
+            user_request = "\n".join(filter(None, [service_hint, combined_text])).strip()
+            if not user_request:
+                return None
 
-        options = []
-        service_by_id = {}
-        for svc in services:
-            service_id = str(svc.get("_id") or svc.get("id") or "")
-            if not service_id:
-                continue
-            service_by_id[service_id] = svc
-            options.append({
-                "id": service_id,
-                "name": svc.get("name"),
-                "category": svc.get("category"),
-                "duration_minutes": svc.get("duration_minutes"),
-                "price": svc.get("price"),
-            })
+            options = []
+            service_by_id = {}
+            for svc in services:
+                service_id = str(svc.get("_id") or svc.get("id") or "")
+                if not service_id:
+                    continue
+                service_by_id[service_id] = svc
+                options.append({
+                    "id": service_id,
+                    "name": svc.get("name"),
+                    "category": svc.get("category"),
+                    "duration_minutes": svc.get("duration_minutes"),
+                    "price": svc.get("price"),
+                })
 
-        if not options:
-            return None
+            if not options:
+                return None
 
-        prompt = f"""You are matching a user's booking request to one service from a provider's service list.
+            services_json = json.dumps(options, ensure_ascii=False, default=str)
+            prompt = f"""You are matching a user's booking request to one service from a provider's service list.
 Return ONLY one minified JSON object with keys:
 - service_id: the id of the best matching service, or null if none is a confident match
 - confidence: number from 0 to 1
@@ -2279,10 +2281,9 @@ User request:
 </request>
 
 Available services JSON:
-{json.dumps(options, ensure_ascii=False)}
+{services_json}
 """
 
-        try:
             async with httpx.AsyncClient(timeout=RAG_SYNC_TIMEOUT) as client:
                 response = await client.post(
                     f"{RAG_BASE_URL}/generate",
@@ -2290,21 +2291,21 @@ Available services JSON:
                 )
                 response.raise_for_status()
                 generated = ((response.json() or {}).get("generated_text") or "").strip()
-        except Exception:
-            return None
 
-        parsed = _extract_json_object(generated)
-        if not isinstance(parsed, dict):
-            return None
+            parsed = _extract_json_object(generated)
+            if not isinstance(parsed, dict):
+                return None
 
-        service_id = str(parsed.get("service_id") or "").strip()
-        try:
-            confidence = float(parsed.get("confidence") or 0)
-        except Exception:
-            confidence = 0
+            service_id = str(parsed.get("service_id") or "").strip()
+            try:
+                confidence = float(parsed.get("confidence") or 0)
+            except Exception:
+                confidence = 0
 
-        if service_id and confidence >= 0.72:
-            return service_by_id.get(service_id)
+            if service_id and confidence >= 0.72:
+                return service_by_id.get(service_id)
+        except Exception as exc:
+            print(f"[WARN] Semantic service matching failed: {exc}")
         return None
 
     hint = (service_hint or "").strip()
