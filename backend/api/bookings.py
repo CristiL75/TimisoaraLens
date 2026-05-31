@@ -2221,20 +2221,91 @@ async def _resolve_service_for_assistant(
     if not services:
         return None
 
-    _STOP = {"", "si", "and", "cu", "de", "la", "in", "un", "o"}
+    _STOP = {"", "si", "and", "cu", "de", "la", "in", "un", "o", "the", "a", "an", "with", "for"}
 
     def _norm(s: str) -> str:
         import unicodedata as _ud
         return _ud.normalize("NFD", s.lower()).encode("ascii", "ignore").decode()
 
     def _words(s: str) -> set:
-        return set(re.split(r"[\s\-\+\/\,\.]+", _norm(s))) - _STOP
+        return set(re.split(r"[\s\-\+\/\,\.&]+", _norm(s))) - _STOP
 
     def _word_overlap(a: str, b: str) -> float:
         wa, wb = _words(a), _words(b)
         if not wa or not wb:
             return 0.0
         return len(wa & wb) / max(len(wa), len(wb))
+
+    async def _semantic_service_match() -> Optional[dict]:
+        if not RAG_BASE_URL:
+            return None
+
+        user_request = "\n".join(filter(None, [service_hint, combined_text])).strip()
+        if not user_request:
+            return None
+
+        options = []
+        service_by_id = {}
+        for svc in services:
+            service_id = str(svc.get("_id") or svc.get("id") or "")
+            if not service_id:
+                continue
+            service_by_id[service_id] = svc
+            options.append({
+                "id": service_id,
+                "name": svc.get("name"),
+                "category": svc.get("category"),
+                "duration_minutes": svc.get("duration_minutes"),
+                "price": svc.get("price"),
+            })
+
+        if not options:
+            return None
+
+        prompt = f"""You are matching a user's booking request to one service from a provider's service list.
+Return ONLY one minified JSON object with keys:
+- service_id: the id of the best matching service, or null if none is a confident match
+- confidence: number from 0 to 1
+
+Rules:
+- Match semantically across languages when needed.
+- Use only the provided service ids.
+- Prefer null when the request is ambiguous between multiple services.
+- Do not invent services.
+
+User request:
+<request>
+{user_request}
+</request>
+
+Available services JSON:
+{json.dumps(options, ensure_ascii=False)}
+"""
+
+        try:
+            async with httpx.AsyncClient(timeout=RAG_SYNC_TIMEOUT) as client:
+                response = await client.post(
+                    f"{RAG_BASE_URL}/generate",
+                    json={"prompt": prompt, "max_tokens": 120},
+                )
+                response.raise_for_status()
+                generated = ((response.json() or {}).get("generated_text") or "").strip()
+        except Exception:
+            return None
+
+        parsed = _extract_json_object(generated)
+        if not isinstance(parsed, dict):
+            return None
+
+        service_id = str(parsed.get("service_id") or "").strip()
+        try:
+            confidence = float(parsed.get("confidence") or 0)
+        except Exception:
+            confidence = 0
+
+        if service_id and confidence >= 0.72:
+            return service_by_id.get(service_id)
+        return None
 
     hint = (service_hint or "").strip()
     text_norm = _norm(combined_text or "")
@@ -2257,6 +2328,10 @@ async def _resolve_service_for_assistant(
                 best, best_svc = score, svc
         if best >= 0.5:
             return best_svc
+
+    semantic_match = await _semantic_service_match()
+    if semantic_match:
+        return semantic_match
 
     # 4. Service name appears verbatim in combined text
     for svc in services:
@@ -4454,13 +4529,37 @@ async def _build_missing_fields_message_with_llm(
     if not fields:
         return context or "Please provide the missing details to continue."
 
+    field_labels = {
+        "provider_id": "provider or business name",
+        "service_id": "service selection",
+        "employee_id": "preferred employee/specialist",
+        "table_id": "table selection",
+        "room_id": "room/space selection",
+        "car_id": "car selection",
+        "booking_id": "booking ID",
+        "booking_date": "booking date",
+        "start_time": "start time",
+        "end_time": "end time",
+        "duration_minutes": "duration",
+        "rental_end_date": "rental end date",
+        "rental_end_time": "rental end time",
+        "party_size": "number of people",
+        "customer_name": "your name",
+        "customer_email": "your email",
+        "customer_phone": "your phone number",
+    }
+
+    def _field_label(field: str) -> str:
+        return field_labels.get(field, field.replace("_", " "))
+
     if not RAG_BASE_URL:
         intro = context or "Please provide the following details:"
-        bullets = "\n".join(f"• {field.replace('_', ' ')}" for field in fields)
+        bullets = "\n".join(f"• {_field_label(field)}" for field in fields)
         return f"{intro}\n{bullets}"
 
     context_line = context or "Please provide the missing details so I can continue the booking."
     fields_json = json.dumps(fields, ensure_ascii=False)
+    labels_json = json.dumps({field: _field_label(field) for field in fields}, ensure_ascii=False)
     prompt = f"""You are writing booking-assistant UX text.
 Target language: {normalized_language}
 
@@ -4472,6 +4571,8 @@ Requirements:
 - Then include one bullet per field using natural user-facing wording.
 - For phone/email/date/time fields, optionally include a short example format.
 - Preserve field intent exactly from this list: {fields_json}
+- Do not expose internal field names such as provider_id, service_id, employee_id.
+- Use these user-facing labels: {labels_json}
 
 Context sentence:
 {context_line}
@@ -4491,7 +4592,7 @@ Context sentence:
         pass
 
     intro = context or "Please provide the following details:"
-    bullets = "\n".join(f"• {field.replace('_', ' ')}" for field in fields)
+    bullets = "\n".join(f"• {_field_label(field)}" for field in fields)
     return f"{intro}\n{bullets}"
 
 
