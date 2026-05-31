@@ -2220,6 +2220,8 @@ async def _resolve_service_for_assistant(
     services = await services_col.find(query).to_list(30)
     if not services:
         return None
+    if len(services) == 1:
+        return services[0]
 
     _STOP = {"", "si", "and", "cu", "de", "la", "in", "un", "o", "the", "a", "an", "with", "for"}
 
@@ -2263,22 +2265,45 @@ async def _resolve_service_for_assistant(
             if not options:
                 return None
 
+            provider_context = {}
+            try:
+                providers_col = get_providers_collection()
+                provider_doc = await providers_col.find_one(
+                    {"_id": ObjectId(provider_id)} if ObjectId.is_valid(provider_id) else {"_id": provider_id},
+                    {"name": 1, "category": 1, "booking_settings": 1},
+                )
+                if provider_doc:
+                    provider_context = {
+                        "name": provider_doc.get("name"),
+                        "category": provider_doc.get("category"),
+                        "booking_type": (provider_doc.get("booking_settings") or {}).get("type"),
+                    }
+            except Exception:
+                provider_context = {}
+
+            provider_json = json.dumps(provider_context, ensure_ascii=False, default=str)
             services_json = json.dumps(options, ensure_ascii=False, default=str)
             prompt = f"""You are matching a user's booking request to one service from a provider's service list.
 Return ONLY one minified JSON object with keys:
 - service_id: the id of the best matching service, or null if none is a confident match
 - confidence: number from 0 to 1
+- reason: short phrase explaining the semantic match
 
 Rules:
 - Match semantically across languages when needed.
 - Use only the provided service ids.
-- Prefer null when the request is ambiguous between multiple services.
+- Use the provider context to interpret domain words, but do not require exact words.
+- If one available service is clearly the same user intent in another language, return it.
+- Prefer null only when the request is truly ambiguous between multiple services.
 - Do not invent services.
 
 User request:
 <request>
 {user_request}
 </request>
+
+Provider context JSON:
+{provider_json}
 
 Available services JSON:
 {services_json}
@@ -2294,15 +2319,20 @@ Available services JSON:
 
             parsed = _extract_json_object(generated)
             if not isinstance(parsed, dict):
+                for option in options:
+                    option_id = str(option.get("id") or "")
+                    if option_id and option_id in generated:
+                        return service_by_id.get(option_id)
                 return None
 
             service_id = str(parsed.get("service_id") or "").strip()
             try:
                 confidence = float(parsed.get("confidence") or 0)
             except Exception:
-                confidence = 0
+                confidence_token = str(parsed.get("confidence") or "").strip().lower()
+                confidence = 0.85 if confidence_token in {"high", "confident", "very high"} else 0
 
-            if service_id and confidence >= 0.72:
+            if service_id and confidence >= 0.6:
                 return service_by_id.get(service_id)
         except Exception as exc:
             print(f"[WARN] Semantic service matching failed: {exc}")
