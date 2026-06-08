@@ -4,7 +4,7 @@ Main application entry point
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from contextlib import asynccontextmanager
 import uvicorn
 from dotenv import load_dotenv
@@ -46,6 +46,11 @@ def _env_bool(name: str, default: bool) -> bool:
     if not value:
         return default
     return value in {"1", "true", "yes", "on"}
+
+
+def _is_production_env() -> bool:
+    environment = (os.getenv("APP_ENV") or os.getenv("ENVIRONMENT") or "").strip().lower()
+    return environment in {"prod", "production"} or bool(os.getenv("RENDER"))
 
 
 class SimpleRateLimiter:
@@ -103,6 +108,14 @@ class SimpleRateLimiter:
 rate_limiter = SimpleRateLimiter()
 
 
+SECURITY_HEADERS_ENABLED = _env_bool("SECURITY_HEADERS_ENABLED", True)
+FORCE_HTTPS = _env_bool("FORCE_HTTPS", _is_production_env())
+CONTENT_SECURITY_POLICY = os.getenv(
+    "CONTENT_SECURITY_POLICY",
+    "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
+)
+
+
 @app.middleware("http")
 async def rate_limit_middleware(request, call_next):
     path = str(request.url.path or "")
@@ -127,6 +140,29 @@ async def rate_limit_middleware(request, call_next):
     response = await call_next(request)
     response.headers["X-RateLimit-Limit"] = str(limit)
     response.headers["X-RateLimit-Window"] = str(rate_limiter.window_seconds)
+    return response
+
+
+@app.middleware("http")
+async def security_headers_middleware(request, call_next):
+    if FORCE_HTTPS:
+        forwarded_proto = (request.headers.get("x-forwarded-proto") or "").split(",", 1)[0].strip()
+        request_scheme = forwarded_proto or request.url.scheme
+        if request_scheme == "http":
+            https_url = request.url.replace(scheme="https")
+            return RedirectResponse(str(https_url), status_code=307)
+
+    response = await call_next(request)
+
+    if SECURITY_HEADERS_ENABLED:
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+        response.headers.setdefault("Content-Security-Policy", CONTENT_SECURITY_POLICY)
+        if FORCE_HTTPS:
+            response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+
     return response
 
 # CORS Configuration
@@ -177,9 +213,10 @@ if __name__ == "__main__":
     # Use the port provided by the environment (Render sets $PORT), fallback to 8000 for local dev
     port = int(os.environ.get("PORT", 8000))
     host = os.environ.get("API_HOST", "0.0.0.0")
+    reload_enabled = _env_bool("UVICORN_RELOAD", not _is_production_env())
     uvicorn.run(
         "main:app",
         host=host,
         port=port,
-        reload=True
+        reload=reload_enabled
     )

@@ -438,7 +438,68 @@ await database.refresh_tokens.create_index("token_hash", unique=True)
 
 Securitatea bazei de date este asigurata prin intermedierea accesului de catre backend si prin configurarea conexiunii prin variabile de mediu. Aplicatia mobila nu comunica direct cu MongoDB, ci trimite cereri catre API-ul FastAPI, care valideaza datele si verifica drepturile utilizatorilor. In productie, conexiunea `MONGODB_URL` trebuie setata explicit, iar baza de date trebuie protejata prin utilizatori cu permisiuni minime, IP allowlist si backup-uri periodice. De asemenea, proiectul defineste indexuri pentru campurile accesate frecvent, precum email, username, user_id, status si identificatori de rezervari.
 
-## 7. Directii urmatoare de securitate
+## 7. HTTPS si security headers
+
+Pentru protejarea comunicarii dintre client si backend, aplicatia trebuie rulata prin HTTPS in productie. In plus, backend-ul seteaza header-e de securitate care reduc riscul unor atacuri comune la nivel web, precum interpretarea gresita a continutului, incarcarea aplicatiei in iframe-uri neautorizate sau expunerea excesiva a informatiilor prin referrer.
+
+## 7.1 Implementare in proiect
+
+Fisier: `backend/main.py`
+
+```python
+SECURITY_HEADERS_ENABLED = _env_bool("SECURITY_HEADERS_ENABLED", True)
+FORCE_HTTPS = _env_bool("FORCE_HTTPS", _is_production_env())
+
+@app.middleware("http")
+async def security_headers_middleware(request, call_next):
+    if FORCE_HTTPS:
+        forwarded_proto = (request.headers.get("x-forwarded-proto") or "").split(",", 1)[0].strip()
+        request_scheme = forwarded_proto or request.url.scheme
+        if request_scheme == "http":
+            https_url = request.url.replace(scheme="https")
+            return RedirectResponse(str(https_url), status_code=307)
+
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Content-Security-Policy", CONTENT_SECURITY_POLICY)
+    if FORCE_HTTPS:
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    return response
+```
+
+## 7.2 Header-e configurate
+
+- `Strict-Transport-Security`: indica browserului sa foloseasca HTTPS pentru cererile viitoare.
+- `X-Content-Type-Options: nosniff`: previne interpretarea gresita a tipului de continut.
+- `X-Frame-Options: DENY`: reduce riscul de clickjacking prin blocarea incarcarii in iframe.
+- `Content-Security-Policy`: limiteaza sursele din care pot fi incarcate resurse web.
+- `Referrer-Policy`: limiteaza informatiile transmise prin header-ul `Referer`.
+- `Permissions-Policy`: dezactiveaza implicit accesul browserului la functionalitati sensibile precum camera, microfonul si geolocatia pentru contextul web.
+
+## 7.3 Dezactivarea reload-ului in productie
+
+Fisier: `backend/main.py`
+
+```python
+reload_enabled = _env_bool("UVICORN_RELOAD", not _is_production_env())
+uvicorn.run(
+    "main:app",
+    host=host,
+    port=port,
+    reload=reload_enabled
+)
+```
+
+### Explicatie
+
+In mediul local, `reload` este util deoarece reporneste automat serverul la modificarea codului. In productie, acesta trebuie dezactivat pentru stabilitate si pentru a evita comportamente nedorite. Implementarea activeaza reload-ul implicit doar in dezvoltare, iar in productie il dezactiveaza automat.
+
+## 7.4 Paragraf gata de inclus in lucrare
+
+Pentru securizarea comunicarii web, backend-ul aplica redirect catre HTTPS in productie si seteaza header-e de securitate precum `Strict-Transport-Security`, `X-Content-Type-Options` si `Content-Security-Policy`. Aceste masuri reduc riscul de acces prin conexiuni nesecurizate, clickjacking sau incarcare de resurse neautorizate. De asemenea, modul de reload al serverului Uvicorn este dezactivat automat in productie, fiind pastrat doar pentru mediul de dezvoltare.
+
+## 8. Directii urmatoare de securitate
 
 Urmatoarele masuri pot fi documentate sau implementate ulterior:
 
