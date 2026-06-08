@@ -45,6 +45,7 @@ from database_mongo import (
     ExperienceDate,
 )
 from auth_utils import get_current_user, SECRET_KEY, ALGORITHM
+from audit import audit_log
 
 # Router trebuie definit imediat după importuri
 router = APIRouter(tags=["Bookings"])
@@ -690,6 +691,13 @@ async def update_booking_status(booking_id: str, payload: dict = Body(...), curr
                 if existing_start < end_dt and start_dt < existing_end:
                     raise HTTPException(status_code=409, detail="Table already booked for this time")
     await bookings_col.update_one({"_id": ObjectId(booking_id)}, {"$set": {"status": status}})
+    audit_log(
+        "booking.status_updated",
+        booking_id=booking_id,
+        provider_id=str(booking.get("provider_id")),
+        owner_id=current_user.get("id"),
+        status=status,
+    )
     return {"success": True, "status": status}
 
 
@@ -4133,6 +4141,14 @@ async def create_booking(request: BookingCreateRequest, http_request: Request):
         raise HTTPException(status_code=400, detail=f"Invalid booking payload: {exc.errors()}")
     
     result = await bookings_col.insert_one(booking.model_dump(by_alias=True, exclude={"id"}))
+    audit_log(
+        "booking.created",
+        booking_id=str(result.inserted_id),
+        provider_id=request.provider_id,
+        user_id=current_user.get("id") if current_user else None,
+        booking_date=request.booking_date,
+        booking_type=resolved_booking_type,
+    )
     
     # TODO: Send email notification
     
@@ -5868,5 +5884,11 @@ async def cancel_booking(booking_id: str, current_user=Depends(get_current_user)
         raise HTTPException(status_code=404, detail="Booking not found")
 
     # TODO: Send cancellation email
+    audit_log(
+        "booking.cancelled",
+        booking_id=booking_id,
+        user_id=current_user.get("id"),
+        provider_id=str(booking.get("provider_id")),
+    )
 
     return {"message": "Booking canceled successfully"}

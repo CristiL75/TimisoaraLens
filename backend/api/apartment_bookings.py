@@ -34,6 +34,7 @@ from bson import ObjectId
 
 from database_mongo import get_database
 from api.auth import get_current_user
+from audit import audit_log
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -215,12 +216,15 @@ async def create_booking_request(
             },
         )
     except stripe.error.CardError as e:
+        audit_log("stripe.error", operation="payment_intent_create", listing_id=listing_id, guest_user_id=guest_user_id, error_type="card_error")
         raise HTTPException(status_code=402, detail=f"Card error: {e.user_message}")
     except stripe.error.StripeError as e:
-        logger.error("[APT-BOOKINGS] Stripe error: %s", e)
+        audit_log("stripe.error", operation="payment_intent_create", listing_id=listing_id, guest_user_id=guest_user_id, error_type=type(e).__name__)
+        logger.error("[APT-BOOKINGS] Stripe error during PaymentIntent create: %s", type(e).__name__)
         raise HTTPException(status_code=502, detail=f"Payment service error: {str(e)}")
     except Exception as e:
-        logger.error("[APT-BOOKINGS] Unexpected error creating PaymentIntent: %s", e, exc_info=True)
+        audit_log("stripe.error", operation="payment_intent_create", listing_id=listing_id, guest_user_id=guest_user_id, error_type=type(e).__name__)
+        logger.error("[APT-BOOKINGS] Unexpected error creating PaymentIntent: %s", type(e).__name__, exc_info=True)
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
     # --- Persist booking request ---
@@ -255,6 +259,14 @@ async def create_booking_request(
     }
     result = await db.apartment_booking_requests.insert_one(doc)
     doc["_id"] = result.inserted_id
+    audit_log(
+        "apartment_booking.created",
+        request_id=str(result.inserted_id),
+        listing_id=listing_id,
+        guest_user_id=guest_user_id,
+        owner_user_id=owner_user_id,
+        status="pending",
+    )
 
     return {
         "success": True,
@@ -365,7 +377,8 @@ async def accept_booking_request(
     try:
         intent = stripe.PaymentIntent.capture(doc["stripe_payment_intent_id"])
     except stripe.error.StripeError as e:
-        logger.error("[APT-BOOKINGS] Stripe capture error: %s", e)
+        audit_log("stripe.error", operation="payment_intent_capture", request_id=req_id, payment_intent_id=doc.get("stripe_payment_intent_id"), error_type=type(e).__name__)
+        logger.error("[APT-BOOKINGS] Stripe capture error: %s", type(e).__name__)
         raise HTTPException(status_code=502, detail=f"Payment capture failed: {str(e)}")
 
     # --- Update status ---
@@ -376,6 +389,14 @@ async def accept_booking_request(
     )
     doc["status"] = "confirmed"
     doc["updated_at"] = now
+    audit_log(
+        "apartment_booking.accepted",
+        request_id=req_id,
+        listing_id=doc.get("listing_id"),
+        owner_user_id=str(current_user["_id"]),
+        guest_user_id=doc.get("guest_user_id"),
+        payment_intent_id=doc.get("stripe_payment_intent_id"),
+    )
 
     return {"success": True, "message": "Booking confirmed and payment captured.", "booking_request": _serialize_apt_booking(doc)}
 
@@ -415,7 +436,8 @@ async def reject_booking_request(
     try:
         stripe.PaymentIntent.cancel(doc["stripe_payment_intent_id"])
     except stripe.error.StripeError as e:
-        logger.error("[APT-BOOKINGS] Stripe cancel error: %s", e)
+        audit_log("stripe.error", operation="payment_intent_cancel_reject", request_id=req_id, payment_intent_id=doc.get("stripe_payment_intent_id"), error_type=type(e).__name__)
+        logger.error("[APT-BOOKINGS] Stripe cancel error during reject: %s", type(e).__name__)
         raise HTTPException(status_code=502, detail=f"Payment cancellation failed: {str(e)}")
 
     # --- Update status ---
@@ -426,6 +448,14 @@ async def reject_booking_request(
     )
     doc["status"] = "rejected"
     doc["updated_at"] = now
+    audit_log(
+        "apartment_booking.rejected",
+        request_id=req_id,
+        listing_id=doc.get("listing_id"),
+        owner_user_id=str(current_user["_id"]),
+        guest_user_id=doc.get("guest_user_id"),
+        payment_intent_id=doc.get("stripe_payment_intent_id"),
+    )
 
     return {"success": True, "message": "Booking request rejected and payment released.", "booking_request": _serialize_apt_booking(doc)}
 
@@ -464,7 +494,8 @@ async def cancel_booking_request(
     try:
         stripe.PaymentIntent.cancel(doc["stripe_payment_intent_id"])
     except stripe.error.StripeError as e:
-        logger.error("[APT-BOOKINGS] Stripe cancel error: %s", e)
+        audit_log("stripe.error", operation="payment_intent_cancel_guest", request_id=req_id, payment_intent_id=doc.get("stripe_payment_intent_id"), error_type=type(e).__name__)
+        logger.error("[APT-BOOKINGS] Stripe cancel error during guest cancel: %s", type(e).__name__)
         raise HTTPException(status_code=502, detail=f"Payment cancellation failed: {str(e)}")
 
     # --- Update status ---
@@ -475,6 +506,14 @@ async def cancel_booking_request(
     )
     doc["status"] = "cancelled"
     doc["updated_at"] = now
+    audit_log(
+        "apartment_booking.cancelled",
+        request_id=req_id,
+        listing_id=doc.get("listing_id"),
+        guest_user_id=str(current_user["_id"]),
+        owner_user_id=doc.get("owner_user_id"),
+        payment_intent_id=doc.get("stripe_payment_intent_id"),
+    )
 
     return {"success": True, "message": "Booking request cancelled.", "booking_request": _serialize_apt_booking(doc)}
 

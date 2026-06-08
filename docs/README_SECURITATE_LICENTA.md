@@ -301,6 +301,145 @@ Pentru securizarea componentelor AI, aplicatia limiteaza lungimea intrebarilor, 
 
 ## 5. Directii urmatoare de securitate
 
+## 5. Audit logging
+
+Pentru actiunile importante ale aplicatiei a fost adaugat un mecanism simplu de audit logging. Scopul acestuia este de a inregistra evenimente relevante pentru securitate si operare, fara a salva date sensibile precum parole, tokenuri, date bancare sau secrete.
+
+Evenimentele urmarite includ:
+
+- autentificari reusite si esuate;
+- refresh token reusit sau esuat;
+- logout;
+- rezervari create;
+- rezervari anulate;
+- confirmarea sau respingerea rezervarilor;
+- cereri de apartament create, acceptate, respinse sau anulate;
+- erori Stripe in fluxurile de creare, capturare sau anulare a platilor.
+
+## 5.1 Implementare in proiect
+
+Fisier: `backend/audit.py`
+
+```python
+SENSITIVE_KEYS = {
+    "password",
+    "hashed_password",
+    "token",
+    "access_token",
+    "refresh_token",
+    "authorization",
+    "payment_method_id",
+    "stripe_client_secret",
+    "client_secret",
+    "card",
+    "secret",
+}
+
+def audit_log(event: str, **fields: Any) -> None:
+    safe_fields = {key: _safe_value(key, value) for key, value in fields.items()}
+    logger.info("%s %s", event, safe_fields)
+```
+
+## 5.2 Explicatie
+
+Helperul `audit_log` sanitizeaza automat campurile transmise. Daca numele unui camp contine termeni sensibili, valoarea este inlocuita cu `[redacted]`. Pentru emailuri, sistemul foloseste un hash scurt, astfel incat evenimentele pot fi corelate tehnic fara expunerea adresei reale.
+
+## 5.3 Exemple de utilizare
+
+Fisier: `backend/api/auth.py`
+
+```python
+audit_log(
+    "auth.login.success",
+    user_id=str(user["_id"]),
+    username=user["username"],
+    email=user.get("email"),
+)
+```
+
+Fisier: `backend/api/bookings.py`
+
+```python
+audit_log(
+    "booking.created",
+    booking_id=str(result.inserted_id),
+    provider_id=request.provider_id,
+    user_id=current_user.get("id") if current_user else None,
+    booking_date=request.booking_date,
+)
+```
+
+Fisier: `backend/api/apartment_bookings.py`
+
+```python
+audit_log(
+    "apartment_booking.accepted",
+    request_id=req_id,
+    listing_id=doc.get("listing_id"),
+    owner_user_id=str(current_user["_id"]),
+    guest_user_id=doc.get("guest_user_id"),
+)
+```
+
+## 5.4 Paragraf gata de inclus in lucrare
+
+Pentru cresterea trasabilitatii actiunilor importante, aplicatia foloseste un mecanism de audit logging. Acesta inregistreaza evenimente precum autentificari, refresh de sesiune, logout, creare sau anulare de rezervari si actiuni asupra cererilor de apartament. Mecanismul este proiectat astfel incat sa nu salveze informatii sensibile in loguri: parolele, tokenurile, secretele, identificatorii de plata si datele bancare sunt mascate automat, iar emailurile sunt transformate in hash-uri scurte.
+
+## 6. Securitatea bazei de date
+
+Aplicatia foloseste MongoDB pentru stocarea utilizatorilor, listarilor, rezervarilor, providerilor si datelor asociate sesiunilor. Accesul la baza de date este realizat exclusiv prin backend-ul FastAPI; aplicatia mobila nu se conecteaza direct la MongoDB. Aceasta separare reduce riscul expunerii bazei de date si permite aplicarea validarilor si regulilor de autorizare in backend.
+
+## 6.1 Conexiune prin variabila de mediu
+
+Fisier: `backend/database_mongo.py`
+
+```python
+def _load_mongodb_url() -> str:
+    configured_url = os.getenv("MONGODB_URL")
+    if configured_url:
+        return configured_url
+    if _is_production_env():
+        raise RuntimeError("MONGODB_URL must be set in production.")
+    return DEFAULT_MONGODB_URL
+```
+
+### Explicatie
+
+In mediul local, aplicatia poate folosi o conexiune implicita catre MongoDB local. In productie, insa, backend-ul refuza pornirea daca `MONGODB_URL` nu este setat explicit. Astfel, se evita folosirea accidentala a unei configurari locale sau nesigure in mediul public.
+
+## 6.2 Masuri de configurare recomandate
+
+Pentru MongoDB Atlas sau orice baza de date MongoDB folosita in productie, sunt recomandate urmatoarele masuri:
+
+- folosirea unui utilizator dedicat aplicatiei, cu permisiuni minime;
+- configurarea `MONGODB_URL` doar prin variabile de mediu;
+- activarea IP allowlist pentru a permite accesul doar din infrastructura autorizata;
+- activarea backup-urilor periodice;
+- evitarea expunerii directe a bazei de date catre clientul mobil;
+- evitarea afisarii URI-ului complet in loguri;
+- folosirea unei conexiuni securizate furnizate de platforma MongoDB Atlas.
+
+## 6.3 Indexuri pentru performanta si consistenta
+
+In proiect sunt create indexuri pentru campuri folosite frecvent, precum email, username, user_id, status, provider_id, date de rezervare, id-uri de cereri si tokenuri de sesiune. Aceste indexuri ajuta la cresterea performantei interogarilor si la aplicarea unor constrangeri, cum este unicitatea emailului sau a username-ului.
+
+Fisier: `backend/database_mongo.py`
+
+```python
+await database.users.create_index("email", unique=True)
+await database.users.create_index("username", unique=True)
+await database.listings.create_index("user_id")
+await database.bookings.create_index([("provider_id", 1), ("booking_date", 1)])
+await database.apartment_booking_requests.create_index("stripe_payment_intent_id")
+await database.refresh_tokens.create_index("token_hash", unique=True)
+```
+
+## 6.4 Paragraf gata de inclus in lucrare
+
+Securitatea bazei de date este asigurata prin intermedierea accesului de catre backend si prin configurarea conexiunii prin variabile de mediu. Aplicatia mobila nu comunica direct cu MongoDB, ci trimite cereri catre API-ul FastAPI, care valideaza datele si verifica drepturile utilizatorilor. In productie, conexiunea `MONGODB_URL` trebuie setata explicit, iar baza de date trebuie protejata prin utilizatori cu permisiuni minime, IP allowlist si backup-uri periodice. De asemenea, proiectul defineste indexuri pentru campurile accesate frecvent, precum email, username, user_id, status si identificatori de rezervari.
+
+## 7. Directii urmatoare de securitate
+
 Urmatoarele masuri pot fi documentate sau implementate ulterior:
 
 - politici mai stricte pentru parole;

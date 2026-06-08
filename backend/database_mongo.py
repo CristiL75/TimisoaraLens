@@ -10,7 +10,24 @@ from bson import ObjectId
 import os
 
 # MongoDB connection
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017/TimisoaraLens")
+DEFAULT_MONGODB_URL = "mongodb://localhost:27017/TimisoaraLens"
+
+
+def _is_production_env() -> bool:
+    environment = (os.getenv("APP_ENV") or os.getenv("ENVIRONMENT") or "").strip().lower()
+    return environment in {"prod", "production"} or bool(os.getenv("RENDER"))
+
+
+def _load_mongodb_url() -> str:
+    configured_url = os.getenv("MONGODB_URL")
+    if configured_url:
+        return configured_url
+    if _is_production_env():
+        raise RuntimeError("MONGODB_URL must be set in production.")
+    return DEFAULT_MONGODB_URL
+
+
+MONGODB_URL = _load_mongodb_url()
 DATABASE_NAME = os.getenv("DATABASE_NAME", "TimisoaraLens")
 
 # Global MongoDB client

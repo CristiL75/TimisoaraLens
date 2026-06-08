@@ -32,6 +32,7 @@ from auth_utils import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     REFRESH_TOKEN_EXPIRE_DAYS,
 )
+from audit import audit_log
 
 router = APIRouter()
 
@@ -273,6 +274,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     user = await users_collection.find_one({"username": form_data.username})
     
     if not user or not verify_password(form_data.password, user["hashed_password"]):
+        audit_log("auth.login.failed", username=form_data.username, reason="invalid_credentials")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -280,6 +282,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         )
     
     if not user.get("is_active", True):
+        audit_log("auth.login.failed", username=form_data.username, reason="inactive_user")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Inactive user"
@@ -291,6 +294,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         {"$set": {"last_login": datetime.utcnow()}}
     )
     
+    audit_log("auth.login.success", user_id=str(user["_id"]), username=user["username"], email=user.get("email"))
     return await _issue_token_pair(user)
 
 @router.post("/login-json", response_model=Token)
@@ -303,12 +307,14 @@ async def login_json(user_data: UserLogin):
     user = await users_collection.find_one({"username": user_data.username})
     
     if not user or not verify_password(user_data.password, user["hashed_password"]):
+        audit_log("auth.login.failed", username=user_data.username, reason="invalid_credentials")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password"
         )
     
     if not user.get("is_active", True):
+        audit_log("auth.login.failed", username=user_data.username, reason="inactive_user")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Inactive user"
@@ -320,6 +326,7 @@ async def login_json(user_data: UserLogin):
         {"$set": {"last_login": datetime.utcnow()}}
     )
     
+    audit_log("auth.login.success", user_id=str(user["_id"]), username=user["username"], email=user.get("email"))
     return await _issue_token_pair(user)
 
 @router.post("/refresh", response_model=Token)
@@ -337,6 +344,7 @@ async def refresh_token(body: RefreshTokenRequest):
         "expires_at": {"$gt": now},
     })
     if not token_doc:
+        audit_log("auth.refresh.failed", reason="invalid_refresh_token")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
     users_collection = get_users_collection()
@@ -351,6 +359,7 @@ async def refresh_token(body: RefreshTokenRequest):
             {"_id": token_doc["_id"]},
             {"$set": {"revoked_at": now}},
         )
+        audit_log("auth.refresh.failed", user_id=user_id, reason="inactive_or_missing_user")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
     new_token_pair = await _issue_token_pair(user)
@@ -363,6 +372,7 @@ async def refresh_token(body: RefreshTokenRequest):
             }
         },
     )
+    audit_log("auth.refresh.success", user_id=str(user["_id"]), username=user.get("username"), email=user.get("email"))
     return new_token_pair
 
 @router.post("/logout")
@@ -372,6 +382,7 @@ async def logout(body: LogoutRequest, request: Request):
     """
     await _revoke_refresh_token(body.refresh_token)
     await _revoke_access_token_from_header(request)
+    audit_log("auth.logout", has_refresh_token=bool(body.refresh_token))
     return {"success": True}
 
 @router.get("/me", response_model=UserResponse)
