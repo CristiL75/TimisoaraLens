@@ -152,13 +152,159 @@ Aplicatia mobila foloseste un interceptor Axios pentru a detecta raspunsurile `4
 
 Pentru o gestionare mai sigura a sesiunilor, aplicatia foloseste un mecanism bazat pe access token si refresh token. Access tokenul are o durata de viata scurta si este folosit pentru autorizarea cererilor catre API, iar refresh tokenul permite obtinerea unui nou access token fara reautentificare. Refresh tokenurile sunt stocate in baza de date doar sub forma de hash si sunt rotite la fiecare utilizare. La logout, backend-ul revoca refresh tokenul si invalideaza access tokenul curent, reducand riscul folosirii unei sesiuni dupa deconectare.
 
-## 3. Directii urmatoare de securitate
+## 3. Limitarea traficului
+
+Aplicatia include un mecanism de limitare a traficului pentru a preveni suprasolicitarea backend-ului si pentru a reduce riscul de abuz asupra rutelor sensibile. Limitarea traficului este importanta mai ales pentru functionalitati care pot consuma resurse ridicate, cum sunt autentificarea, asistentul conversational si sistemul RAG.
+
+In implementarea existenta, backend-ul aplica limite diferite in functie de tipul rutei:
+
+- rutele de autentificare au o limita mai stricta, pentru reducerea riscului de atacuri brute-force;
+- ruta pentru asistentul de rezervari are o limita separata, deoarece implica procesare conversationala si poate apela componente AI;
+- ruta RAG are propria limita, pentru a preveni utilizarea excesiva a cautarii semantice si a generarii de raspunsuri;
+- restul rutelor folosesc o limita implicita.
+
+## 3.1 Implementare in proiect
+
+Fisier: `backend/main.py`
+
+```python
+def _route_bucket_and_limit(self, path: str) -> tuple[str, int]:
+    normalized = (path or "").lower()
+    if normalized.startswith("/api/auth/login"):
+        return "auth", self.auth_limit
+    if normalized.startswith("/api/bookings/assistant"):
+        return "assistant", self.assistant_limit
+    if normalized.startswith("/api/rag/query"):
+        return "rag", self.rag_limit
+    return "default", self.default_limit
+```
+
+## 3.2 Explicatie
+
+Acest fragment grupeaza cererile in categorii diferite si aplica limite specifice fiecarei categorii. Rutele de login sunt tratate separat pentru a preveni incercarile repetate de ghicire a parolei. Rutele pentru RAG si asistentul conversational sunt limitate deoarece pot consuma resurse externe, precum apeluri catre modele AI sau cautari in baze vectoriale.
+
+## 3.3 Protectie contra brute-force
+
+Atacurile de tip brute-force presupun trimiterea unui numar mare de incercari de autentificare pentru a ghici parola unui cont. Prin limitarea cererilor catre ruta de login, aplicatia reduce numarul de incercari posibile intr-un interval scurt de timp. Aceasta masura nu inlocuieste politicile de parole puternice, dar contribuie la reducerea riscului.
+
+## 3.4 Protectie contra abuzului de resurse AI
+
+Componentele AI pot fi mai costisitoare decat rutele obisnuite, deoarece pot implica generare de text, clasificare de intentii, cautare semantica sau apeluri catre servicii externe. Limitarea traficului pentru `/api/rag/query` si `/api/bookings/assistant` previne folosirea excesiva a acestor functionalitati si ajuta la mentinerea stabilitatii sistemului.
+
+## 3.5 Directie de productie: Redis pentru rate limiting distribuit
+
+Mecanismul actual este potrivit pentru o instanta simpla de backend, deoarece limitele sunt pastrate in memoria procesului. Intr-un mediu de productie cu mai multe instante, o imbunatatire ar fi folosirea Redis pentru stocarea contorilor de rate limiting. Redis ar permite partajarea limitelor intre toate instantele backend-ului si ar oferi un comportament consecvent indiferent de serverul care proceseaza cererea.
+
+## 3.6 Paragraf gata de inclus in lucrare
+
+Pentru protejarea aplicatiei impotriva suprasolicitarii si a utilizarii abuzive, backend-ul implementeaza un mecanism de limitare a traficului. Rutele sensibile sunt tratate diferentiat: autentificarea are o limita dedicata pentru reducerea riscului de atacuri brute-force, iar rutele asociate componentelor AI, precum asistentul conversational si RAG, au limite separate pentru a preveni consumul excesiv de resurse. In productie, mecanismul poate fi extins prin utilizarea Redis, astfel incat limitele sa fie partajate intre mai multe instante ale backend-ului.
+
+## 4. Directii urmatoare de securitate
+
+## 4. Protectia componentelor AI
+
+Componentele AI ale aplicatiei includ chatbot-ul RAG si asistentul conversational pentru rezervari. Deoarece aceste componente proceseaza text liber introdus de utilizator, ele necesita masuri suplimentare de protectie fata de endpoint-urile clasice.
+
+Masurile integrate in proiect sunt:
+
+- limitarea lungimii intrebarilor trimise catre chatbot si asistent;
+- filtrarea unor instructiuni abuzive sau tentative de prompt injection;
+- evitarea logarii mesajului complet al utilizatorului;
+- folosirea unui fingerprint pentru loguri, astfel incat cererea sa poata fi urmarita tehnic fara expunerea textului;
+- pastrarea istoricului conversatiei intr-o forma limitata si trunchiata;
+- returnarea surselor RAG impreuna cu raspunsul, pentru transparenta;
+- instructiuni interne in asistentul de rezervari care trateaza mesajul utilizatorului ca date, nu ca instructiuni.
+
+## 4.1 Limitarea lungimii intrebarilor
+
+Fisier: `backend/api/rag.py`
+
+```python
+MAX_RAG_QUERY_CHARS = int(os.getenv("MAX_RAG_QUERY_CHARS", "800"))
+
+def _validate_ai_input(query: str) -> str:
+    normalized_query = (query or "").strip()
+    if not normalized_query:
+        raise HTTPException(status_code=400, detail="Query is required.")
+    if len(normalized_query) > MAX_RAG_QUERY_CHARS:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Query is too long. Maximum allowed length is {MAX_RAG_QUERY_CHARS} characters.",
+        )
+    return normalized_query
+```
+
+### Explicatie
+
+Prin limitarea lungimii intrebarilor, backend-ul previne trimiterea unor prompturi foarte mari catre serviciile AI. Aceasta masura reduce consumul de resurse, limiteaza costurile si scade riscul de abuz.
+
+## 4.2 Filtrarea inputului abuziv si protectia contra prompt injection
+
+Fisier: `backend/api/rag.py`
+
+```python
+ABUSIVE_INPUT_PATTERNS = [
+    r"\b(ignore|disregard)\s+(all\s+)?(previous|prior)\s+(instructions|rules)\b",
+    r"\b(reveal|show|print|display)\s+(the\s+)?(system|developer)\s+(prompt|message|instructions)\b",
+    r"\b(system\s+prompt|developer\s+message|hidden\s+instructions)\b",
+    r"\b(jailbreak|dan\s+mode|do\s+anything\s+now)\b",
+]
+```
+
+### Explicatie
+
+Aceste expresii detecteaza cereri care incearca sa forteze modelul sa ignore instructiunile interne, sa afiseze promptul de sistem sau sa intre intr-un mod de tip jailbreak. In astfel de cazuri, backend-ul respinge cererea inainte ca aceasta sa ajunga la serviciul AI.
+
+## 4.3 Loguri fara date personale sensibile
+
+Fisier: `backend/api/rag.py`
+
+```python
+def _query_fingerprint(query: str) -> str:
+    return hashlib.sha256((query or "").encode("utf-8")).hexdigest()[:12]
+```
+
+Fisier: `backend/api/bookings.py`
+
+```python
+def _assistant_message_fingerprint(message: str) -> str:
+    return hashlib.sha256((message or "").encode("utf-8")).hexdigest()[:12]
+```
+
+### Explicatie
+
+In loc sa logheze intrebarea completa, backend-ul genereaza un identificator scurt pe baza hash-ului mesajului. Astfel, dezvoltatorul poate urmari tehnic o cerere in loguri, fara a expune nume, emailuri, telefoane sau alte date personale pe care utilizatorul le poate introduce in conversatie.
+
+## 4.4 Raspunsuri bazate pe surse RAG
+
+Serviciul RAG nu genereaza raspunsul doar pe baza modelului AI. Intrebarea este transformata intr-un embedding, sunt cautate documente relevante in Qdrant, iar raspunsul este construit pe baza contextului gasit. Raspunsul returnat catre aplicatia mobila include si lista de surse.
+
+Fisier: `hf-space-rag/app.py`
+
+```python
+sources.append({
+    "rank": i,
+    "score": float(score),
+    "heading": payload.get("heading", "N/A"),
+    "source": payload.get("source", "N/A"),
+    "snippet": payload.get("text", "")[:200] + "...",
+})
+```
+
+### Explicatie
+
+Returnarea surselor permite verificarea informatiilor folosite de chatbot si reduce dependenta de raspunsuri generate exclusiv de model. In interfata mobila, aceste surse sunt afisate sub raspunsul chatbot-ului.
+
+## 4.5 Paragraf gata de inclus in lucrare
+
+Pentru securizarea componentelor AI, aplicatia limiteaza lungimea intrebarilor, filtreaza cererile care contin instructiuni abuzive si evita logarea textului complet introdus de utilizator. In locul mesajului original, backend-ul salveaza in loguri un fingerprint generat prin hash, reducand riscul de expunere a datelor personale. De asemenea, raspunsurile chatbot-ului sunt construite pe baza surselor identificate prin sistemul RAG, nu doar pe baza modelului AI, ceea ce creste transparenta si controlul asupra informatiilor generate.
+
+## 5. Directii urmatoare de securitate
 
 Urmatoarele masuri pot fi documentate sau implementate ulterior:
 
 - politici mai stricte pentru parole;
 - validarea stricta a webhook-urilor Stripe;
-- protectie pentru componentele AI impotriva prompt injection;
 - validarea imaginilor si a URL-urilor;
 - audit si jurnalizare pentru actiunile importante;
 - configurarea stricta CORS in productie.

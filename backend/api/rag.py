@@ -9,6 +9,8 @@ Prerequisites:
 
 import os
 import logging
+import hashlib
+import re
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
@@ -23,6 +25,17 @@ router = APIRouter(tags=["RAG"])
 # Configuration
 HF_RAG_SPACE_URL = os.getenv("HF_RAG_SPACE_URL", "")
 TOP_K = 5
+MAX_RAG_QUERY_CHARS = int(os.getenv("MAX_RAG_QUERY_CHARS", "800"))
+MAX_RAG_HISTORY_ITEMS = int(os.getenv("MAX_RAG_HISTORY_ITEMS", "8"))
+MAX_RAG_HISTORY_MESSAGE_CHARS = int(os.getenv("MAX_RAG_HISTORY_MESSAGE_CHARS", "500"))
+
+ABUSIVE_INPUT_PATTERNS = [
+    r"\b(ignore|disregard)\s+(all\s+)?(previous|prior)\s+(instructions|rules)\b",
+    r"\b(reveal|show|print|display)\s+(the\s+)?(system|developer)\s+(prompt|message|instructions)\b",
+    r"\b(system\s+prompt|developer\s+message|hidden\s+instructions)\b",
+    r"\b(jailbreak|dan\s+mode|do\s+anything\s+now)\b",
+    r"\bpretend\s+you\s+are\s+not\s+bound\b",
+]
 
 
 def _serialize_conversation_history(conversation_history: Optional[list]) -> list:
@@ -30,7 +43,7 @@ def _serialize_conversation_history(conversation_history: Optional[list]) -> lis
         return []
 
     serialized = []
-    for msg in conversation_history:
+    for msg in conversation_history[-MAX_RAG_HISTORY_ITEMS:]:
         if msg is None:
             continue
         if isinstance(msg, dict):
@@ -44,10 +57,35 @@ def _serialize_conversation_history(conversation_history: Optional[list]) -> lis
             continue
         serialized.append({
             "role": str(role or "user"),
-            "content": str(content or ""),
+            "content": str(content or "")[:MAX_RAG_HISTORY_MESSAGE_CHARS],
         })
 
     return serialized
+
+
+def _query_fingerprint(query: str) -> str:
+    return hashlib.sha256((query or "").encode("utf-8")).hexdigest()[:12]
+
+
+def _validate_ai_input(query: str) -> str:
+    normalized_query = (query or "").strip()
+    if not normalized_query:
+        raise HTTPException(status_code=400, detail="Query is required.")
+    if len(normalized_query) > MAX_RAG_QUERY_CHARS:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Query is too long. Maximum allowed length is {MAX_RAG_QUERY_CHARS} characters.",
+        )
+
+    lowered = normalized_query.lower()
+    for pattern in ABUSIVE_INPUT_PATTERNS:
+        if re.search(pattern, lowered, flags=re.IGNORECASE):
+            raise HTTPException(
+                status_code=400,
+                detail="The request contains unsupported instructions.",
+            )
+
+    return normalized_query
 
 
 def _serialize_user_history_for_classification(conversation_history: Optional[list], max_items: int = 4) -> list:
@@ -189,11 +227,7 @@ async def classify_query_intent(query: str, conversation_history: Optional[list]
     
     has_service_hint = any(keyword in query_lower for keyword in explicit_services_keywords)
     has_apartment_hint = any(keyword in query_lower for keyword in explicit_apartment_keywords)
-    logger.info(
-        "[CLASSIFICATION] lexical hints: services=%s apartments=%s",
-        has_service_hint,
-        has_apartment_hint,
-    )
+    logger.info("[CLASSIFICATION] lexical hints: services=%s apartments=%s", has_service_hint, has_apartment_hint)
     
     # Everything else (including synonyms, contextual queries) → LLM classification
 
@@ -284,8 +318,16 @@ async def rag_query(request: RAGQueryRequest):
     Proxies the request to the dedicated RAG service with optional conversation history.
     Includes LLM-generated suggested follow-up questions.
     """
-    logger.info(f"====== RAG QUERY START (v2.0 semantic classification) ======")
-    logger.info(f"Query: {request.query}")
+    safe_query = _validate_ai_input(request.query)
+    serialized_history = _serialize_conversation_history(request.conversation_history)
+    query_id = _query_fingerprint(safe_query)
+    logger.info("====== RAG QUERY START (v2.0 semantic classification) ======")
+    logger.info(
+        "RAG query accepted: id=%s length=%s history_items=%s",
+        query_id,
+        len(safe_query),
+        len(serialized_history),
+    )
     
     if not HF_RAG_SPACE_URL:
         logger.error("HF_RAG_SPACE_URL not configured!")
@@ -297,11 +339,11 @@ async def rag_query(request: RAGQueryRequest):
     logger.info(f"HF_RAG_SPACE_URL configured: {HF_RAG_SPACE_URL[:50]}...")
     
     try:
-        logger.info(f"Proxying RAG query to HF Space: {request.query}")
+        logger.info("Proxying RAG query to HF Space: id=%s", query_id)
         
         # Use LLM to classify query intent with conversation context
-        logger.info(f"[CLASSIFICATION] Starting LLM classification for query: {request.query}")
-        intent = await classify_query_intent(request.query, request.conversation_history)
+        logger.info("[CLASSIFICATION] Starting LLM classification for query id=%s", query_id)
+        intent = await classify_query_intent(safe_query, serialized_history)
         if intent == "apartments":
             endpoint = "/query_apartments"
         elif intent == "services":
@@ -312,8 +354,8 @@ async def rag_query(request: RAGQueryRequest):
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             request_payload = {
-                "query": request.query,
-                "conversation_history": _serialize_conversation_history(request.conversation_history),
+                "query": safe_query,
+                "conversation_history": serialized_history,
                 "top_k": request.top_k,
             }
             response = await client.post(
@@ -327,13 +369,13 @@ async def rag_query(request: RAGQueryRequest):
             suggested_questions = await generate_suggested_questions(
                 answer=data.get("answer", ""),
                 sources=data.get("sources", []),
-                original_query=request.query
+                original_query=safe_query
             )
             
             return RAGQueryResponse(
                 answer=data.get("answer", ""),
                 sources=data.get("sources", []),
-                query=request.query,
+                query=safe_query,
                 suggested_questions=suggested_questions
             )
             

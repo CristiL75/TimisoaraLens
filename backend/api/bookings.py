@@ -14,6 +14,7 @@ import os
 import json
 import httpx
 import unicodedata
+import hashlib
 from bson import ObjectId
 from jose import JWTError, jwt
 
@@ -62,6 +63,36 @@ RAG_BASE_URL = (os.getenv("RAG_BASE_URL") or os.getenv("HF_RAG_SPACE_URL") or ""
 RAG_SYNC_TIMEOUT = float(os.getenv("RAG_SYNC_TIMEOUT", "8"))
 BOOKINGS_PURGE_INTERVAL_SECONDS = int(os.getenv("BOOKINGS_PURGE_INTERVAL_SECONDS", "900"))
 _LAST_BOOKINGS_PURGE_AT: Optional[datetime] = None
+MAX_BOOKING_ASSISTANT_MESSAGE_CHARS = int(os.getenv("MAX_BOOKING_ASSISTANT_MESSAGE_CHARS", "800"))
+ASSISTANT_UNSUPPORTED_INPUT_PATTERNS = [
+    r"\b(ignore|disregard)\s+(all\s+)?(previous|prior)\s+(instructions|rules)\b",
+    r"\b(reveal|show|print|display)\s+(the\s+)?(system|developer)\s+(prompt|message|instructions)\b",
+    r"\b(system\s+prompt|developer\s+message|hidden\s+instructions)\b",
+    r"\b(jailbreak|dan\s+mode|do\s+anything\s+now)\b",
+]
+
+
+def _assistant_message_fingerprint(message: str) -> str:
+    return hashlib.sha256((message or "").encode("utf-8")).hexdigest()[:12]
+
+
+def _validate_booking_assistant_message(message: str) -> str:
+    normalized = (message or "").strip()
+    if not normalized:
+        raise HTTPException(status_code=400, detail="Message is required.")
+    if len(normalized) > MAX_BOOKING_ASSISTANT_MESSAGE_CHARS:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Message is too long. Maximum allowed length is {MAX_BOOKING_ASSISTANT_MESSAGE_CHARS} characters.",
+        )
+    lowered = normalized.lower()
+    for pattern in ASSISTANT_UNSUPPORTED_INPUT_PATTERNS:
+        if re.search(pattern, lowered, flags=re.IGNORECASE):
+            raise HTTPException(
+                status_code=400,
+                detail="The request contains unsupported instructions.",
+            )
+    return normalized
 
 
 
@@ -4684,12 +4715,14 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
     history_message = _latest_non_empty_history_message(payload.conversation_history)
     effective_message = original_message or history_message
     if effective_message:
-        payload.message = effective_message
+        payload.message = _validate_booking_assistant_message(effective_message)
+    message_id = _assistant_message_fingerprint(payload.message or "")
     print(
         "[ASSISTANT_MESSAGE_SOURCE]",
         {
             "source": "payload" if original_message else ("history" if history_message else "empty"),
-            "message": (payload.message or "")[:160],
+            "message_id": message_id,
+            "message_length": len(payload.message or ""),
         }
     )
 
@@ -4710,7 +4743,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
     print(
         "[ASSISTANT_LANG]",
         {
-            "message": (payload.message or "")[:160],
+            "message_id": message_id,
             "detected_language": assistant_language,
             "accept_language": (http_request.headers.get("accept-language") or http_request.headers.get("Accept-Language") or "")[:80],
         }
@@ -4783,7 +4816,7 @@ async def booking_assistant(payload: BookingAssistantRequest, http_request: Requ
     print(
         "[ASSISTANT_INTENT]",
         {
-            "message": (payload.message or "")[:180],
+            "message_id": message_id,
             "llm_intent": llm_intent,
             "reconciled_intent": reconciled_intent,
             "entity_inferred_intent": entity_inferred_intent,
