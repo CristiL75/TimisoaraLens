@@ -45,10 +45,20 @@ logger = logging.getLogger(__name__)
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
+
+def _is_production_env() -> bool:
+    env = (os.getenv("APP_ENV") or os.getenv("ENVIRONMENT") or "").strip().lower()
+    return env in {"prod", "production"} or bool(os.getenv("RENDER"))
+
 if STRIPE_SECRET_KEY:
     stripe.api_key = STRIPE_SECRET_KEY
 else:
     logger.warning("[APT-BOOKINGS] STRIPE_SECRET_KEY not set — Stripe calls will fail")
+
+if _is_production_env() and STRIPE_SECRET_KEY and not STRIPE_WEBHOOK_SECRET:
+    raise RuntimeError(
+        "STRIPE_WEBHOOK_SECRET must be set in production when Stripe payments are enabled."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -534,16 +544,22 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
       - payment_intent.canceled
     """
     if not STRIPE_WEBHOOK_SECRET:
-        logger.warning("[APT-BOOKINGS] Webhook received but STRIPE_WEBHOOK_SECRET is not set; skipping verification.")
-        return {"received": True}
+        audit_log("stripe.webhook_rejected", reason="missing_webhook_secret")
+        raise HTTPException(status_code=503, detail="Stripe webhook verification is not configured.")
+
+    if not stripe_signature:
+        audit_log("stripe.webhook_rejected", reason="missing_signature")
+        raise HTTPException(status_code=400, detail="Missing Stripe signature.")
 
     payload = await request.body()
     try:
         event = stripe.Webhook.construct_event(payload, stripe_signature, STRIPE_WEBHOOK_SECRET)
     except stripe.error.SignatureVerificationError:
+        audit_log("stripe.webhook_rejected", reason="invalid_signature")
         raise HTTPException(status_code=400, detail="Invalid webhook signature.")
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        audit_log("stripe.webhook_rejected", reason="invalid_payload", error_type=type(e).__name__)
+        raise HTTPException(status_code=400, detail="Invalid webhook payload.")
 
     db = get_database()
     pi_id: str = ""
