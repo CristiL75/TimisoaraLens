@@ -1,63 +1,66 @@
-@startuml TimisoaraLens Use Case Diagram - Simplified
+@startuml TimisoaraLens Use Case Diagram - Compact
 !theme plain
 left to right direction
 skinparam packageStyle rectangle
-
-actor "Utilizator" as user
-
-rectangle "TimisoaraLens Application" {
-    
-    package "Autentificare" {
-        usecase (UC1: Înregistrare) as UC1
-        usecase (UC2: Login) as UC2
-        usecase (UC3: Logout) as UC3
-    }
-    
-    package "Apartamente" {
-        usecase (UC4: Vizualizare\nLista) as UC4
-        usecase (UC5: Creare\nAnunț) as UC5
-        usecase (UC6: Editare\nAnunț) as UC6
-        usecase (UC7: Ștergere\nAnunț) as UC7
-        usecase (UC8: Detalii\nApartament) as UC8
-    }
-    
-    package "Trasee Turistice" {
-        usecase (UC9: Construire\nTraseu) as UC9
-        usecase (UC10: Drag & Drop\nMarkere) as UC10
-    }
-    
-    package "Recenzii" {
-        usecase (UC11: Vizualizare\nRecenzii) as UC11
-        usecase (UC12: Adaugare\nRecenzie) as UC12
-        usecase (UC13: Editare\nRecenzie) as UC13
-        usecase (UC14: Stergere\nRecenzie) as UC14
-    }
-    
+skinparam shadowing false
+skinparam usecase {
+  BackgroundColor #F8F8F8
+  BorderColor #444444
 }
 
+actor "Utilizator" as User
+actor "Google OAuth" as GoogleOAuth
+actor "Stripe" as Stripe
+actor "RAG HF Space" as RagService
 
-' Actori
-user --> UC1
-user --> UC2
-user --> UC3
-user --> UC4
-user --> UC5
-user --> UC6
-user --> UC7
-user --> UC8
-user --> UC11
-user --> UC12
-user --> UC13
-user --> UC14
+rectangle "TimisoaraLens / CityLens Timișoara" {
+    package "Cont și identitate" {
+        usecase "UC-A1\nÎnregistrare / autentificare\n(inclusiv Google)" as UCA1
+        usecase "UC-A2\nProfil utilizator" as UCA2
+    }
 
-' Use cases
-UC5 ..> UC9 : <<extend>>
-UC6 ..> UC9 : <<extend>>
-UC9 ..> UC10 : <<include>>
-UC8 ..> UC11 : <<include>>
-UC8 ..> UC12 : <<extend>>
-UC2 ..> UC12 : <<precondition>>
-UC13 ..> UC12 : <<extend>>
-UC14 ..> UC12 : <<extend>>
+    package "Explorare oraș" {
+        usecase "UC-E1\nHartă, obiective, GPS" as UCE1
+        usecase "UC-E2\nQuiz obiective" as UCE2
+        usecase "UC-E3\nChatbot RAG + întrebări sugerate" as UCE3
+    }
+
+    package "Apartamente" {
+        usecase "UC-L1\nCăutare/listare + detalii" as UCL1
+        usecase "UC-L2\nRecenzii (vizualizare/adăugare/ștergere)" as UCL2
+        usecase "UC-L3\nRezervare apartament\n(creare, urmărire, anulare, acceptare/respingere)" as UCL3
+        usecase "UC-L4\nAdministrare anunț\n(CRUD, imagini, rută turistică)" as UCL4
+    }
+
+    package "Servicii și experiențe" {
+        usecase "UC-S1\nCatalog furnizori + detalii" as UCS1
+        usecase "UC-S2\nRezervări servicii/evenimente/experiențe\n+ calendar" as UCS2
+        usecase "UC-S3\nAdministrare furnizor\n(resurse, experiențe, rezervări primite)" as UCS3
+    }
+}
+
+User --> UCA1
+User --> UCA2
+User --> UCE1
+User --> UCE2
+User --> UCE3
+User --> UCL1
+User --> UCL2
+User --> UCL3
+User --> UCL4
+User --> UCS1
+User --> UCS2
+User --> UCS3
+
+GoogleOAuth --> UCA1
+RagService --> UCE3
+Stripe --> UCL3
+Stripe --> UCS2
+
+UCL2 ..> UCL1 : <<extend>>
+UCL3 ..> UCL1 : <<extend>>
+UCL4 ..> UCL1 : <<extend>>
+UCS2 ..> UCS1 : <<extend>>
+UCS3 ..> UCS1 : <<extend>>
 
 @enduml

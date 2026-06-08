@@ -1,14 +1,17 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import {
+  Animated,
   View,
   StyleSheet,
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  PanResponder,
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
   Image,
+  useWindowDimensions,
 } from 'react-native';
 import {
   Portal,
@@ -18,11 +21,14 @@ import {
   Button,
   FAB,
 } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useNavigationState } from '@react-navigation/native';
 import { ragAPI, bookingsAPI } from '../services/api';
 import SuggestedQuestions from './SuggestedQuestions';
 
 const CONVERSATION_CONTEXT_MESSAGES = 6;
+const FAB_WIDTH = 112;
+const FAB_HEIGHT = 56;
+const FAB_MARGIN = 16;
 
 // Fields carried forward so resolved IDs/dates survive beyond the context window
 const BOOKING_CTX_FIELDS = [
@@ -39,6 +45,14 @@ const BOOKING_CTX_FIELDS = [
  */
 export default function ChatWidget() {
   const navigation = useNavigation();
+  const activeRoute = useNavigationState((state) => {
+    let route = state?.routes?.[state.index || 0];
+    while (route?.state?.routes) {
+      route = route.state.routes[route.state.index || 0];
+    }
+    return route || null;
+  });
+  const { width, height } = useWindowDimensions();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [isInputFocused, setIsInputFocused] = useState(false);
@@ -53,6 +67,51 @@ export default function ChatWidget() {
   // Booking context persisted across turns so resolved IDs/dates are re-sent
   // even after the original message scrolls out of the context window.
   const [pendingBookingCtx, setPendingBookingCtx] = useState({});
+  const [fabPosition, setFabPosition] = useState({
+    x: Math.max(FAB_MARGIN, width - FAB_WIDTH - FAB_MARGIN),
+    y: Math.max(FAB_MARGIN, height - FAB_HEIGHT - 24),
+  });
+  const fabDrag = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+
+  const clampFabPosition = useCallback((x, y) => ({
+    x: Math.min(Math.max(FAB_MARGIN, x), Math.max(FAB_MARGIN, width - FAB_WIDTH - FAB_MARGIN)),
+    y: Math.min(Math.max(FAB_MARGIN, y), Math.max(FAB_MARGIN, height - FAB_HEIGHT - FAB_MARGIN)),
+  }), [height, width]);
+
+  useEffect(() => {
+    setFabPosition((current) => clampFabPosition(current.x, current.y));
+  }, [clampFabPosition]);
+
+  const fabPanResponder = useMemo(() => (
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => (
+        Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5
+      ),
+      onPanResponderGrant: () => {
+        fabDrag.setValue({ x: 0, y: 0 });
+      },
+      onPanResponderMove: Animated.event(
+        [null, { dx: fabDrag.x, dy: fabDrag.y }],
+        { useNativeDriver: false }
+      ),
+      onPanResponderRelease: (_, gestureState) => {
+        const nextPosition = clampFabPosition(
+          fabPosition.x + gestureState.dx,
+          fabPosition.y + gestureState.dy
+        );
+        fabDrag.setValue({ x: 0, y: 0 });
+        setFabPosition(nextPosition);
+      },
+      onPanResponderTerminate: (_, gestureState) => {
+        const nextPosition = clampFabPosition(
+          fabPosition.x + gestureState.dx,
+          fabPosition.y + gestureState.dy
+        );
+        fabDrag.setValue({ x: 0, y: 0 });
+        setFabPosition(nextPosition);
+      },
+    })
+  ), [clampFabPosition, fabDrag, fabPosition.x, fabPosition.y]);
 
   const trimmedInput = useMemo(() => input.trim(), [input]);
 
@@ -89,6 +148,19 @@ export default function ChatWidget() {
       .slice(0, 6);
   };
 
+  const activeScreenBookingCtx = useMemo(() => {
+    const params = activeRoute?.params || {};
+    const provider = params.provider || null;
+    const providerId = provider?.id || provider?._id || params.providerId || null;
+    const selectedService = params.selectedService || params.service || null;
+
+    return {
+      provider_id: providerId ? String(providerId) : undefined,
+      provider_name: provider?.name,
+      service_id: selectedService?.id || selectedService?._id || params.serviceId,
+    };
+  }, [activeRoute]);
+
   const handleSend = async () => {
     if (!trimmedInput) return;
     
@@ -110,6 +182,9 @@ export default function ChatWidget() {
       context_candidates: extractContextCandidates(messages),
       // Re-inject previously resolved booking fields so context is never lost
       ...pendingBookingCtx,
+      // When the chat floats over provider/reservation screens, send that
+      // visible context too so users do not have to type internal IDs.
+      ...activeScreenBookingCtx,
     };
 
     const assistantResult = await bookingsAPI.bookingAssistant(assistantPayload);
@@ -375,7 +450,7 @@ export default function ChatWidget() {
         >
           <Card style={styles.popup} elevation={4}>
             <Card.Title
-              title="Chat CityLens"
+              title="Timisoara Lens Chatbot"
               subtitle="Asistent inteligent"
               titleStyle={styles.headerTitle}
               subtitleStyle={styles.headerSubtitle}
@@ -444,13 +519,25 @@ export default function ChatWidget() {
         </KeyboardAvoidingView>
       )}
 
-      <FAB
-        icon={isOpen ? 'chat-remove-outline' : 'chat-processing-outline'}
-        label={isOpen ? 'Ascunde' : 'Chat'}
-        style={styles.fab}
-        onPress={toggleOpen}
-        accessibilityLabel="Deschide chatul CityLens"
-      />
+      <Animated.View
+        {...fabPanResponder.panHandlers}
+        style={[
+          styles.fabWrapper,
+          {
+            left: fabPosition.x,
+            top: fabPosition.y,
+            transform: fabDrag.getTranslateTransform(),
+          },
+        ]}
+      >
+        <FAB
+          icon={isOpen ? 'chat-remove-outline' : 'chat-processing-outline'}
+          label={isOpen ? 'Ascunde' : 'Chat'}
+          style={styles.fab}
+          onPress={toggleOpen}
+          accessibilityLabel="Deschide chatul CityLens"
+        />
+      </Animated.View>
     </Portal>
   );
 }
@@ -650,9 +737,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666',
   },
-  fab: {
+  fabWrapper: {
     position: 'absolute',
-    right: 16,
-    bottom: 24,
+    zIndex: 20,
+  },
+  fab: {
+    minWidth: FAB_WIDTH,
   },
 });

@@ -58,8 +58,7 @@ export default function CreateListingScreen({ navigation, route }) {
     saveFormState();
   }, [title, description, propertyType, address, latitude, longitude, pricePerNight, maxGuests, bedrooms, bathrooms, amenities, contactName, contactPhone, contactEmail]);
 
-  // Restaurează starea formului la focus (doar prima dată când se deschide ecranul)
-  const [isFirstFocus, setIsFirstFocus] = React.useState(true);
+  // Restaurează starea formului la focus
   useFocusEffect(
     React.useCallback(() => {
       const loadData = async () => {
@@ -77,15 +76,12 @@ export default function CreateListingScreen({ navigation, route }) {
           console.error('Error loading pending route:', error);
         }
 
-        // Restaurează form state doar prima dată
-        if (isFirstFocus) {
-          await restoreFormState();
-          setIsFirstFocus(false);
-        }
+        // Restaurează form state pe fiecare focus pentru a asigura consistența
+        await restoreFormState();
       };
       
       loadData();
-    }, [isFirstFocus])
+    }, [])
   );
 
   // Actualizează suggestedRoute când vine din route.params (DUPĂ restaurare)

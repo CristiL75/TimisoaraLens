@@ -88,7 +88,7 @@ export default function RegisterScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Surface style={styles.surface}>
           <Title style={styles.title}>Creare Cont</Title>
-          <Text style={styles.subtitle}>Alătură-te comunității CityLens</Text>
+          <Text style={styles.subtitle}>Alătură-te comunității TimiLens</Text>
 
           <TextInput
             label="Email *"

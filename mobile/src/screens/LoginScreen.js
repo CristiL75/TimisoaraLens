@@ -21,10 +21,12 @@ import {
   Divider,
 } from 'react-native-paper';
 import * as WebBrowser from 'expo-web-browser';
+import { useFonts, Montserrat_700Bold } from '@expo-google-fonts/montserrat';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginScreen({ navigation }) {
+  const [fontsLoaded] = useFonts({ Montserrat_700Bold });
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -36,6 +38,14 @@ export default function LoginScreen({ navigation }) {
       navigation.replace('Home');
     }
   }, [isAuthenticated, user, navigation]);
+
+  if (!fontsLoaded) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator animating size="large" />
+      </View>
+    );
+  }
 
   const handleLogin = async () => {
     if (!username.trim() || !password) {
@@ -139,8 +149,8 @@ export default function LoginScreen({ navigation }) {
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Surface style={styles.surface}>
-          <Title style={styles.title}>🏛️ CityLens Timișoara</Title>
-          <Text style={styles.subtitle}>Explorează orașul cu AI</Text>
+          <Title style={styles.title}>TimișoaraLens</Title>
+          <Text style={styles.subtitle}>Ghid local — locuri, evenimente și recomandări pentru a descoperi Timișoara.</Text>
 
           <TextInput
             label="Username"
@@ -218,16 +228,24 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     textAlign: 'center',
-    marginBottom: 8,
-    fontWeight: 'bold',
+    marginBottom: 6,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    color: '#222',
+    fontFamily: 'Montserrat_700Bold',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     textAlign: 'center',
-    marginBottom: 30,
-    color: '#666',
+    marginBottom: 20,
+    color: '#444',
+    lineHeight: 20,
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   input: {
     marginBottom: 15,

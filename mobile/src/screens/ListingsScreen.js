@@ -853,10 +853,10 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 16,
-    bottom: 16,
+    bottom: 96,
   },
   bottomPadding: {
-    height: 80,
+    height: 140,
   },
   filterBadge: {
     position: 'absolute',

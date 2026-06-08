@@ -2746,16 +2746,18 @@ async def ensure_car_ids(provider_doc: dict, providers_col) -> List[dict]:
 @router.post("/providers", response_model=ProviderResponse, status_code=status.HTTP_201_CREATED)
 async def create_provider(request: ProviderCreateRequest, current_user: dict = Depends(get_current_user)):
     """Create a new service provider"""
-    print("[DEBUG] === create_provider CALLED ===")
-    try:
-        print("[DEBUG] ProviderCreateRequest:", request)
-        print("[DEBUG] current_user:", current_user)
-    except Exception as e:
-        print("[DEBUG] Exception printing request or user:", e)
     providers_col = get_providers_collection()
     try:
         # Acceptă atât 'id' cât și 'sub' ca identificator user
         user_id_val = current_user.get("id") or current_user.get("sub")
+        audit_log(
+            "provider.create_requested",
+            user_id=str(user_id_val) if user_id_val else None,
+            category=request.category,
+            has_listing=bool(request.listing_id),
+            images_count=len(request.images or []),
+            reservation_types_count=len(request.reservation_types or []),
+        )
         cars_data = normalize_cars(request.cars)
         provider = Provider(
                 user_id=str(user_id_val) if user_id_val else "",
@@ -2778,7 +2780,12 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
             status="active"
         )
         result = await providers_col.insert_one(provider.model_dump(by_alias=True, exclude={"id"}))
-        print("[DEBUG] Provider created with id:", str(result.inserted_id))
+        audit_log(
+            "provider.created",
+            user_id=str(user_id_val) if user_id_val else None,
+            provider_id=str(result.inserted_id),
+            category=request.category,
+        )
 
         created_provider_doc = await providers_col.find_one({"_id": result.inserted_id})
         if created_provider_doc:
@@ -2816,7 +2823,12 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
                 )
                 await employees_col.insert_one(employee.model_dump(by_alias=True, exclude={"id"}))
             except Exception as exc:
-                print("[WARN] Failed to auto-create service/employee:", exc)
+                audit_log(
+                    "provider.default_resources_failed",
+                    provider_id=str(result.inserted_id),
+                    category=request.category,
+                    error_type=type(exc).__name__,
+                )
         return ProviderResponse(
             id=str(result.inserted_id),
             user_id=str(user_id_val) if user_id_val else None,
@@ -2838,8 +2850,13 @@ async def create_provider(request: ProviderCreateRequest, current_user: dict = D
             status=provider.status
         )
     except Exception as e:
-        print("[DEBUG] Exception in create_provider:", str(e))
-        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+        audit_log(
+            "provider.create_failed",
+            user_id=str(current_user.get("id") or current_user.get("sub") or ""),
+            category=getattr(request, "category", None),
+            error_type=type(e).__name__,
+        )
+        raise HTTPException(status_code=500, detail="Internal error while creating provider")
 
 
 @router.get("/providers", response_model=List[ProviderResponse])
@@ -2938,8 +2955,14 @@ async def update_provider(
 
     old_reservation_type_ids = _reservation_type_entity_ids(provider)
     
-    # Log incoming request data for debugging
-    print("[DEBUG] Incoming update request:", request.dict())
+    audit_log(
+        "provider.update_requested",
+        user_id=current_user.get("id"),
+        provider_id=provider_id,
+        category=request.category,
+        images_count=len(request.images or []),
+        reservation_types_count=len(request.reservation_types or []),
+    )
 
     existing_facilities = provider.get("facilities") if isinstance(provider.get("facilities"), dict) else {}
     incoming_facilities = request.facilities if isinstance(request.facilities, dict) else None
@@ -2967,9 +2990,6 @@ async def update_provider(
     if request.listing_id:
         update_data["listing_id"] = ObjectId(request.listing_id)
     
-    # Log update data for debugging
-    print("[DEBUG] Update data:", update_data)
-    
     await providers_col.update_one(
         {"_id": ObjectId(provider_id)},
         {"$set": update_data}
@@ -2978,8 +2998,12 @@ async def update_provider(
     # Return updated provider
     updated_provider = await providers_col.find_one({"_id": ObjectId(provider_id)})
     
-    # Log updated provider for debugging
-    print("[DEBUG] Updated provider:", updated_provider)
+    audit_log(
+        "provider.updated",
+        user_id=current_user.get("id"),
+        provider_id=provider_id,
+        category=updated_provider.get("category"),
+    )
 
     await _rag_services_upsert(_provider_to_rag_entity(updated_provider))
     for rt_entity in _reservation_type_entities(updated_provider):
