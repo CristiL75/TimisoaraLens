@@ -24,7 +24,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAccessToken } from '../services/secureAuthStorage';
 import { API_URL } from '../services/api';
 
 export default function EditListingScreen({ route, navigation }) {
@@ -88,7 +88,7 @@ export default function EditListingScreen({ route, navigation }) {
   const loadListing = async () => {
     try {
       setLoading(true);
-      const token = await AsyncStorage.getItem('userToken');
+      const token = await getAccessToken();
       
       const response = await fetch(`${API_URL}/api/listings/${listingId}`, {
         headers: {
@@ -289,7 +289,7 @@ export default function EditListingScreen({ route, navigation }) {
         contact_email: contactEmail.trim() || null
       };
 
-      const token = await AsyncStorage.getItem('userToken');
+      const token = await getAccessToken();
       
       const response = await fetch(`${API_URL}/api/listings/${listingId}`, {
         method: 'PUT',

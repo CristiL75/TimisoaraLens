@@ -26,6 +26,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAccessToken } from '../services/secureAuthStorage';
 import { API_URL } from '../services/api';
 
 export default function CreateListingScreen({ navigation, route }) {
@@ -359,7 +360,7 @@ export default function CreateListingScreen({ navigation, route }) {
 
       console.log('🚀 Trimitere listing cu suggested_route:', JSON.stringify(listingData.suggested_route, null, 2));
       
-      const token = await AsyncStorage.getItem('userToken');
+      const token = await getAccessToken();
 
       const response = await fetch(`${API_URL}/api/listings/create`, {
         method: 'POST',

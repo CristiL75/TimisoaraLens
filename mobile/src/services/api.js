@@ -5,6 +5,12 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import {
+  clearAuthTokens,
+  getAccessToken,
+  getRefreshToken,
+  setAuthTokens,
+} from './secureAuthStorage';
 
 // Backend URL configuration
 // Priority (first available):
@@ -41,26 +47,13 @@ const api = axios.create({
 
 let refreshPromise = null;
 
-const storeAuthTokens = async (data) => {
-  if (data?.access_token) {
-    await AsyncStorage.setItem('userToken', data.access_token);
-  }
-  if (data?.refresh_token) {
-    await AsyncStorage.setItem('refreshToken', data.refresh_token);
-  }
-};
-
-const clearAuthTokens = async () => {
-  await AsyncStorage.multiRemove(['userToken', 'refreshToken']);
-};
-
 const refreshAccessToken = async () => {
   if (refreshPromise) {
     return refreshPromise;
   }
 
   refreshPromise = (async () => {
-    const refreshToken = await AsyncStorage.getItem('refreshToken');
+    const refreshToken = await getRefreshToken();
     if (!refreshToken) {
       throw new Error('No refresh token available');
     }
@@ -70,7 +63,7 @@ const refreshAccessToken = async () => {
       { refresh_token: refreshToken },
       { _skipAuthRefresh: true }
     );
-    await storeAuthTokens(response.data);
+    await setAuthTokens(response.data);
     return response.data.access_token;
   })();
 
@@ -131,7 +124,7 @@ export const clearDevApiUrl = async () => {
 // Add token to requests if available
 api.interceptors.request.use(
   async (config) => {
-    const token = await AsyncStorage.getItem('userToken');
+    const token = await getAccessToken();
     if (token && config) {
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
@@ -228,7 +221,7 @@ export const authAPI = {
       });
       
       if (response.data.access_token) {
-        await storeAuthTokens(response.data);
+        await setAuthTokens(response.data);
         return { success: true, token: response.data.access_token };
       }
       
@@ -279,7 +272,7 @@ export const authAPI = {
    * Logout user
    */
   logout: async () => {
-    const refreshToken = await AsyncStorage.getItem('refreshToken');
+    const refreshToken = await getRefreshToken();
     try {
       await api.post(
         '/auth/logout',
@@ -302,7 +295,7 @@ export const authAPI = {
       });
       
       if (response.data.access_token) {
-        await storeAuthTokens(response.data);
+        await setAuthTokens(response.data);
         return { success: true, token: response.data.access_token };
       }
       
@@ -412,7 +405,7 @@ export const bookingsAPI = {
    */
   createProvider: async (providerData) => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
+      const token = await getAccessToken();
       const response = await api.post(
         '/bookings/providers',
         providerData,
@@ -455,7 +448,7 @@ export const bookingsAPI = {
    */
   deleteProvider: async (providerId) => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
+      const token = await getAccessToken();
       const response = await api.delete(`/bookings/providers/${providerId}`, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : undefined,
@@ -777,7 +770,7 @@ export const bookingsAPI = {
    */
   blockProviderDay: async (providerId, date, reason = null) => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
+      const token = await getAccessToken();
       const response = await api.post(
         '/bookings/calendar/block',
         { provider_id: providerId, date, reason },

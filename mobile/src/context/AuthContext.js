@@ -2,8 +2,8 @@
  * Auth Context - Global authentication state
  */
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authAPI } from '../services/api';
+import { getAccessToken, getRefreshToken } from '../services/secureAuthStorage';
 
 const AuthContext = createContext();
 
@@ -19,8 +19,8 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = async () => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      const refreshToken = await AsyncStorage.getItem('refreshToken');
+      const token = await getAccessToken();
+      const refreshToken = await getRefreshToken();
       if (!token && refreshToken) {
         await authAPI.refreshSession();
       }

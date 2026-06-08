@@ -26,7 +26,7 @@ import {
 } from 'react-native-paper';
 import { Calendar } from 'react-native-calendars';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAccessToken } from '../services/secureAuthStorage';
 import { useAuth } from '../context/AuthContext';
 import { API_URL, apartmentBookingsAPI } from '../services/api';
 
@@ -259,7 +259,7 @@ export default function ListingDetailScreen({ route, navigation }) {
   const loadListingDetail = async () => {
     try {
       setLoading(true);
-      const token = await AsyncStorage.getItem('userToken');
+      const token = await getAccessToken();
       
       const response = await fetch(`${API_URL}/api/listings/${listingId}`, {
         headers: {
@@ -319,7 +319,7 @@ export default function ListingDetailScreen({ route, navigation }) {
   const deleteListing = async () => {
     try {
       setDeleting(true);
-      const token = await AsyncStorage.getItem('userToken');
+      const token = await getAccessToken();
       
       const response = await fetch(`${API_URL}/api/listings/${listingId}`, {
         method: 'DELETE',
@@ -364,7 +364,7 @@ export default function ListingDetailScreen({ route, navigation }) {
         return;
       }
       setSubmittingReview(true);
-      const token = await AsyncStorage.getItem('userToken');
+      const token = await getAccessToken();
       const response = await fetch(`${API_URL}/api/listings/${listingId}/reviews`, {
         method: 'POST',
         headers: {
@@ -404,7 +404,7 @@ export default function ListingDetailScreen({ route, navigation }) {
 
   const deleteReview = async (reviewId) => {
     try {
-      const token = await AsyncStorage.getItem('userToken');
+      const token = await getAccessToken();
       const response = await fetch(`${API_URL}/api/listings/${listingId}/reviews/${reviewId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }

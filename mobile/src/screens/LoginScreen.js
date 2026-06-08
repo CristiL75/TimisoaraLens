@@ -22,8 +22,8 @@ import {
 } from 'react-native-paper';
 import * as WebBrowser from 'expo-web-browser';
 import { useFonts, Montserrat_700Bold } from '@expo-google-fonts/montserrat';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
+import { setAuthTokens } from '../services/secureAuthStorage';
 
 export default function LoginScreen({ navigation }) {
   const [fontsLoaded] = useFonts({ Montserrat_700Bold });
@@ -116,8 +116,7 @@ export default function LoginScreen({ navigation }) {
           const data = await response.json();
           
           if (response.ok && data.access_token) {
-            // Save token
-            await AsyncStorage.setItem('userToken', data.access_token);
+            await setAuthTokens(data);
             
             // Update auth context - this will fetch user data and navigate to Home
             await checkAuth();

@@ -24,7 +24,7 @@ import {
   IconButton
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAccessToken } from '../services/secureAuthStorage';
 import * as Location from 'expo-location';
 import MapView, { Marker } from 'react-native-maps';
 import { API_URL } from '../services/api';
@@ -70,7 +70,7 @@ export default function ListingsScreen({ navigation }) {
   const loadListings = async () => {
     try {
       setLoading(true);
-      const token = await AsyncStorage.getItem('userToken');
+      const token = await getAccessToken();
       
       // Build query params from filters
       const params = new URLSearchParams({ status: 'active' });
