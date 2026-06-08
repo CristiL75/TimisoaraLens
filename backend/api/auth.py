@@ -2,17 +2,23 @@
 Authentication API endpoints
 Register, Login, User management, Google OAuth
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, validator
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from google.oauth2 import id_token
 from google.auth.transport import requests
+from jose import JWTError, jwt
+from bson import ObjectId
 import os
+import hashlib
+import secrets
 
 from database_mongo import (
     get_users_collection,
+    get_refresh_tokens_collection,
+    get_revoked_access_tokens_collection,
     UserModel
 )
 from auth_utils import (
@@ -20,7 +26,11 @@ from auth_utils import (
     get_password_hash, 
     create_access_token, 
     verify_token,
-    Token
+    Token,
+    SECRET_KEY,
+    ALGORITHM,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    REFRESH_TOKEN_EXPIRE_DAYS,
 )
 
 router = APIRouter()
@@ -67,6 +77,100 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
+class RefreshTokenRequest(BaseModel):
+    """Refresh token request model"""
+    refresh_token: str
+
+class LogoutRequest(BaseModel):
+    """Logout request model"""
+    refresh_token: Optional[str] = None
+
+
+def _hash_refresh_token(refresh_token: str) -> str:
+    return hashlib.sha256(refresh_token.encode("utf-8")).hexdigest()
+
+
+def _create_refresh_token_value() -> str:
+    return secrets.token_urlsafe(48)
+
+
+async def _store_refresh_token(user: dict) -> str:
+    refresh_token = _create_refresh_token_value()
+    refresh_tokens = get_refresh_tokens_collection()
+    now = datetime.utcnow()
+    await refresh_tokens.insert_one({
+        "token_hash": _hash_refresh_token(refresh_token),
+        "user_id": str(user["_id"]),
+        "username": user["username"],
+        "email": user["email"],
+        "created_at": now,
+        "expires_at": now + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+        "revoked_at": None,
+        "replaced_by": None,
+    })
+    return refresh_token
+
+
+async def _issue_token_pair(user: dict) -> Token:
+    access_token = create_access_token(
+        data={"sub": user["username"], "username": user["username"], "email": user["email"]}
+    )
+    refresh_token = await _store_refresh_token(user)
+    return Token(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+
+
+async def _revoke_access_token_from_header(request: Request) -> None:
+    auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return
+    token = auth_header.split(" ", 1)[1].strip()
+    try:
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+            options={"verify_exp": False},
+        )
+    except JWTError:
+        return
+
+    jti = payload.get("jti")
+    exp = payload.get("exp")
+    if not jti:
+        return
+
+    expires_at = datetime.utcfromtimestamp(exp) if exp else datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    revoked_tokens = get_revoked_access_tokens_collection()
+    await revoked_tokens.update_one(
+        {"jti": jti},
+        {
+            "$setOnInsert": {
+                "jti": jti,
+                "revoked_at": datetime.utcnow(),
+                "expires_at": expires_at,
+            }
+        },
+        upsert=True,
+    )
+
+
+async def _revoke_refresh_token(refresh_token: Optional[str]) -> None:
+    if not refresh_token:
+        return
+    refresh_tokens = get_refresh_tokens_collection()
+    await refresh_tokens.update_one(
+        {
+            "token_hash": _hash_refresh_token(refresh_token),
+            "revoked_at": None,
+        },
+        {"$set": {"revoked_at": datetime.utcnow()}},
+    )
+
 # Dependency to get current user
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     """
@@ -81,6 +185,12 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     token_data = verify_token(token)
     if token_data is None or token_data.username is None:
         raise credentials_exception
+
+    if token_data.jti:
+        revoked_tokens = get_revoked_access_tokens_collection()
+        revoked = await revoked_tokens.find_one({"jti": token_data.jti})
+        if revoked:
+            raise credentials_exception
     
     users_collection = get_users_collection()
     user = await users_collection.find_one({"username": token_data.username})
@@ -181,12 +291,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         {"$set": {"last_login": datetime.utcnow()}}
     )
     
-    # Create access token
-    access_token = create_access_token(
-        data={"sub": user["username"], "email": user["email"]}
-    )
-    
-    return {"access_token": access_token, "token_type": "bearer"}
+    return await _issue_token_pair(user)
 
 @router.post("/login-json", response_model=Token)
 async def login_json(user_data: UserLogin):
@@ -215,12 +320,59 @@ async def login_json(user_data: UserLogin):
         {"$set": {"last_login": datetime.utcnow()}}
     )
     
-    # Create access token
-    access_token = create_access_token(
-        data={"sub": user["username"], "email": user["email"]}
+    return await _issue_token_pair(user)
+
+@router.post("/refresh", response_model=Token)
+async def refresh_token(body: RefreshTokenRequest):
+    """
+    Rotate refresh token and return a fresh access token.
+    """
+    refresh_tokens = get_refresh_tokens_collection()
+    token_hash = _hash_refresh_token(body.refresh_token)
+    now = datetime.utcnow()
+
+    token_doc = await refresh_tokens.find_one({
+        "token_hash": token_hash,
+        "revoked_at": None,
+        "expires_at": {"$gt": now},
+    })
+    if not token_doc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+
+    users_collection = get_users_collection()
+    user = None
+    user_id = token_doc.get("user_id")
+    if user_id and ObjectId.is_valid(user_id):
+        user = await users_collection.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        user = await users_collection.find_one({"email": token_doc.get("email")})
+    if not user or not user.get("is_active", True):
+        await refresh_tokens.update_one(
+            {"_id": token_doc["_id"]},
+            {"$set": {"revoked_at": now}},
+        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+
+    new_token_pair = await _issue_token_pair(user)
+    await refresh_tokens.update_one(
+        {"_id": token_doc["_id"]},
+        {
+            "$set": {
+                "revoked_at": now,
+                "replaced_by": _hash_refresh_token(new_token_pair.refresh_token),
+            }
+        },
     )
-    
-    return {"access_token": access_token, "token_type": "bearer"}
+    return new_token_pair
+
+@router.post("/logout")
+async def logout(body: LogoutRequest, request: Request):
+    """
+    Revoke the current refresh token and access token.
+    """
+    await _revoke_refresh_token(body.refresh_token)
+    await _revoke_access_token_from_header(request)
+    return {"success": True}
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: dict = Depends(get_current_user)):
@@ -334,12 +486,7 @@ async def google_exchange_code(auth_data: GoogleAuthCode):
                 {"$set": {"last_login": datetime.utcnow()}}
             )
             
-            # Create JWT token
-            access_token = create_access_token(
-                data={"sub": existing_user["username"], "email": email}
-            )
-            
-            return Token(access_token=access_token, token_type="bearer")
+            return await _issue_token_pair(existing_user)
         
         else:
             # New user - create account
@@ -372,12 +519,8 @@ async def google_exchange_code(auth_data: GoogleAuthCode):
             # Insert into MongoDB
             result = await users_collection.insert_one(user_doc)
             
-            # Create JWT token
-            access_token = create_access_token(
-                data={"sub": username, "email": email}
-            )
-            
-            return Token(access_token=access_token, token_type="bearer")
+            created_user = await users_collection.find_one({"_id": result.inserted_id})
+            return await _issue_token_pair(created_user)
     
     except ValueError as e:
         # Invalid token
@@ -456,12 +599,7 @@ async def google_sign_in(google_data: GoogleSignIn):
                 {"$set": {"last_login": datetime.utcnow()}}
             )
             
-            # Create JWT token
-            access_token = create_access_token(
-                data={"sub": existing_user["username"], "email": email}
-            )
-            
-            return Token(access_token=access_token, token_type="bearer")
+            return await _issue_token_pair(existing_user)
         
         else:
             # New user - create account
@@ -494,12 +632,8 @@ async def google_sign_in(google_data: GoogleSignIn):
             # Insert into MongoDB
             result = await users_collection.insert_one(user_doc)
             
-            # Create JWT token
-            access_token = create_access_token(
-                data={"sub": username, "email": email}
-            )
-            
-            return Token(access_token=access_token, token_type="bearer")
+            created_user = await users_collection.find_one({"_id": result.inserted_id})
+            return await _issue_token_pair(created_user)
     
     except ValueError as e:
         # Invalid token

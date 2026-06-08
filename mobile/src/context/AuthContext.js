@@ -20,7 +20,12 @@ export const AuthProvider = ({ children }) => {
   const checkAuth = async () => {
     try {
       const token = await AsyncStorage.getItem('userToken');
-      if (token) {
+      const refreshToken = await AsyncStorage.getItem('refreshToken');
+      if (!token && refreshToken) {
+        await authAPI.refreshSession();
+      }
+
+      if (token || refreshToken) {
         const result = await authAPI.getCurrentUser();
         if (result.success) {
           setUser(result.data);

@@ -111,6 +111,11 @@ async def connect_to_mongo():
         # Create indexes for better performance
         await database.users.create_index("email", unique=True)
         await database.users.create_index("username", unique=True)
+        await database.refresh_tokens.create_index("token_hash", unique=True)
+        await database.refresh_tokens.create_index("user_id")
+        await database.refresh_tokens.create_index("expires_at", expireAfterSeconds=0)
+        await database.revoked_access_tokens.create_index("jti", unique=True)
+        await database.revoked_access_tokens.create_index("expires_at", expireAfterSeconds=0)
         await database.quiz_history.create_index("user_id")
         await database.landmark_visits.create_index("user_id")
         
@@ -170,6 +175,14 @@ def get_database():
 def get_users_collection():
     """Get users collection"""
     return database.users
+
+def get_refresh_tokens_collection():
+    """Get refresh tokens collection"""
+    return database.refresh_tokens
+
+def get_revoked_access_tokens_collection():
+    """Get revoked access tokens collection"""
+    return database.revoked_access_tokens
 
 def get_quiz_history_collection():
     """Get quiz history collection"""

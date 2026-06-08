@@ -39,6 +39,48 @@ const api = axios.create({
   },
 });
 
+let refreshPromise = null;
+
+const storeAuthTokens = async (data) => {
+  if (data?.access_token) {
+    await AsyncStorage.setItem('userToken', data.access_token);
+  }
+  if (data?.refresh_token) {
+    await AsyncStorage.setItem('refreshToken', data.refresh_token);
+  }
+};
+
+const clearAuthTokens = async () => {
+  await AsyncStorage.multiRemove(['userToken', 'refreshToken']);
+};
+
+const refreshAccessToken = async () => {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    const refreshToken = await AsyncStorage.getItem('refreshToken');
+    if (!refreshToken) {
+      throw new Error('No refresh token available');
+    }
+
+    const response = await api.post(
+      '/auth/refresh',
+      { refresh_token: refreshToken },
+      { _skipAuthRefresh: true }
+    );
+    await storeAuthTokens(response.data);
+    return response.data.access_token;
+  })();
+
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
+};
+
 // Development override support: allows setting a runtime API URL without
 // editing app.json. The override is persisted to AsyncStorage under
 // 'DEV_API_URL' so it survives reloads until cleared.
@@ -101,6 +143,35 @@ api.interceptors.request.use(
   }
 );
 
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config || {};
+    const status = error.response?.status;
+
+    if (
+      status !== 401 ||
+      originalRequest._retry ||
+      originalRequest._skipAuthRefresh ||
+      String(originalRequest.url || '').includes('/auth/login') ||
+      String(originalRequest.url || '').includes('/auth/refresh')
+    ) {
+      return Promise.reject(error);
+    }
+
+    try {
+      originalRequest._retry = true;
+      const newAccessToken = await refreshAccessToken();
+      originalRequest.headers = originalRequest.headers || {};
+      originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+      return api(originalRequest);
+    } catch (refreshError) {
+      await clearAuthTokens();
+      return Promise.reject(refreshError);
+    }
+  }
+);
+
 /**
  * Helper to format axios errors for logging
  */
@@ -157,7 +228,7 @@ export const authAPI = {
       });
       
       if (response.data.access_token) {
-        await AsyncStorage.setItem('userToken', response.data.access_token);
+        await storeAuthTokens(response.data);
         return { success: true, token: response.data.access_token };
       }
       
@@ -190,10 +261,35 @@ export const authAPI = {
   },
 
   /**
+   * Refresh current session using the stored refresh token
+   */
+  refreshSession: async () => {
+    try {
+      const accessToken = await refreshAccessToken();
+      return { success: true, token: accessToken };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message || 'Session refresh failed',
+      };
+    }
+  },
+
+  /**
    * Logout user
    */
   logout: async () => {
-    await AsyncStorage.removeItem('userToken');
+    const refreshToken = await AsyncStorage.getItem('refreshToken');
+    try {
+      await api.post(
+        '/auth/logout',
+        { refresh_token: refreshToken },
+        { _skipAuthRefresh: true }
+      );
+    } catch (error) {
+      // Local logout should still complete even if the server is unavailable.
+    }
+    await clearAuthTokens();
   },
 
   /**
@@ -206,7 +302,7 @@ export const authAPI = {
       });
       
       if (response.data.access_token) {
-        await AsyncStorage.setItem('userToken', response.data.access_token);
+        await storeAuthTokens(response.data);
         return { success: true, token: response.data.access_token };
       }
       
