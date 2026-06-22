@@ -182,7 +182,11 @@ export default function BookServiceScreen({ navigation, route }) {
   const [notes, setNotes] = useState('');
 
   const goToBookingsForum = () => {
-    navigation.navigate('Services', { refreshAt: Date.now() });
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Services', { refreshAt: Date.now() });
+    }
   };
 
   useEffect(() => {

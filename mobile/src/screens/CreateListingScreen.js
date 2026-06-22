@@ -395,7 +395,7 @@ export default function CreateListingScreen({ navigation, route }) {
               // Curăță starea formului din AsyncStorage
               await AsyncStorage.removeItem('createListingFormState');
               // Navighează direct la lista de anunțuri
-              navigation.navigate('Listings');
+              navigation.goBack();
             }
           }]
         );
@@ -513,7 +513,8 @@ export default function CreateListingScreen({ navigation, route }) {
                 mode="contained"
                 onPress={() => navigation.navigate('LocationPicker', {
                   initialLocation: latitude && longitude ? { latitude, longitude, address } : null,
-                  returnTo: 'CreateListing'
+                  returnTo: 'CreateListing',
+                  returnToKey: route.key,
                 })}
                 icon="map-search"
                 style={[styles.locationButton, { flex: 1 }]}

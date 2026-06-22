@@ -24,6 +24,7 @@ import {
   IconButton
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { getAccessToken } from '../services/secureAuthStorage';
 import * as Location from 'expo-location';
 import MapView, { Marker } from 'react-native-maps';
@@ -66,6 +67,12 @@ export default function ListingsScreen({ navigation }) {
     console.log('Filters changed, reloading listings:', filters);
     loadListings();
   }, [filters]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadListings();
+    }, [filters])
+  );
 
   const loadListings = async () => {
     try {

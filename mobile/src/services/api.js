@@ -47,6 +47,12 @@ const api = axios.create({
 
 let refreshPromise = null;
 
+const SESSION_EXPIRED_MESSAGE = 'Sesiunea a expirat. Te rugam sa te autentifici din nou.';
+
+const isMissingRefreshTokenError = (error) => {
+  return String(error?.message || '').includes('No refresh token available');
+};
+
 const refreshAccessToken = async () => {
   if (refreshPromise) {
     return refreshPromise;
@@ -227,8 +233,10 @@ export const authAPI = {
       
       return { success: false, error: 'No token received' };
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[api] login error:', formatAxiosError(error));
+      if (error.response?.status !== 401) {
+        // eslint-disable-next-line no-console
+        console.error('[api] login error:', formatAxiosError(error));
+      }
       return {
         success: false,
         error: error.response?.data?.detail || error.message || 'Login failed',
@@ -244,11 +252,17 @@ export const authAPI = {
       const response = await api.get('/auth/me');
       return { success: true, data: response.data };
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('[api] getCurrentUser error:', formatAxiosError(error));
+      const isSessionExpired =
+        error.response?.status === 401 || isMissingRefreshTokenError(error);
+      if (!isSessionExpired) {
+        // eslint-disable-next-line no-console
+        console.error('[api] getCurrentUser error:', formatAxiosError(error));
+      }
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Failed to get user info',
+        error: isSessionExpired
+          ? SESSION_EXPIRED_MESSAGE
+          : error.response?.data?.detail || error.message || 'Failed to get user info',
       };
     }
   },
@@ -263,7 +277,9 @@ export const authAPI = {
     } catch (error) {
       return {
         success: false,
-        error: error.message || 'Session refresh failed',
+        error: isMissingRefreshTokenError(error)
+          ? SESSION_EXPIRED_MESSAGE
+          : error.message || 'Session refresh failed',
       };
     }
   },

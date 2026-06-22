@@ -336,7 +336,13 @@ export default function ListingDetailScreen({ route, navigation }) {
           'Anunțul a fost șters',
           [{ 
             text: 'OK', 
-            onPress: () => navigation.navigate('Listings')
+            onPress: () => {
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              } else {
+                navigation.navigate('Listings');
+              }
+            }
           }]
         );
       } else {

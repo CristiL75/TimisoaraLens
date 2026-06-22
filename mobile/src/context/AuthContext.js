@@ -32,10 +32,14 @@ export const AuthProvider = ({ children }) => {
           setIsAuthenticated(true);
         } else {
           await authAPI.logout();
+          setUser(null);
+          setIsAuthenticated(false);
         }
       }
     } catch (error) {
-      console.log('Auth check error:', error);
+      await authAPI.logout();
+      setUser(null);
+      setIsAuthenticated(false);
     } finally {
       setLoading(false);
     }

@@ -221,13 +221,12 @@ const LocationPickerScreen = ({ navigation, route }) => {
     const previousRoute = routes.length > 1 ? routes[routes.length - 2] : null;
     if (returnToKey) {
       navigation.dispatch(
-        CommonActions.navigate({
-          key: returnToKey,
-          name: returnTo,
-          params,
-          merge: true,
-        })
+        {
+          ...CommonActions.setParams(params),
+          source: returnToKey,
+        }
       );
+      navigation.goBack();
       return;
     }
 
